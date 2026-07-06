@@ -1,0 +1,40 @@
+{
+  "name": "vibe",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "test": "node --test",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "bun:server": "bun run server/index.ts",
+    "dev:server": "bun --watch server/index.ts",
+    "prepare": "husky install"
+  },
+  "dependencies": {
+    "gray-matter": "^4.0.3",
+    "next": "^16.0.0",
+    "next-mdx-remote": "^5.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.0",
+    "@commitlint/config-conventional": "^21.2.0",
+    "@tailwindcss/postcss": "^4.x",
+    "@types/node": "^22.x",
+    "@types/react": "^19.x",
+    "@types/react-dom": "^19.x",
+    "eslint": "^9.x",
+    "eslint-config-next": "^16.x",
+    "husky": "^9.1.7",
+    "postcss": "^8.x",
+    "prettier": "^3.x",
+    "tailwindcss": "^4.x",
+    "typescript": "^5.x"
+  }
+}

@@ -1,0 +1,58 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.label {
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-foreground);
+  letter-spacing: -0.01em;
+}
+
+.input {
+  display: block;
+  width: 100%;
+  min-height: var(--touch-target);
+  padding: var(--space-12) var(--space-12);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-size: 16px;
+  transition: border-color var(--dur-150) var(--ease-smooth);
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.input::placeholder {
+  color: var(--color-foreground-muted);
+}
+
+.input:focus {
+  border-color: var(--color-accent);
+}
+
+.error {
+  border-color: #dc2626;
+}
+
+@media (prefers-color-scheme: dark) {
+  .error {
+    border-color: #f87171;
+  }
+}
+
+.errorText {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: #dc2626;
+}
+
+@media (prefers-color-scheme: dark) {
+  .errorText {
+    color: #f87171;
+  }
+}

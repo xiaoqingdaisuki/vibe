@@ -1,0 +1,39 @@
+.header {
+  margin-bottom: var(--space-16);
+}
+
+@media (min-width: 768px) {
+  .header {
+    margin-bottom: var(--space-20);
+  }
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--text-3xl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: var(--color-foreground);
+}
+
+@media (min-width: 768px) {
+  .title {
+    font-size: var(--text-4xl);
+  }
+}
+
+.description {
+  margin-top: var(--space-12);
+  font-size: var(--text-base);
+  line-height: 1.6;
+  color: var(--color-foreground-secondary);
+  max-width: 52ch;
+}
+
+@media (min-width: 768px) {
+  .description {
+    margin-top: var(--space-16);
+    font-size: var(--text-lg);
+  }
+}

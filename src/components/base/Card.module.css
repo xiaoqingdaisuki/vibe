@@ -1,0 +1,20 @@
+.card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-16);
+  background: var(--color-background);
+}
+
+@media (min-width: 768px) {
+  .card {
+    padding: var(--space-20);
+  }
+}
+
+.hoverable:hover {
+  border-color: var(--color-border-strong);
+}
+
+.hoverable:active {
+  border-color: var(--color-border-strong);
+}

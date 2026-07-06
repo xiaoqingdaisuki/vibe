@@ -1,0 +1,53 @@
+/* ============================================
+   Breadcrumb — minimal, muted
+   ============================================ */
+
+.wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  font-family: var(--font-display);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-foreground-muted);
+  margin-bottom: var(--space-16);
+}
+
+.list {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+}
+
+.link {
+  color: var(--color-foreground-muted);
+  text-decoration: none;
+  transition: color var(--dur-150) var(--ease-smooth);
+}
+
+.link:hover {
+  color: var(--color-accent);
+}
+
+.current {
+  color: var(--color-foreground-secondary);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+
+.separator {
+  display: flex;
+  color: var(--color-foreground-muted);
+  opacity: 0.4;
+  flex-shrink: 0;
+}

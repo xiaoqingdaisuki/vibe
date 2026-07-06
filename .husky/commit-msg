@@ -1,0 +1,17 @@
+#!/usr/bin/env sh
+
+MSG_FILE="$1"
+
+# Auto-format: if the message starts with a type without colon, add one
+# e.g. "feat add breadcrumb" -> "feat: add breadcrumb"
+# e.g. "fix: home padding" -> "fix: home padding" (unchanged)
+if [ -f "$MSG_FILE" ]; then
+  FIRST_LINE=$(head -n1 "$MSG_FILE")
+  if echo "$FIRST_LINE" | grep -qE '^[a-z]+ [a-zA-Z]' && ! echo "$FIRST_LINE" | grep -qE '^[a-z]+: '; then
+    NEW_LINE=$(echo "$FIRST_LINE" | sed -E 's/^([a-z]+) /\1: /')
+    # Write back with the formatted first line
+    { echo "$NEW_LINE"; tail -n +2 "$MSG_FILE"; } > "$MSG_FILE"
+  fi
+fi
+
+npx --no-install commitlint --edit "$MSG_FILE"
