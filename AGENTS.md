@@ -453,11 +453,20 @@ bun run typecheck
 bun run build
 ```
 
+Hard gate for any code modification:
+
+- Any change to application code, server code, configuration, build pipeline, or shared logic is not complete until local `bun run typecheck` passes with `0` errors.
+- Any change to application code, server code, configuration, build pipeline, or shared logic is not complete until local `bun run build` passes with `0` errors.
+- Treat Vercel build failures as local verification failures that must be reproduced and fixed before delivery whenever the environment can run Bun.
+- Do not hand off, summarize as done, or ask the user to verify later if local `bun run typecheck` or local `bun run build` still reports any error.
+- If Bun cannot run in the current environment, explicitly say that the hard gate could not be executed and report the closest substitute verification you performed.
+
 Minimum expectations:
 
 - Behavior changes need tests.
 - Shared helper changes need tests.
 - Route or build pipeline changes need `bun run build`.
+- Every code modification must include local `bun run typecheck` and local `bun run build`, and both must finish with `0` errors before the task is considered complete.
 - Responsive/style rule changes need mobile and desktop checks.
 - If Bun cannot run in the environment, explain why and report substitute verification.
 
@@ -493,6 +502,8 @@ When delivering:
 
 - Summarize what changed.
 - State which verification commands ran.
+- For any code modification, explicitly report the results of local `bun run typecheck` and local `bun run build`.
+- Do not describe a code change as complete unless both commands passed with `0` errors, unless Bun was unavailable and that limitation was stated clearly.
 - If a command was not run, explain why.
 - Do not leave cleanup work for the user when Codex can complete it.
 
