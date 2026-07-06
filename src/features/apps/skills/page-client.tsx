@@ -79,16 +79,6 @@ export function Skills() {
 
   return (
     <div>
-      <div className="mb-5 md:mb-6">
-        <span className="eyebrow">AI Agents</span>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight md:text-4xl font-display">
-          Skills
-        </h1>
-        <p className="mt-2 text-base text-muted">
-          AI agent skills and capabilities.
-        </p>
-      </div>
-
       {selectedSkill ? (
         <SkillDetail skill={selectedSkill} onBack={() => setSelectedId(null)} />
       ) : (
