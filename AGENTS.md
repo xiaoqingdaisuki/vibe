@@ -6,6 +6,21 @@
 
 If the current model does not support image input and the user provides or references an image file such as `image.png`, do not try to inspect that image through the filesystem as a workaround. State that this session cannot accept image input, ask the user to switch to a vision-capable model for image analysis, and continue with any text-only part of the request.
 
+## 0.1 Windows UTF-8 And Chinese Text Safety
+
+This project contains Chinese UI text. On Windows, PowerShell terminal output may display UTF-8 Chinese as mojibake. Do not judge file text correctness from PowerShell-rendered output alone.
+
+Hard rules:
+
+- Never use `Get-Content` output as the source of truth for Chinese text.
+- Never rewrite Chinese text based only on mojibake seen in terminal output.
+- When inspecting Chinese text, verify the actual file content with a UTF-8-aware tool, preferably Node reading with `fs.readFileSync(path, "utf8")`.
+- Do not use PowerShell `Set-Content` for source edits containing Chinese unless UTF-8 encoding is explicit and the file is verified afterward.
+- Prefer `apply_patch` for edits. For larger generated rewrites, write with a UTF-8-safe script and immediately verify afterward.
+- After touching files containing Chinese text, run a mojibake scan for common corrupted sequences such as `鎴`, `鐢`, `鑳`, `瑁`, `鈿`, `馃`, `锛`, `€`, and `�`.
+- If any scan matches user-facing text, stop and fix it before continuing.
+- Never translate Chinese UI into English as a workaround for encoding issues.
+
 ## 1. Project Mental Model
 
 Vibe is a personal Web Lab for small apps, experiments, tools, public API demos, and technical writing. It is not a heavy platform and not a playground for adding large abstractions. Keep the project light, explicit, and easy to extend.
@@ -475,6 +490,11 @@ Current test entrypoint:
 - `bun run test` calls the Node test runner.
 - Lightweight regression tests are colocated `*.test.ts` files.
 - Tests should focus on behavior, not implementation details.
+
+Test file lifecycle:
+
+- If Codex creates a task-specific test file during development, Codex must remove that test file before delivery after the corresponding feature or fix is complete, unless the user explicitly asks to keep it as permanent regression coverage.
+- Do not leave redundant test files in the project.
 
 Lint:
 

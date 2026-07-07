@@ -1,12 +1,12 @@
 "use client"
 
-import type { Character, LogEntry, ActiveTab } from "../types"
+import type { ActiveTab, Character, GameInteraction, LogEntry } from "../types"
 import { CharacterPanel } from "./CharacterPanel"
+import { EquipmentPanel } from "./EquipmentPanel"
 import { GameLog } from "./GameLog"
 import { InventoryPanel } from "./InventoryPanel"
-import { EquipmentPanel } from "./EquipmentPanel"
-import { SkillsPanel } from "./SkillsPanel"
 import { ShopPanel } from "./ShopPanel"
+import { SkillsPanel } from "./SkillsPanel"
 import styles from "./Game.module.css"
 
 interface GameLayoutProps {
@@ -15,7 +15,7 @@ interface GameLayoutProps {
   activeTab: ActiveTab
   nextCombatIn: number | null
   onTabChange: (tab: ActiveTab) => void
-  onCommand: (cmd: string, args?: string[]) => void
+  onAction: (action: GameInteraction | { type: "clearLogs" }) => void
   getRestCooldown?: () => number
 }
 
@@ -25,33 +25,26 @@ export function GameLayout({
   activeTab,
   nextCombatIn,
   onTabChange,
-  onCommand,
+  onAction,
   getRestCooldown,
 }: GameLayoutProps) {
   return (
     <div className={styles.gameContainer}>
       <div className={styles.gameLayout}>
-        {/* Left Panel - Character */}
         <div className={styles.leftPanel}>
           <CharacterPanel
             character={character}
             activeTab={activeTab}
             onTabChange={onTabChange}
-            onCommand={onCommand}
+            onAction={onAction}
             getRestCooldown={getRestCooldown}
           />
         </div>
 
-        {/* Center - Combat Log */}
         <div className={styles.centerPanel}>
-          <GameLog
-            logs={logs}
-            character={character}
-            nextCombatIn={nextCombatIn}
-          />
+          <GameLog logs={logs} character={character} nextCombatIn={nextCombatIn} />
         </div>
 
-        {/* Right Panel - Tabs */}
         <div className={styles.rightPanel}>
           <div className={styles.tabs}>
             <button
@@ -80,10 +73,10 @@ export function GameLayout({
             </button>
           </div>
           <div className={styles.tabContent}>
-            {activeTab === "inventory" && <InventoryPanel character={character} onCommand={onCommand} />}
-            {activeTab === "equipment" && <EquipmentPanel character={character} onCommand={onCommand} />}
-            {activeTab === "skills" && <SkillsPanel character={character} onCommand={onCommand} />}
-            {activeTab === "shop" && <ShopPanel character={character} onCommand={onCommand} />}
+            {activeTab === "inventory" && <InventoryPanel character={character} onAction={onAction} />}
+            {activeTab === "equipment" && <EquipmentPanel character={character} onAction={onAction} />}
+            {activeTab === "skills" && <SkillsPanel character={character} />}
+            {activeTab === "shop" && <ShopPanel character={character} onAction={onAction} />}
           </div>
         </div>
       </div>

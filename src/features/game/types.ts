@@ -23,15 +23,18 @@ export interface Stats {
   luk: number
 }
 
+export type ItemStats = Partial<Stats> | Record<ClassType, Partial<Stats>>
+
 export interface Item {
   id: string
   name: string
   type: ItemType
   slot?: EquipSlot
-  stats?: Partial<Stats>
+  stats?: ItemStats
   rarity: ItemRarity
   description: string
   scaleWithClass?: boolean
+  minLevel?: number
 }
 
 export interface Equipment {
@@ -113,6 +116,23 @@ export type GameAction =
   | { type: "SET_COMBAT_TIMER"; payload: number | null }
   | { type: "CLEAR_LOGS" }
 
+export type GameInteraction =
+  | { type: "equip"; slot: EquipSlot; itemName: string }
+  | { type: "unequip"; slot: EquipSlot }
+  | { type: "use"; itemName: string }
+  | { type: "open"; itemName: string }
+  | { type: "rest" }
+  | { type: "buy"; itemName: string; count?: number }
+  | { type: "sell"; itemName: string; count?: number }
+  | { type: "command"; value: string }
+
+export interface ShopItem {
+  itemId: string
+  price: number
+  currency: "gold"
+  minLevel?: number
+}
+
 export interface ClassDef {
   id: ClassType
   name: string
@@ -129,7 +149,7 @@ export interface ItemDef {
   name: string
   type: ItemType
   slot?: EquipSlot
-  stats?: Partial<Stats>
+  stats?: ItemStats
   rarity: ItemRarity
   description: string
   minLevel: number

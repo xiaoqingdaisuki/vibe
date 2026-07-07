@@ -4,7 +4,13 @@ import type { LogEntry } from "../types"
 import { RarityBadge } from "./RarityBadge"
 import styles from "./LogEntry.module.css"
 
-const DIFFICULTY_NAMES: Record<number, string> = { 1: "简单", 2: "中等", 3: "困难", 4: "极难", 5: "不可能" }
+const DIFFICULTY_NAMES: Record<number, string> = {
+  1: "简单",
+  2: "中等",
+  3: "困难",
+  4: "极难",
+  5: "不可能",
+}
 
 interface LogEntryComponentProps {
   entry: LogEntry
@@ -39,29 +45,29 @@ export function LogEntryComponent({ entry, expanded, onToggleExpand }: LogEntryC
         ))}
         {hasDetails && onToggleExpand && (
           <button onClick={onToggleExpand} className={styles.expandBtn}>
-            {expanded ? "▲ 收起详情" : "▼ 详细记录"}
+            {expanded ? "收起详情" : "查看详情"}
           </button>
         )}
         {expanded && hasDetails && (
           <div className={styles.details}>
             {entry.details!.map((detail) => (
-              <div key={`${entry.timestamp}-${entry.id ?? 'x'}-${detail.round}`} className={styles.detailRow}>
-                <span className={styles.detailRound}>回合{detail.round}</span>
+              <div key={`${entry.timestamp}-${entry.id ?? "x"}-${detail.round}`} className={styles.detailRow}>
+                <span className={styles.detailRound}>第 {detail.round} 回合</span>
                 <span>
                   你造成 <span className={styles.detailPlayerAtk}>{detail.playerDmg}</span>
-                  {detail.isCritical && <span className={styles.detailCrit}> [暴击!]</span>}
+                  {detail.isCritical && <span className={styles.detailCrit}> [暴击]</span>}
                   {detail.skillUsed && <span className={styles.detailSkill}> [{detail.skillUsed}]</span>}
                   {detail.isDodged ? (
                     <span className={styles.detailDodge}> | 闪避</span>
                   ) : (
                     <>
-                      {" | 怪造成 "}
+                      {" | 怪物造成 "}
                       <span className={styles.detailMonsterHp}>{detail.monsterDmg}</span>
                     </>
                   )}
-                  {" | 怪HP "}
+                  {" | 怪物HP "}
                   <span className={styles.detailMonsterHp}>{detail.monsterHpAfter}</span>
-                  {" 你HP "}
+                  {" | 你的HP "}
                   <span className={styles.detailPlayerHp}>{detail.playerHpAfter}</span>
                 </span>
               </div>

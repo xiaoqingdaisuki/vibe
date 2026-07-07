@@ -76,7 +76,11 @@
   font-weight: 600;
   color: var(--color-foreground-secondary);
   cursor: pointer;
-  transition: all var(--dur-150) var(--ease-smooth);
+  transition:
+    background var(--dur-150) var(--ease-smooth),
+    border-color var(--dur-150) var(--ease-smooth),
+    color var(--dur-150) var(--ease-smooth),
+    opacity var(--dur-150) var(--ease-smooth);
 }
 
 .unequipBtn:hover {

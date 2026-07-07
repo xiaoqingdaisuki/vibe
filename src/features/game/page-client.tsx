@@ -1,11 +1,18 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
-import type { Character, LogEntry, ClassType, ActiveTab } from "./types"
+import type { Character, LogEntry, ClassType, ActiveTab, GameInteraction } from "./types"
 import { GameLayout } from "./components/GameLayout"
 import { ClassSelect } from "./components/ClassSelect"
 import { GameEngine } from "./engine"
-import { CLASSES, ITEMS } from "./static-data"
+import { CLASSES } from "./static-data"
+import {
+  clearPersistedLogs,
+  loadCharacterSnapshot,
+  loadPersistedLogs,
+  saveCharacterSnapshot,
+  savePersistedLogs,
+} from "./persistence"
 
 type GamePhase = "login" | "class_select" | "playing"
 
@@ -19,59 +26,6 @@ function ensureLogId(id: number | undefined): number {
 
 function nextLogId(): number {
   return ++_logId
-}
-
-const STORAGE_KEY_PREFIX = "game_character_"
-const SESSION_KEY = "game_session"
-const LOGS_KEY_SUFFIX = "_logs"
-
-function getStorageKey(username: string) {
-  return `${STORAGE_KEY_PREFIX}${username}`
-}
-
-function getLogsKey(username: string) {
-  return `${STORAGE_KEY_PREFIX}${username}${LOGS_KEY_SUFFIX}`
-}
-
-function loadFromLocalStorage(username: string): Character | null {
-  try {
-    const data = localStorage.getItem(getStorageKey(username))
-    if (data) {
-      return JSON.parse(data) as Character
-    }
-  } catch {
-    // ignore
-  }
-  return null
-}
-
-function saveToLocalStorage(character: Character) {
-  try {
-    localStorage.setItem(getStorageKey(character.username), JSON.stringify(character))
-    localStorage.setItem(SESSION_KEY, JSON.stringify({ username: character.username, lastLogin: Date.now() }))
-  } catch {
-    // ignore
-  }
-}
-
-function loadLogsFromLocalStorage(username: string): LogEntry[] {
-  try {
-    const data = localStorage.getItem(getLogsKey(username))
-    if (data) {
-      return JSON.parse(data) as LogEntry[]
-    }
-  } catch {
-    // ignore
-  }
-  return []
-}
-
-function saveLogsToLocalStorage(username: string, logs: LogEntry[]) {
-  try {
-    localStorage.setItem(getLogsKey(username), JSON.stringify(logs.slice(-200)))
-  } catch {
-    // ignore
-  }
 }
 
 function createDefaultCharacter(username: string, classId: ClassType): Character {
@@ -112,12 +66,11 @@ export default function GamePageClient() {
   const engineRef = useRef<GameEngine | null>(null)
   const currentUsernameRef = useRef<string>("")
   const firstCombatDoneRef = useRef(false)
-  const logIdRef = useRef(0)
 
   // Persist logs to localStorage whenever they change
   useEffect(() => {
-    if (currentUsernameRef.current && logs.length > 0) {
-      saveLogsToLocalStorage(currentUsernameRef.current, logs)
+    if (currentUsernameRef.current) {
+      savePersistedLogs(currentUsernameRef.current, logs)
     }
   }, [logs])
 
@@ -143,9 +96,9 @@ export default function GamePageClient() {
 
     try {
       const result = engineRef.current.autoRetryCombat()
-      const updatedChar = { ...engineRef.current.character }
+      const updatedChar = saveCharacterSnapshot({ ...engineRef.current.character })
+      engineRef.current.character = updatedChar
       setCharacter(updatedChar)
-      saveToLocalStorage(updatedChar)
 
       const combatLog: LogEntry = {
         id: nextLogId(),
@@ -209,7 +162,7 @@ export default function GamePageClient() {
   }, [stopCombatLoop, triggerCombat])
 
   // Enter game - start combat loop
-  const enterGame = useCallback((user: string) => {
+  const enterGame = useCallback(() => {
     setPhase("playing")
     startCombatLoop()
     // triggerCombat is called after engine is initialized via useEffect
@@ -289,7 +242,7 @@ export default function GamePageClient() {
     setLoginError("")
 
     const trimmedUsername = username.trim()
-    const localData = loadFromLocalStorage(trimmedUsername)
+    const localData = loadCharacterSnapshot(trimmedUsername)
 
     if (localData) {
       // Migrate old character data (ensure new fields exist)
@@ -302,7 +255,7 @@ export default function GamePageClient() {
       }
 
       // Load persisted logs and sync the module-level ID counter
-      const savedLogs = loadLogsFromLocalStorage(trimmedUsername)
+      const savedLogs = loadPersistedLogs(trimmedUsername)
       for (const log of savedLogs) {
         ensureLogId(log.id)
       }
@@ -314,8 +267,8 @@ export default function GamePageClient() {
       const engine = new GameEngine(updatedChar)
       engine.refreshCombatStats()
       setCharacter(engine.character)
-      saveToLocalStorage(engine.character)
-      enterGame(updatedChar.username)
+      saveCharacterSnapshot(engine.character)
+      enterGame()
     } else {
       setPhase("class_select")
     }
@@ -331,26 +284,27 @@ export default function GamePageClient() {
     currentUsernameRef.current = trimmedUsername
     const engine = new GameEngine(newChar)
     engine.refreshCombatStats()
-    setCharacter(engine.character)
-    saveToLocalStorage(engine.character)
-    enterGame(newChar.username)
+    const savedCharacter = saveCharacterSnapshot(engine.character)
+    setCharacter(savedCharacter)
+    enterGame()
   }, [selectedClass, username, enterGame])
 
-  // Send command
-  const sendCommand = useCallback((cmd: string, args: string[] = []) => {
+  const handleAction = useCallback((action: GameInteraction | { type: "clearLogs" }) => {
     if (!engineRef.current || !character) return
 
-    // Handle clear command locally
-    if (cmd === "/clear") {
+    if (action.type === "clearLogs") {
       setLogs([])
+      if (currentUsernameRef.current) {
+        clearPersistedLogs(currentUsernameRef.current)
+      }
       return
     }
 
     try {
-      const result = engineRef.current.executeCommand(cmd, args)
-      const updatedChar = engineRef.current.character
+      const result = engineRef.current.performAction(action)
+      const updatedChar = saveCharacterSnapshot(engineRef.current.character)
+      engineRef.current.character = updatedChar
       setCharacter(updatedChar)
-      saveToLocalStorage(updatedChar)
 
       if (result.logs.length > 0) {
         const logsWithId = result.logs.map(log => ({ ...log, id: ensureLogId(log.id) }))
@@ -376,7 +330,7 @@ export default function GamePageClient() {
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (engineRef.current) {
-        saveToLocalStorage(engineRef.current.character)
+        saveCharacterSnapshot(engineRef.current.character)
       }
     }
     window.addEventListener("beforeunload", handleBeforeUnload)
@@ -452,7 +406,7 @@ export default function GamePageClient() {
         activeTab={activeTab}
         nextCombatIn={nextCombatIn}
         onTabChange={setActiveTab}
-        onCommand={sendCommand}
+        onAction={handleAction}
         getRestCooldown={getRestCooldown}
       />
     )

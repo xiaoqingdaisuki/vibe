@@ -53,6 +53,21 @@
   gap: var(--space-8);
 }
 
+.categoryGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.categoryHeader {
+  padding: var(--space-6) var(--space-12);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-wash);
+  color: var(--color-accent);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
 .tierHeader {
   display: flex;
   align-items: center;
@@ -121,7 +136,11 @@
   color: var(--color-foreground);
   font-size: var(--text-xs);
   cursor: pointer;
-  transition: all 0.15s;
+  transition:
+    background var(--dur-150) var(--ease-smooth),
+    border-color var(--dur-150) var(--ease-smooth),
+    color var(--dur-150) var(--ease-smooth),
+    opacity var(--dur-150) var(--ease-smooth);
 }
 
 .buyBtn:hover:not(:disabled) {
@@ -140,4 +159,12 @@
   text-align: center;
   color: var(--color-foreground-muted);
   font-size: var(--text-sm);
+}
+
+.priceTagExpensive,
+.levelReq {
+  display: block;
+  font-size: var(--text-xs);
+  color: #ef4444;
+  font-weight: 600;
 }

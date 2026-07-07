@@ -1,4 +1,4 @@
-import type { ClassDef, SkillDef, MonsterDef, ItemDef, LootEntry, ItemRarity, Stats } from "./types"
+import type { ClassDef, ClassType, SkillDef, MonsterDef, ItemDef, LootEntry, ItemRarity, Stats, ItemStats, ShopItem } from "./types.ts"
 
 export const CLASSES: ClassDef[] = [
   {
@@ -268,7 +268,7 @@ function rarityBonus(rarity: ItemRarity): number {
 }
 
 // Recalculate equipment stats for a new rarity (used when chest rolls a higher rarity than the item's base)
-export function recalcItemStats(baseItem: ItemDef, newRarity: ItemRarity): { stats: Record<string, any>; scaleWithClass: boolean } {
+export function recalcItemStats(baseItem: ItemDef, newRarity: ItemRarity): { stats: ItemStats; scaleWithClass: boolean } {
   const slot = baseItem.slot || "weapon"
   return buildItemStats(baseItem.minLevel, newRarity, slot)
 }
@@ -336,10 +336,10 @@ export function tryLevelUpSkill(
 
 function buildItemStats(
   level: number, rarity: ItemRarity, slot: string
-): { stats: Record<string, any>; scaleWithClass: boolean; mainStatValue: number } {
+): { stats: Record<ClassType, Partial<Stats>>; scaleWithClass: boolean; mainStatValue: number } {
   const bonus = rarityBonus(rarity)
   const idx = Math.max(0, level - 1)
-  let stats: any = {}
+  let stats: Record<ClassType, Partial<Stats>>
 
   if (slot === "weapon") {
     stats = {
@@ -365,17 +365,17 @@ function buildItemStats(
 }
 
 // Resolve per-class stats dict to the actual class's stats
+function isFlatStats(stats: ItemStats): stats is Partial<Stats> {
+  const flatStats = stats as Partial<Stats>
+  return ["str", "dex", "int", "vit", "luk"].some((key) => flatStats[key as keyof Stats] !== undefined)
+}
+
 export function resolveStatsForClass(
-  stats: Record<string, number> | undefined,
-  classId: string
+  stats: ItemStats | undefined,
+  classId: ClassType,
 ): Partial<Stats> | undefined {
   if (!stats) return undefined
-  const statKeys = ["str", "dex", "int", "vit", "luk"]
-  if (statKeys.some(k => (stats as any)[k] !== undefined)) {
-    return stats as Partial<Stats>
-  }
-  const classStats = (stats as any)[classId]
-  return classStats as Partial<Stats> | undefined
+  return isFlatStats(stats) ? stats : stats[classId]
 }
 
 /**
@@ -384,21 +384,21 @@ export function resolveStatsForClass(
  *   - Pre-equip:  { mage: { int: 10 } } (per-class dict, scaleWithClass=true)
  *   - Post-equip: { int: 10 } (resolved flat stats, scaleWithClass cleared)
  */
-export function resolveMainStatValue(stats: Record<string, number> | undefined, classId: string): number {
+export function resolveMainStatValue(stats: ItemStats | undefined, classId: ClassType): number {
   if (!stats) return 0
 
   // Pre-equip: nested class dict { classId: { mainStat: value } }
-  const classStats = (stats as any)[classId]
-  if (classStats && typeof classStats === "object") {
+  if (!isFlatStats(stats)) {
+    const classStats = stats[classId]
     if (classId === "warrior") return classStats.str || 0
     if (classId === "mage") return classStats.int || 0
     if (classId === "rogue") return classStats.dex || 0
-    return 0
   }
 
   // Post-equip: flat resolved stats { str: 10 } or { int: 10 }
+  const flatStats = stats as Partial<Stats>
   const statKey = classId === "warrior" ? "str" : classId === "mage" ? "int" : "dex"
-  return (stats as any)[statKey] || 0
+  return flatStats[statKey] || 0
 }
 
 // ── Equipment Name Tables ───────────────────────────────────────────────────
@@ -426,15 +426,6 @@ function randomItemLevel(charLevel: number, _type: string): number {
   const lo = Math.max(1, charLevel - 10)
   const hi = Math.min(25, charLevel + 5)
   return Math.floor(Math.random() * (hi - lo + 1)) + lo
-}
-
-function baseItemName(level: number, slot: string, _classId: string): string {
-  const names = slot === "weapon" ? WEAPON_NAMES : ARMOR_NAMES
-  const label = slot === "weapon"
-    ? (WEAPON_LABEL[_classId] || "武器")
-    : (ARMOR_LABEL[_classId] || "护甲")
-  const mat = names[Math.min(level - 1, names.length - 1)]
-  return mat + label
 }
 
 /**
@@ -500,7 +491,7 @@ function generateEquipment(): ItemDef[] {
  * Get a random equipment ItemDef from the pool, with rarity re-rolled
  * according to the opening chest's tier.
  */
-function randomEquipItem(chestRarity: ItemRarity, charLevel: number): ItemDef | undefined {
+export function randomEquipItem(chestRarity: ItemRarity, charLevel: number): ItemDef | undefined {
   const allEquip = ITEMS.filter(it => it.type === "equipment")
   if (allEquip.length === 0) return undefined
 
@@ -662,7 +653,7 @@ export const MONSTERS: MonsterDef[] = [
   }),
 ]
 
-export const SHOP_ITEMS = [
+export const SHOP_ITEMS: ShopItem[] = [
   // Green (uncommon) equipment — weapon and armor only, per class/level
   ...ITEMS.filter(item => item.type === "equipment" && item.rarity === "uncommon" && (item.slot === "weapon" || item.slot === "armor")).map(item => ({
     itemId: item.id,

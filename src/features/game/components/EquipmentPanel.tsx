@@ -1,28 +1,38 @@
 "use client"
 
-import type { Character } from "../types"
-import { RARITY_COLORS } from "../static-data"
+import type { Character, EquipSlot, GameInteraction, Stats } from "../types"
+import { resolveStatsForClass } from "../static-data"
 import { RarityBadge } from "./RarityBadge"
 import styles from "./EquipmentPanel.module.css"
 
 interface EquipmentPanelProps {
   character: Character
-  onCommand: (cmd: string, args?: string[]) => void
+  onAction: (action: GameInteraction | { type: "clearLogs" }) => void
 }
 
-export function EquipmentPanel({ character, onCommand }: EquipmentPanelProps) {
-  const slots = [
-    { key: "weapon", label: "武器" },
-    { key: "armor", label: "护甲" },
-    { key: "accessory", label: "饰品" },
-  ]
+const SLOTS: Array<{ key: EquipSlot; label: string }> = [
+  { key: "weapon", label: "武器" },
+  { key: "armor", label: "护甲" },
+  { key: "accessory", label: "饰品" },
+]
 
+const STAT_LABELS: Record<keyof Stats, string> = {
+  str: "STR",
+  dex: "DEX",
+  int: "INT",
+  vit: "VIT",
+  luk: "LUK",
+}
+
+export function EquipmentPanel({ character, onAction }: EquipmentPanelProps) {
   return (
     <div className={styles.container}>
       <h3 className={styles.title}>装备</h3>
       <div className={styles.list}>
-        {slots.map(({ key, label }) => {
-          const item = character.equipment[key as keyof typeof character.equipment]
+        {SLOTS.map(({ key, label }) => {
+          const item = character.equipment[key]
+          const stats = item?.stats ? resolveStatsForClass(item.stats, character.class) : undefined
+
           return (
             <div key={key} className={styles.slot}>
               <div className={styles.slotHeader}>
@@ -31,30 +41,19 @@ export function EquipmentPanel({ character, onCommand }: EquipmentPanelProps) {
               </div>
               {item ? (
                 <div className={styles.equippedItem}>
-                  <div
-                    className={styles.itemName}
-                    style={{ color: RARITY_COLORS[item.rarity] || RARITY_COLORS.common }}
-                  >
-                    {item.name}
-                  </div>
-                  {item.stats && (
+                  <div className={styles.itemName}>{item.name}</div>
+                  {stats && (
                     <div className={styles.itemStats}>
-                      {Object.entries(item.stats).map(([stat, value]) => (
+                      {Object.entries(stats).map(([stat, value]) => (
                         <span key={stat}>
-                          {stat === "str" && `力+${value}`}
-                          {stat === "dex" && `敏+${value}`}
-                          {stat === "int" && `智+${value}`}
-                          {stat === "vit" && `体+${value}`}
-                          {stat === "luk" && `运+${value}`}
+                          {STAT_LABELS[stat as keyof Stats]} +{value}
                         </span>
                       ))}
                     </div>
                   )}
-                  {(item as any).minLevel && (
-                    <div className={styles.itemLevel}>需求等级: Lv.{(item as any).minLevel}</div>
-                  )}
+                  {item.minLevel && <div className={styles.itemLevel}>需要 Lv.{item.minLevel}</div>}
                   <button
-                    onClick={() => onCommand("/unequip", [key])}
+                    onClick={() => onAction({ type: "unequip", slot: key })}
                     className={styles.unequipBtn}
                   >
                     卸下

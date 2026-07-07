@@ -1,71 +1,51 @@
 "use client"
 
-import type { Character, ActiveTab } from "../types"
+import type { ActiveTab, Character, GameInteraction } from "../types"
 import { DIFFICULTY_TIERS } from "../static-data"
 import { RarityBadge } from "./RarityBadge"
-import { RARITY_COLORS } from "../static-data"
 import styles from "./CharacterPanel.module.css"
-
-const STAT_KEYS = ["str", "dex", "int", "vit", "luk"] as const
-
-function getEquipBonus(character: Character, stat: string): number {
-  let bonus = 0
-  for (const slot of ["weapon", "armor", "accessory"] as const) {
-    const item = character.equipment[slot]
-    if (item?.stats) {
-      const val = (item.stats as Record<string, number>)[stat]
-      if (typeof val === "number") bonus += val
-    }
-  }
-  return bonus
-}
-
-function StatRow({ label, base, bonus }: { label: string; base: number; bonus: number }) {
-  const total = base + bonus
-  return (
-    <div className={styles.stat}>
-      <span className={styles.statLabel}>{label}</span>
-      <span className={styles.statValue}>
-        {total}
-        {bonus > 0 && <span className={styles.statBonus}>+{bonus}</span>}
-      </span>
-    </div>
-  )
-}
-
-const DIFFICULTY_COLORS: Record<number, string> = {
-  1: "#22c55e",
-  2: "#eab308",
-  3: "#f97316",
-  4: "#ef4444",
-  5: "#7c3aed",
-}
-
-function getDifficultyInfo(level: number): { name: string; color: string; tier: number } {
-  const tier = DIFFICULTY_TIERS.find(t => level >= t.minLevel && level <= t.maxLevel)
-  if (!tier) return { name: "?", color: "#888", tier: 1 }
-  return { name: tier.name, color: DIFFICULTY_COLORS[tier.tier] || "#888", tier: tier.tier }
-}
 
 interface CharacterPanelProps {
   character: Character
   activeTab: ActiveTab
   onTabChange: (tab: ActiveTab) => void
-  onCommand: (cmd: string, args?: string[]) => void
+  onAction: (action: GameInteraction | { type: "clearLogs" }) => void
   getRestCooldown?: () => number
 }
 
-export function CharacterPanel({ character, activeTab, onTabChange, onCommand, getRestCooldown }: CharacterPanelProps) {
-  const classNames: Record<string, string> = {
-    warrior: "战士",
-    mage: "法师",
-    rogue: "盗贼",
-  }
+const CLASS_NAMES: Record<Character["class"], string> = {
+  warrior: "战士",
+  mage: "法师",
+  rogue: "盗贼",
+}
 
+const SLOT_NAMES = {
+  weapon: "武器",
+  armor: "护甲",
+  accessory: "饰品",
+} as const
+
+function getDifficultyInfo(level: number): { name: string; tier: number } {
+  const tier = DIFFICULTY_TIERS.find((entry) => level >= entry.minLevel && level <= entry.maxLevel)
+  return tier ? { name: tier.name, tier: tier.tier } : { name: "未知", tier: 1 }
+}
+
+function formatCooldown(seconds: number): string {
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
+}
+
+export function CharacterPanel({
+  character,
+  activeTab,
+  onTabChange,
+  onAction,
+  getRestCooldown,
+}: CharacterPanelProps) {
   const diff = getDifficultyInfo(character.level)
   const restCooldown = getRestCooldown?.() ?? 0
   const restDisabled = restCooldown > 0
-  const restLabel = restDisabled ? `休息(${Math.floor(restCooldown / 60)}:${String(restCooldown % 60).padStart(2, "0")})` : "休息"
+  const hpValue = Math.max(0, Math.min(character.hp, character.maxHp))
+  const expValue = Math.max(0, Math.min(character.exp, character.expToNext))
 
   return (
     <div className={styles.panel}>
@@ -76,40 +56,22 @@ export function CharacterPanel({ character, activeTab, onTabChange, onCommand, g
 
       <div className={styles.section}>
         <div className={styles.sectionHeader}>
-          <div className={styles.classTag}>{classNames[character.class]}</div>
-          <div className={styles.diffTag} style={{ backgroundColor: diff.color + "20", color: diff.color, borderColor: diff.color }}>
-            {diff.name}
-          </div>
+          <div className={styles.classTag}>{CLASS_NAMES[character.class]}</div>
+          <div className={`${styles.diffTag} ${styles[`diff${diff.tier}`]}`}>{diff.name}</div>
         </div>
       </div>
 
       <div className={styles.section}>
         <div className={styles.bar}>
           <span className={styles.barLabel}>HP</span>
-          <div className={styles.barBg}>
-            <div
-              className={styles.barFill}
-              style={{
-                width: `${(character.hp / character.maxHp) * 100}%`,
-                backgroundColor: character.hp < character.maxHp * 0.3 ? "#ef4444" : "#22c55e",
-              }}
-            />
-          </div>
+          <progress className={styles.hpProgress} value={hpValue} max={character.maxHp} />
           <span className={styles.barText}>
             {character.hp}/{character.maxHp}
           </span>
         </div>
         <div className={styles.bar}>
           <span className={styles.barLabel}>EXP</span>
-          <div className={styles.barBg}>
-            <div
-              className={styles.barFill}
-              style={{
-                width: `${(character.exp / character.expToNext) * 100}%`,
-                backgroundColor: "#a855f7",
-              }}
-            />
-          </div>
+          <progress className={styles.expProgress} value={expValue} max={character.expToNext} />
           <span className={styles.barText}>
             {character.exp}/{character.expToNext}
           </span>
@@ -117,13 +79,28 @@ export function CharacterPanel({ character, activeTab, onTabChange, onCommand, g
       </div>
 
       <div className={styles.section}>
-        <h3 className={styles.sectionTitle}>属性</h3>
+        <h3 className={styles.sectionTitle}>基础属性</h3>
         <div className={styles.stats}>
-          <StatRow label="力" base={character.stats.str} bonus={getEquipBonus(character, "str")} />
-          <StatRow label="敏" base={character.stats.dex} bonus={getEquipBonus(character, "dex")} />
-          <StatRow label="智" base={character.stats.int} bonus={getEquipBonus(character, "int")} />
-          <StatRow label="体" base={character.stats.vit} bonus={getEquipBonus(character, "vit")} />
-          <StatRow label="运" base={character.stats.luk} bonus={getEquipBonus(character, "luk")} />
+          <div className={styles.stat}>
+            <span className={styles.statLabel}>STR</span>
+            <span className={styles.statValue}>{character.stats.str}</span>
+          </div>
+          <div className={styles.stat}>
+            <span className={styles.statLabel}>DEX</span>
+            <span className={styles.statValue}>{character.stats.dex}</span>
+          </div>
+          <div className={styles.stat}>
+            <span className={styles.statLabel}>INT</span>
+            <span className={styles.statValue}>{character.stats.int}</span>
+          </div>
+          <div className={styles.stat}>
+            <span className={styles.statLabel}>VIT</span>
+            <span className={styles.statValue}>{character.stats.vit}</span>
+          </div>
+          <div className={styles.stat}>
+            <span className={styles.statLabel}>LUK</span>
+            <span className={styles.statValue}>{character.stats.luk}</span>
+          </div>
         </div>
       </div>
 
@@ -131,15 +108,15 @@ export function CharacterPanel({ character, activeTab, onTabChange, onCommand, g
         <h3 className={styles.sectionTitle}>战斗属性</h3>
         <div className={styles.stats}>
           <div className={styles.stat}>
-            <span className={styles.statLabel}>⚔️ 攻击</span>
+            <span className={styles.statLabel}>ATK</span>
             <span className={styles.statValue}>{character._combatAtk ?? "?"}</span>
           </div>
           <div className={styles.stat}>
-            <span className={styles.statLabel}>🛡️ 防御</span>
+            <span className={styles.statLabel}>DEF</span>
             <span className={styles.statValue}>{character._combatDef ?? "?"}</span>
           </div>
           <div className={styles.stat}>
-            <span className={styles.statLabel}>✨ 法术</span>
+            <span className={styles.statLabel}>SPELL</span>
             <span className={styles.statValue}>{character._combatSpell ?? "?"}</span>
           </div>
         </div>
@@ -148,24 +125,14 @@ export function CharacterPanel({ character, activeTab, onTabChange, onCommand, g
       <div className={styles.section}>
         <h3 className={styles.sectionTitle}>装备</h3>
         <div className={styles.equipment}>
-          {["weapon", "armor", "accessory"].map((slot) => {
-            const item = character.equipment[slot as keyof typeof character.equipment]
-            const slotNames: Record<string, string> = {
-              weapon: "武器",
-              armor: "护甲",
-              accessory: "饰品",
-            }
+          {Object.entries(SLOT_NAMES).map(([slot, label]) => {
+            const item = character.equipment[slot]
             return (
               <div key={slot} className={styles.equipSlot}>
-                <span className={styles.equipSlotLabel}>{slotNames[slot]}</span>
+                <span className={styles.equipSlotLabel}>{label}</span>
                 {item ? (
                   <div className={styles.equipItem}>
-                    <span
-                      className={styles.equipItemName}
-                      style={{ color: RARITY_COLORS[item.rarity] || RARITY_COLORS.common }}
-                    >
-                      {item.name}
-                    </span>
+                    <span className={styles.equipItemName}>{item.name}</span>
                     <RarityBadge rarity={item.rarity} />
                   </div>
                 ) : (
@@ -179,21 +146,42 @@ export function CharacterPanel({ character, activeTab, onTabChange, onCommand, g
 
       <div className={styles.section}>
         <div className={styles.gold}>
-          <span>💰</span>
-          <span>{character.gold}</span>
+          <span>金币</span>
+          <span>{character.gold.toLocaleString()}</span>
         </div>
       </div>
 
-      <div className={styles.commands}>
-        <button onClick={() => onCommand("/status")} className={styles.cmdBtn}>状态</button>
-        <button onClick={() => onCommand("/bag")} className={styles.cmdBtn}>背包</button>
-        <button onClick={() => onCommand("/skills")} className={styles.cmdBtn}>技能</button>
-        <button onClick={() => onCommand("/shop")} className={styles.cmdBtn}>商店</button>
-        <button onClick={() => !restDisabled && onCommand("/rest")} className={styles.cmdBtn} disabled={restDisabled}>
-          {restLabel}
+      <div className={styles.actions}>
+        <button
+          onClick={() => onTabChange("inventory")}
+          className={`${styles.actionBtn} ${activeTab === "inventory" ? styles.actionActive : ""}`}
+        >
+          背包
         </button>
-        <button onClick={() => onCommand("/help")} className={styles.cmdBtn}>帮助</button>
-        <button onClick={() => onCommand("/clear")} className={`${styles.cmdBtn} ${styles.clearCmd}`}>清屏</button>
+        <button
+          onClick={() => onTabChange("equipment")}
+          className={`${styles.actionBtn} ${activeTab === "equipment" ? styles.actionActive : ""}`}
+        >
+          装备
+        </button>
+        <button
+          onClick={() => onTabChange("skills")}
+          className={`${styles.actionBtn} ${activeTab === "skills" ? styles.actionActive : ""}`}
+        >
+          技能
+        </button>
+        <button
+          onClick={() => onTabChange("shop")}
+          className={`${styles.actionBtn} ${activeTab === "shop" ? styles.actionActive : ""}`}
+        >
+          商店
+        </button>
+        <button onClick={() => onAction({ type: "rest" })} className={styles.actionBtn} disabled={restDisabled}>
+          {restDisabled ? `休息 ${formatCooldown(restCooldown)}` : "休息"}
+        </button>
+        <button onClick={() => onAction({ type: "clearLogs" })} className={`${styles.actionBtn} ${styles.clearAction}`}>
+          清屏
+        </button>
       </div>
     </div>
   )

@@ -1,19 +1,18 @@
 import type {
   Character,
-  ClassType,
   Item,
-  SkillInstance,
   CombatResult,
   OfflineResult,
   LogEntry,
-  ClassDef,
   ItemDef,
   SkillDef,
   MonsterDef,
   CombatRoundDetail,
   ItemRarity,
-} from "./types"
-import { CLASSES, SKILLS, MONSTERS, SHOP_ITEMS, ITEMS, DIFFICULTY_TIERS, RARITY_LABELS, resolveStatsForClass, resolveMainStatValue, rollRarity, getSkillEffectValue, tryLevelUpSkill, SKILL_USES_PER_LEVEL, SKILL_CATEGORY, recalcItemStats } from "./static-data"
+  GameInteraction,
+  EquipSlot,
+} from "./types.ts"
+import { CLASSES, SKILLS, MONSTERS, SHOP_ITEMS, ITEMS, DIFFICULTY_TIERS, RARITY_LABELS, resolveStatsForClass, resolveMainStatValue, rollRarity, getSkillEffectValue, tryLevelUpSkill, SKILL_USES_PER_LEVEL, SKILL_CATEGORY, recalcItemStats } from "./static-data.ts"
 
 export class GameEngine {
   public character: Character
@@ -43,7 +42,7 @@ export class GameEngine {
       if (result.victory) break
 
       const monster = this.getMonster(monsterLevel)
-      this.defeatLogs.push(`💀 被 Lv.${monsterLevel} ${monster.name} 击败，寻找更弱的对手...`)
+      this.defeatLogs.push(`被 Lv.${monsterLevel} ${monster.name} 击败，正在寻找更弱的对手...`)
       // Full restore after death before retrying lower-level monster
       this.character.hp = this.character.maxHp
 
@@ -225,148 +224,38 @@ export class GameEngine {
     return result
   }
 
-  executeCommand(cmd: string, args: string[]): { logs: LogEntry[]; character: Character } {
+  performAction(action: GameInteraction): { logs: LogEntry[]; character: Character } {
     const logs: LogEntry[] = []
 
-    switch (cmd.toLowerCase()) {
-      case "/bag":
-      case "/inventory":
-        logs.push(...this.showInventory())
+    switch (action.type) {
+      case "equip":
+        logs.push(...this.equipItem(action.slot, action.itemName))
         break
-
-      case "/equip": {
-        if (args.length < 2) {
-          logs.push({
-            timestamp: Date.now(),
-            text: "用法: /equip <部位> <物品名>",
-            type: "info",
-          })
-        } else {
-          logs.push(...this.equipItem(args[0]!, args[1]))
-        }
+      case "unequip":
+        logs.push(...this.unequipItem(action.slot))
         break
-      }
-
-      case "/unequip": {
-        if (args.length < 1) {
-          logs.push({
-            timestamp: Date.now(),
-            text: "用法: /unequip <部位>",
-            type: "info",
-          })
-        } else {
-          logs.push(...this.unequipItem(args[0]!))
-        }
+      case "use":
+        logs.push(...this.useItem(action.itemName))
         break
-      }
-
-      case "/use": {
-        if (args.length < 1) {
-          logs.push({
-            timestamp: Date.now(),
-            text: "用法: /use <物品名>",
-            type: "info",
-          })
-        } else {
-          logs.push(...this.useItem(args[0]))
-        }
+      case "open":
+        logs.push(...this.openChest(action.itemName))
         break
-      }
-
-      case "/learn": {
-        if (args.length < 1) {
-          logs.push({
-            timestamp: Date.now(),
-            text: "用法: /learn <技能名>",
-            type: "info",
-          })
-        } else {
-          logs.push(...this.learnSkill(args[0]))
-        }
-        break
-      }
-
-      case "/open": {
-        if (args.length < 1) {
-          logs.push({
-            timestamp: Date.now(),
-            text: "用法: /open <宝箱名>",
-            type: "info",
-          })
-        } else {
-          logs.push(...this.openChest(args[0]))
-        }
-        break
-      }
-
-      case "/skills": {
-        logs.push(...this.showSkills())
-        break
-      }
-
-      case "/rest": {
+      case "rest":
         logs.push(...this.rest())
         break
-      }
-
-      case "/shop": {
-        logs.push(...this.showShop())
+      case "buy":
+        logs.push(...this.buyItem(action.itemName, action.count ?? 1))
         break
-      }
-
-      case "/buy": {
-        if (args.length < 1) {
-          logs.push({
-            timestamp: Date.now(),
-            text: "用法: /buy <物品名> [数量]",
-            type: "info",
-          })
-        } else {
-          const count = args[1] ? parseInt(args[1]) : 1
-          logs.push(...this.buyItem(args[0], count))
-        }
+      case "sell":
+        logs.push(...this.sellItem(action.itemName, action.count ?? 1))
         break
-      }
-
-      case "/sell": {
-        if (args.length < 1) {
-          logs.push({
-            timestamp: Date.now(),
-            text: "用法: /sell <物品名> [数量]",
-            type: "info",
-          })
-        } else {
-          const count = args[1] ? parseInt(args[1]) : 1
-          logs.push(...this.sellItem(args[0], count))
-        }
-        break
-      }
-
-      case "/status": {
-        logs.push(...this.showStatus())
-        break
-      }
-
-      case "/help": {
-        logs.push(...this.showHelp())
-        break
-      }
-
-      case "/logout": {
+      case "command":
         logs.push({
           timestamp: Date.now(),
-          text: "已退出登录",
-          type: "system",
-        })
-        break
-      }
-
-      default:
-        logs.push({
-          timestamp: Date.now(),
-          text: `未知命令: ${cmd}，输入 /help 查看可用命令`,
+          text: "不再支持斜杠指令，请使用界面按钮操作。",
           type: "info",
         })
+        break
     }
 
     this.refreshCombatStats()
@@ -375,7 +264,6 @@ export class GameEngine {
       character: this.character,
     }
   }
-
   /** Recalculate and attach combat stats to the character for UI display */
   refreshCombatStats(): void {
     this.character._combatAtk = this.getCombatAtk()
@@ -455,26 +343,23 @@ export class GameEngine {
     const diffNames: Record<number, string> = { 1: "简单", 2: "中等", 3: "困难", 4: "极难", 5: "不可能" }
 
     if (result.victory) {
-      lines.push(`⚔️ 战斗胜利！`)
-      lines.push(`⚔️ VS ${result.monsterName} Lv.${result.monsterLevel} [${diffNames[result.difficulty] || "?"}难度]`)
-      lines.push(`📊 回合: ${result.rounds} | 伤害: ${result.playerDmgDealt} | 受伤: ${result.playerDmgTaken}`)
-      lines.push(`💰 经验: +${result.expGained} | 金币: +${result.goldGained}`)
-      if (result.itemsGained.length > 0) {
-        for (const item of result.itemsGained) {
-          const rarityLabel = RARITY_LABELS[item.rarity] || "普通"
-          lines.push(`📦 掉落：[${rarityLabel}] ${item.name}`)
-        }
+      lines.push("战斗胜利！")
+      lines.push(`对手：${result.monsterName} Lv.${result.monsterLevel} [${diffNames[result.difficulty] || "?"}难度]`)
+      lines.push(`回合：${result.rounds} | 造成伤害：${result.playerDmgDealt} | 承受伤害：${result.playerDmgTaken}`)
+      lines.push(`经验：+${result.expGained} | 金币：+${result.goldGained}`)
+      for (const item of result.itemsGained) {
+        const rarityLabel = RARITY_LABELS[item.rarity] || "普通"
+        lines.push(`掉落：[${rarityLabel}] ${item.name}`)
       }
       if (result.levelUp) {
-        lines.push(`🎉 升级了！当前等级：${result.newLevel}`)
+        lines.push(`升级了！当前等级：${result.newLevel}`)
       }
     } else {
-      lines.push(`💀 战斗失败...`)
-      lines.push(`⚔️ VS ${result.monsterName} Lv.${result.monsterLevel} [${diffNames[result.difficulty] || "?"}难度]`)
-      lines.push(`📊 回合: ${result.rounds} | 伤害: ${result.playerDmgDealt} | 受伤: ${result.playerDmgTaken}`)
+      lines.push("战斗失败...")
+      lines.push(`对手：${result.monsterName} Lv.${result.monsterLevel} [${diffNames[result.difficulty] || "?"}难度]`)
+      lines.push(`回合：${result.rounds} | 造成伤害：${result.playerDmgDealt} | 承受伤害：${result.playerDmgTaken}`)
     }
 
-    lines.push("━━━━━━━━━━━━━━━━━━━━━━━━━━")
     return lines.join("\n")
   }
 
@@ -482,26 +367,24 @@ export class GameEngine {
     const lines: string[] = []
     const diffNames = ["", "简单", "中等", "困难", "极难", "不可能"]
 
-    lines.push(`═══ ${result.monsterName} Lv.${result.monsterLevel} [${diffNames[result.difficulty] || "?"}难度] ═══`)
+    lines.push(`${result.monsterName} Lv.${result.monsterLevel} [${diffNames[result.difficulty] || "?"}难度]`)
 
     for (const detail of result.roundDetails) {
-      let line = `  回合${detail.round}: `
-      line += `你造成 ${detail.playerDmg} 伤害`
-      if (detail.isCritical) line += " [暴击!]"
+      let line = `第 ${detail.round} 回合：你造成 ${detail.playerDmg} 伤害`
+      if (detail.isCritical) line += " [暴击]"
       if (detail.skillUsed) line += ` [${detail.skillUsed}]`
       if (detail.isDodged) {
-        line += ` | 怪物攻击被闪避`
+        line += " | 闪避了怪物攻击"
       } else {
         line += ` | 怪物造成 ${detail.monsterDmg} 伤害`
       }
-      line += ` | 怪HP:${detail.monsterHpAfter} 你HP:${detail.playerHpAfter}`
+      line += ` | 怪物HP：${detail.monsterHpAfter} | 你的HP：${detail.playerHpAfter}`
       lines.push(line)
     }
 
-    lines.push(`═══ 结果: ${result.victory ? "胜利" : "失败"} | 总伤害: ${result.playerDmgDealt} | 总受伤: ${result.playerDmgTaken} ═══`)
+    lines.push(`结果：${result.victory ? "胜利" : "失败"} | 总伤害：${result.playerDmgDealt} | 总承伤：${result.playerDmgTaken}`)
     return lines.join("\n")
   }
-
   getDifficultyTier(level: number): number {
     const tier = DIFFICULTY_TIERS.find(t => level >= t.minLevel && level <= t.maxLevel)
     return tier ? tier.tier : 1
@@ -520,7 +403,7 @@ export class GameEngine {
       : 0
 
     if (classId === "warrior") {
-      // Warrior: main stat (STR) → ATK + flat HP bonus
+      // 战士：主属性（STR）提升攻击，并从武器主属性获得生命加成。
       const atk = mainStat + weaponMainStat + accBonus
       const hpBonus = weaponMainStat * 3
       this._combatHpBonus = hpBonus
@@ -528,33 +411,25 @@ export class GameEngine {
     }
 
     if (classId === "rogue") {
-      // Rogue: main stat (DEX) → ATK, crit chance scales with DEX
+      // 盗贼：主属性（DEX）提升攻击，暴击率随敏捷成长。
       const atk = mainStat + weaponMainStat + accBonus
       this._rogueDex = mainStat + weaponMainStat + accBonus
-      const accLuk = this.character.equipment.accessory
-        ? (this.character.equipment.accessory.stats as any)?.luk || 0
-        : 0
+      const accLuk = this.statBonus(this.character.equipment.accessory, "luk")
       this._rogueLuk = this.character.stats.luk + accLuk
       return Math.max(1, atk)
     }
 
     // Mage: basic attack uses STR only (weak without spell power), spell damage uses INT
     const str = this.character.stats.str
-    const weaponStr = this.character.equipment.weapon
-      ? (this.character.equipment.weapon.stats as any)?.str || 0
-      : 0
+    const weaponStr = this.statBonus(this.character.equipment.weapon, "str")
     this._rogueLuk = 0
     return Math.max(1, str + weaponStr)
   }
 
   private calculatePlayerDef(): number {
     let def = this.character.stats.vit
-    if (this.character.equipment.armor) {
-      def += this.character.equipment.armor.stats?.vit || 0
-    }
-    if (this.character.equipment.accessory) {
-      def += this.character.equipment.accessory.stats?.vit || 0
-    }
+    def += this.statBonus(this.character.equipment.armor, "vit")
+    def += this.statBonus(this.character.equipment.accessory, "vit")
     const hasShieldWall = this.character.skills.some(s => s.skillId === "shield_wall")
     if (hasShieldWall) {
       def *= 1.5
@@ -582,6 +457,16 @@ export class GameEngine {
     return this.getSpellPower()
   }
 
+  getSkillProgress(skillId: string): { current: number; required: number; percent: number } {
+    const current = this.character.skillUsage?.[skillId] ?? 0
+    const required = SKILL_USES_PER_LEVEL
+    return {
+      current,
+      required,
+      percent: Math.min(100, Math.floor((current / required) * 100)),
+    }
+  }
+
   /** Returns remaining rest cooldown in seconds, 0 if ready */
   getRestCooldownRemaining(): number {
     const lastRest = this.character.lastRestTime
@@ -597,9 +482,7 @@ export class GameEngine {
     const weaponInt = this.character.equipment.weapon
       ? resolveMainStatValue(this.character.equipment.weapon.stats, "mage")
       : 0
-    const accInt = this.character.equipment.accessory
-      ? (this.character.equipment.accessory.stats as any)?.int || 0
-      : 0
+    const accInt = this.statBonus(this.character.equipment.accessory, "int")
     return int + weaponInt + accInt
   }
 
@@ -610,6 +493,24 @@ export class GameEngine {
     return Math.min(0.15, Math.floor(dex / 8) * 0.01 + Math.floor(lukBonus / 5) * 0.01)
   }
 
+  private statBonus(item: Item | null, stat: keyof Character["stats"]): number {
+    const stats = item?.stats ? resolveStatsForClass(item.stats, this.character.class) : undefined
+    return stats?.[stat] ?? 0
+  }
+
+  private isPositiveWholeNumber(value: number): boolean {
+    return Number.isInteger(value) && value > 0
+  }
+
+  private findItemDefByName(itemName: string): ItemDef | undefined {
+    const normalized = itemName.trim().toLowerCase()
+    return ITEMS.find((item) => (
+      item.name.toLowerCase() === normalized ||
+      item.id.toLowerCase() === normalized ||
+      item.id.replaceAll("_", " ").toLowerCase() === normalized
+    ))
+  }
+
   private calculateDamage(atk: number, def: number): number {
     const baseDamage = Math.max(1, atk - def * 1.0)
     const variance = 0.9 + Math.random() * 0.2
@@ -618,9 +519,7 @@ export class GameEngine {
 
   private rollCritical(): boolean {
     const baseLuk = this.character.stats.luk
-    const accLuk = this.character.equipment.accessory
-      ? (this.character.equipment.accessory.stats as any)?.luk || 0
-      : 0
+    const accLuk = this.statBonus(this.character.equipment.accessory, "luk")
     const totalLuk = baseLuk + accLuk
     const baseCrit = 0.05 + totalLuk * 0.005
     const rogueBonus = this.character.class === "rogue" ? this.getCritChanceBonus() : 0
@@ -629,9 +528,7 @@ export class GameEngine {
 
   private rollDodge(): boolean {
     const baseDex = this.character.stats.dex
-    const accDex = this.character.equipment.accessory
-      ? (this.character.equipment.accessory.stats as any)?.dex || 0
-      : 0
+    const accDex = this.statBonus(this.character.equipment.accessory, "dex")
     const totalDex = baseDex + accDex
     const dodgeChance = 0.03 + totalDex * 0.003
     return Math.random() < dodgeChance
@@ -816,7 +713,7 @@ export class GameEngine {
     const logs: LogEntry[] = [
       {
         timestamp: Date.now(),
-        text: `=== 背包 (${this.character.inventory.length} 件物品) ===`,
+        text: `=== 背包（${this.character.inventory.length} 件物品）===`,
         type: "info",
       },
     ]
@@ -824,7 +721,7 @@ export class GameEngine {
     if (this.character.inventory.length === 0) {
       logs.push({
         timestamp: Date.now(),
-        text: "背包是空的",
+        text: "背包是空的。",
         type: "info",
       })
     } else {
@@ -841,7 +738,7 @@ export class GameEngine {
       for (const { item, count } of grouped.values()) {
         const rarityLabel = RARITY_LABELS[item.rarity] || "普通"
         const slot = item.slot ? ` [${item.slot}]` : ""
-        const minLv = (item as any).minLevel ? ` Lv.${(item as any).minLevel}` : ""
+        const minLv = item.minLevel ? ` Lv.${item.minLevel}` : ""
         logs.push({
           timestamp: Date.now(),
           text: `${rarityLabel}${slot}${minLv} ${item.name} x${count}`,
@@ -853,15 +750,14 @@ export class GameEngine {
 
     return logs
   }
-
-  private equipItem(slot: string, itemName: string): LogEntry[] {
+  private equipItem(slot: EquipSlot, itemName: string): LogEntry[] {
     const logs: LogEntry[] = []
     const itemIndex = this.character.inventory.findIndex(i => i.name === itemName)
 
     if (itemIndex === -1) {
       logs.push({
         timestamp: Date.now(),
-        text: `找不到物品: ${itemName}`,
+        text: `找不到物品：${itemName}`,
         type: "info",
       })
       return logs
@@ -871,18 +767,18 @@ export class GameEngine {
     if (item.type !== "equipment" || item.slot !== slot) {
       logs.push({
         timestamp: Date.now(),
-        text: `无法将 ${itemName} 装备到 ${slot} 部位`,
+        text: `无法将 ${itemName} 装备到 ${slot} 部位。`,
         type: "info",
       })
       return logs
     }
 
     // Check equipment level requirement
-    const itemMinLevel = (item as any).minLevel as number | undefined
+    const itemMinLevel = item.minLevel
     if (itemMinLevel && this.character.level < itemMinLevel) {
       logs.push({
         timestamp: Date.now(),
-        text: `等级不足，需要 Lv.${itemMinLevel} 才能装备 ${itemName}`,
+        text: `等级不足，需要 Lv.${itemMinLevel} 才能装备 ${itemName}。`,
         type: "info",
       })
       return logs
@@ -904,7 +800,7 @@ export class GameEngine {
 
     logs.push({
       timestamp: Date.now(),
-      text: `装备了 ${itemName}`,
+      text: `已装备 ${itemName}。`,
       type: "info",
     })
 
@@ -918,7 +814,7 @@ export class GameEngine {
     if (!current) {
       logs.push({
         timestamp: Date.now(),
-        text: `${slot} 部位没有装备任何物品`,
+        text: `${slot} 部位没有装备任何物品。`,
         type: "info",
       })
       return logs
@@ -929,7 +825,7 @@ export class GameEngine {
 
     logs.push({
       timestamp: Date.now(),
-      text: `卸下了 ${current.name}`,
+      text: `已卸下 ${current.name}。`,
       type: "info",
     })
 
@@ -943,7 +839,7 @@ export class GameEngine {
     if (itemIndex === -1) {
       logs.push({
         timestamp: Date.now(),
-        text: `找不到物品: ${itemName}`,
+        text: `找不到物品：${itemName}`,
         type: "info",
       })
       return logs
@@ -959,7 +855,7 @@ export class GameEngine {
 
     logs.push({
       timestamp: Date.now(),
-      text: `${itemName} 无法使用`,
+      text: `${itemName} 无法使用。`,
       type: "info",
     })
 
@@ -973,7 +869,7 @@ export class GameEngine {
     if (chestIndex === -1) {
       logs.push({
         timestamp: Date.now(),
-        text: `找不到宝箱: ${chestName}`,
+        text: `找不到宝箱：${chestName}`,
         type: "info",
       })
       return logs
@@ -983,20 +879,18 @@ export class GameEngine {
     if (chest.type !== "chest") {
       logs.push({
         timestamp: Date.now(),
-        text: `${chestName} 不是宝箱`,
+        text: `${chestName} 不是宝箱。`,
         type: "info",
       })
       return logs
     }
 
-    // Remove chest from inventory
     this.character.inventory.splice(chestIndex, 1)
 
     const chestRarity = chest.rarity
     const ITEM_MAP = new Map(ITEMS.map(item => [item.id, item]))
     const rewards: Item[] = []
 
-    // Reward count scales with chest rarity
     const rewardCount =
       chestRarity === "common" ? 2 :
       chestRarity === "uncommon" ? 3 :
@@ -1005,20 +899,17 @@ export class GameEngine {
       chestRarity === "legendary" ? 6 :
       chestRarity === "mythic" ? 7 : 8
 
-    // Helper: add a class-appropriate skill book
     const addSkillBook = () => {
       const classBooks = ITEMS.filter(it => it.type === "skill_book" && it.name.includes(this.getClassName()))
       const book = classBooks.length > 0 ? classBooks[Math.floor(Math.random() * classBooks.length)] : ITEM_MAP.get("skill_book_warrior")
       if (book) rewards.push({ ...book })
     }
 
-    // Helper: create an equipment reward with stats matching the rolled rarity
     const addEquipReward = (rolledRarity: ItemRarity) => {
       const equipItems = ITEMS.filter(it => it.type === "equipment")
       const randomEquip = equipItems[Math.floor(Math.random() * equipItems.length)]
       if (!randomEquip) return
 
-      // If the rolled rarity differs from the item's base rarity, recalculate stats
       let stats = randomEquip.stats
       if (rolledRarity !== randomEquip.rarity && randomEquip.scaleWithClass) {
         const recalc = recalcItemStats(randomEquip, rolledRarity)
@@ -1034,22 +925,16 @@ export class GameEngine {
       })
     }
 
-    // Roll for each reward slot — 1% flat skill book chance in ALL chests
     for (let i = 0; i < rewardCount; i++) {
-      // 1% flat skill book drop (legendary rarity)
       if (Math.random() < 0.01) {
         addSkillBook()
         continue
       }
 
-      const roll = Math.random()
       const rarity = rollRarity(chestRarity)
-
-      // All chest rewards are equipment
       addEquipReward(rarity)
     }
 
-    // Add rewards to inventory
     for (const item of rewards) {
       this.character.inventory.push(item)
     }
@@ -1063,7 +948,7 @@ export class GameEngine {
     for (const item of rewards) {
       logs.push({
         timestamp: Date.now(),
-        text: `  📦 [${RARITY_LABELS[item.rarity] || "普通"}] ${item.name}`,
+        text: `掉落：[${RARITY_LABELS[item.rarity] || "普通"}] ${item.name}`,
         type: "loot",
         rarity: item.rarity,
       })
@@ -1071,7 +956,6 @@ export class GameEngine {
 
     return logs
   }
-
   private getClassName(): string {
     const names: Record<string, string> = { warrior: "战士", mage: "法师", rogue: "盗贼" }
     return names[this.character.class] || ""
@@ -1080,24 +964,21 @@ export class GameEngine {
   private useSkillBook(item: Item): LogEntry[] {
     const logs: LogEntry[] = []
 
-    // Find all skills for this class that haven't been learned yet
     const availableSkills = SKILLS.filter(s => !s.classRequired || s.classRequired === this.character.class)
     const unlearnedSkills = availableSkills.filter(s => !this.character.skills.find(sk => sk.skillId === s.id))
 
     if (unlearnedSkills.length > 0) {
-      // Learn a random unlearned skill
       const randomSkill = unlearnedSkills[Math.floor(Math.random() * unlearnedSkills.length)]
       this.character.skills.push({ skillId: randomSkill.id, level: 1 })
 
       logs.push({
         timestamp: Date.now(),
-        text: `📖 学习了技能：${randomSkill.name}！`,
+        text: `学习了技能：${randomSkill.name}`,
         type: "info",
       })
       return logs
     }
 
-    // All skills learned — add random progress (10%-50%) to a random learned skill
     const learnedClassSkills = this.character.skills.filter(sk =>
       availableSkills.some(s => s.id === sk.skillId)
     )
@@ -1105,13 +986,12 @@ export class GameEngine {
     if (learnedClassSkills.length === 0) {
       logs.push({
         timestamp: Date.now(),
-        text: `${item.name} 打开后空空如也...`,
+        text: `${item.name} 打开后没有可学习的技能。`,
         type: "info",
       })
       return logs
     }
 
-    // Pick a random skill that hasn't reached max level
     const upgradable = learnedClassSkills.filter(sk => {
       const def = SKILLS.find(s => s.id === sk.skillId)
       return def && sk.level < def.maxLevel
@@ -1120,7 +1000,7 @@ export class GameEngine {
     if (upgradable.length === 0) {
       logs.push({
         timestamp: Date.now(),
-        text: `📖 ${item.name} — 所有技能均已满级！`,
+        text: `${item.name}：所有技能均已满级。`,
         type: "info",
       })
       return logs
@@ -1130,9 +1010,7 @@ export class GameEngine {
     const skillDef = SKILLS.find(s => s.id === targetSkill.skillId)!
     const currentLevel = targetSkill.level
     const usesNeeded = SKILL_USES_PER_LEVEL
-
-    // Add 10%-50% random progress
-    const progressPercent = 10 + Math.floor(Math.random() * 41) // 10-50
+    const progressPercent = 10 + Math.floor(Math.random() * 41)
     const usesAdded = Math.floor(usesNeeded * progressPercent / 100)
 
     if (!this.character.skillUsage) {
@@ -1148,24 +1026,22 @@ export class GameEngine {
 
     logs.push({
       timestamp: Date.now(),
-      text: `📖 ${skillDef.name} 获得 ${progressPercent}% 升级进度 (${newUsage}/${usesNeeded} 次, ${progressPercentActual}%)`,
+      text: `${skillDef.name} 获得 ${progressPercent}% 升级进度（${newUsage}/${usesNeeded} 次，${progressPercentActual}%）`,
       type: "info",
     })
 
-    // Check if this pushed the skill over the threshold
     const lvlResult = tryLevelUpSkill(this.character.skillUsage, targetSkill.skillId, currentLevel)
     if (lvlResult.leveledUp) {
       targetSkill.level = lvlResult.newLevel
       logs.push({
         timestamp: Date.now(),
-        text: `✨ ${skillDef.name} 升级到 Lv.${lvlResult.newLevel}！`,
+        text: `${skillDef.name} 升级到 Lv.${lvlResult.newLevel}！`,
         type: "levelup",
       })
     }
 
     return logs
   }
-
   private learnSkill(skillName: string): LogEntry[] {
     const logs: LogEntry[] = []
     const skill = SKILLS.find(s => s.name === skillName)
@@ -1173,7 +1049,7 @@ export class GameEngine {
     if (!skill) {
       logs.push({
         timestamp: Date.now(),
-        text: `找不到技能: ${skillName}`,
+        text: `找不到技能：${skillName}`,
         type: "info",
       })
       return logs
@@ -1182,7 +1058,7 @@ export class GameEngine {
     if (skill.classRequired && skill.classRequired !== this.character.class) {
       logs.push({
         timestamp: Date.now(),
-        text: `你的职业不能学习 ${skillName}`,
+        text: `你的职业不能学习 ${skillName}。`,
         type: "info",
       })
       return logs
@@ -1192,7 +1068,7 @@ export class GameEngine {
     if (existing) {
       logs.push({
         timestamp: Date.now(),
-        text: `已经学会了 ${skillName}`,
+        text: `已经学会了 ${skillName}。`,
         type: "info",
       })
       return logs
@@ -1207,12 +1083,11 @@ export class GameEngine {
 
     return logs
   }
-
   private showSkills(): LogEntry[] {
     const logs: LogEntry[] = [
       {
         timestamp: Date.now(),
-        text: `=== 已学技能 (${this.character.skills.length}) ===`,
+        text: `=== 已学技能（${this.character.skills.length}）===`,
         type: "info",
       },
     ]
@@ -1220,7 +1095,7 @@ export class GameEngine {
     if (this.character.skills.length === 0) {
       logs.push({
         timestamp: Date.now(),
-        text: "还没有学习任何技能",
+        text: "还没有学习任何技能。",
         type: "info",
       })
     } else {
@@ -1234,20 +1109,17 @@ export class GameEngine {
           : skillDef.effect.type === "heal"
             ? `恢复 ${Math.floor(scaledValue * 100)}% HP`
             : skillDef.effect.type === "buff"
-              ? `${skillDef.effect.value > 0 ? '+' : ''}${Math.floor(scaledValue * 100)}% ${skillDef.effect.target === 'self' ? '自身' : '目标'}${skillDef.effect.type === 'buff' ? '增益' : '减益'}`
+              ? `${skillDef.effect.value > 0 ? "+" : ""}${Math.floor(scaledValue * 100)}% ${skillDef.effect.target === "self" ? "自身" : "目标"}增益`
               : skillDef.description
 
-        // Progress bar for next level
         let progressLine = ""
         if (skillInst.level < skillDef.maxLevel) {
           const usage = this.character.skillUsage?.[skillInst.skillId] || 0
           const needed = SKILL_USES_PER_LEVEL
           const pct = Math.min(100, Math.floor(usage / needed * 100))
-          const barFilled = Math.floor(pct / 10)
-          const bar = "█".repeat(barFilled) + "░".repeat(10 - barFilled)
-          progressLine = `\n  升级进度: [${bar}] ${pct}% (${usage}/${needed})`
+          progressLine = `\n  升级进度：${pct}%（${usage}/${needed}）`
         } else {
-          progressLine = "\n  ★ 已满级 ★"
+          progressLine = "\n  已满级"
         }
 
         logs.push({
@@ -1260,13 +1132,11 @@ export class GameEngine {
 
     return logs
   }
-
   private rest(): LogEntry[] {
     const logs: LogEntry[] = []
     const now = Date.now()
-    const REST_COOLDOWN = 10 * 60 * 1000 // 10 minutes in ms
+    const REST_COOLDOWN = 10 * 60 * 1000
 
-    // Check cooldown
     const lastRest = this.character.lastRestTime
     if (lastRest) {
       const elapsed = now - lastRest
@@ -1276,26 +1146,24 @@ export class GameEngine {
         const secs = remaining % 60
         logs.push({
           timestamp: now,
-          text: `休息冷却中，请等待 ${mins}分${secs}秒`,
+          text: `休息冷却中，请等待 ${mins}分${secs}秒。`,
           type: "info",
         })
         return logs
       }
     }
 
-    // Full restore
     this.character.hp = this.character.maxHp
     this.character.lastRestTime = now
 
     logs.push({
       timestamp: now,
-      text: `休息完毕，HP 已完全恢复！`,
+      text: "休息完毕，HP 已完全恢复！",
       type: "info",
     })
 
     return logs
   }
-
   private showShop(): LogEntry[] {
     const logs: LogEntry[] = [
       {
@@ -1305,14 +1173,14 @@ export class GameEngine {
       },
       {
         timestamp: Date.now(),
-        text: `你的金币: ${this.character.gold}`,
+        text: `你的金币：${this.character.gold}`,
         type: "info",
       },
     ]
 
     const ITEM_MAP = new Map(ITEMS.map(item => [item.id, item]))
     for (const shopItem of SHOP_ITEMS) {
-      const shopMinLevel = (shopItem as any).minLevel
+      const shopMinLevel = shopItem.minLevel
       if (shopMinLevel && this.character.level < shopMinLevel) {
         continue
       }
@@ -1326,37 +1194,40 @@ export class GameEngine {
       }
     }
 
-    logs.push({
-      timestamp: Date.now(),
-      text: "输入 /buy <物品名> 购买",
-      type: "info",
-    })
-
     return logs
   }
 
   private buyItem(itemName: string, count: number): LogEntry[] {
     const logs: LogEntry[] = []
-    const ITEM_MAP = new Map(ITEMS.map(item => [item.id, item]))
-    const shopItem = SHOP_ITEMS.find(s => {
-      const def = ITEM_MAP.get(s.itemId)
-      return def && def.name === itemName
-    })
-
-    if (!shopItem) {
+    if (!this.isPositiveWholeNumber(count)) {
       logs.push({
         timestamp: Date.now(),
-        text: `商店没有出售: ${itemName}`,
+        text: "数量必须是正整数。",
         type: "info",
       })
       return logs
     }
 
-    const shopMinLevel = (shopItem as any).minLevel
+    const ITEM_MAP = new Map(ITEMS.map(item => [item.id, item]))
+    const shopItem = SHOP_ITEMS.find(s => {
+      const def = ITEM_MAP.get(s.itemId)
+      return def && this.findItemDefByName(itemName)?.id === def.id
+    })
+
+    if (!shopItem) {
+      logs.push({
+        timestamp: Date.now(),
+        text: `商店没有出售：${itemName}`,
+        type: "info",
+      })
+      return logs
+    }
+
+    const shopMinLevel = shopItem.minLevel
     if (shopMinLevel && this.character.level < shopMinLevel) {
       logs.push({
         timestamp: Date.now(),
-        text: `等级不足，无法购买 ${itemName} (需要 Lv.${shopMinLevel})`,
+        text: `等级不足，无法购买 ${itemName}（需要 Lv.${shopMinLevel}）。`,
         type: "info",
       })
       return logs
@@ -1366,7 +1237,7 @@ export class GameEngine {
     if (this.character.gold < totalCost) {
       logs.push({
         timestamp: Date.now(),
-        text: `金币不足，需要 ${totalCost} 金币`,
+        text: `金币不足，需要 ${totalCost} 金币。`,
         type: "info",
       })
       return logs
@@ -1382,7 +1253,7 @@ export class GameEngine {
 
     logs.push({
       timestamp: Date.now(),
-      text: `购买了 ${itemName} x${count}，花费 ${totalCost} 金币`,
+      text: `购买了 ${itemName} x${count}，花费 ${totalCost} 金币。`,
       type: "info",
     })
 
@@ -1391,19 +1262,21 @@ export class GameEngine {
 
   private sellItem(itemName: string, count: number): LogEntry[] {
     const logs: LogEntry[] = []
-
-    let itemDef: ItemDef | undefined
-    for (const item of ITEMS) {
-      if (item.name === itemName) {
-        itemDef = item
-        break
-      }
+    if (!this.isPositiveWholeNumber(count)) {
+      logs.push({
+        timestamp: Date.now(),
+        text: "数量必须是正整数。",
+        type: "info",
+      })
+      return logs
     }
+
+    const itemDef = this.findItemDefByName(itemName)
 
     if (!itemDef) {
       logs.push({
         timestamp: Date.now(),
-        text: `找不到物品: ${itemName}`,
+        text: `找不到物品：${itemName}`,
         type: "info",
       })
       return logs
@@ -1419,13 +1292,11 @@ export class GameEngine {
     if (itemIndices.length < count) {
       logs.push({
         timestamp: Date.now(),
-        text: `没有足够的 ${itemName} (需要 ${count}，有 ${itemIndices.length})`,
+        text: `没有足够的 ${itemName}（需要 ${count}，当前 ${itemIndices.length}）。`,
         type: "info",
       })
       return logs
     }
-
-    const shopItem = SHOP_ITEMS.find(s => s.itemId === itemDef.id)
 
     // Sell price: gray=10, green=100, blue=200, purple+=chestPrice/10
     let unitPrice: number
@@ -1457,7 +1328,7 @@ export class GameEngine {
 
     logs.push({
       timestamp: Date.now(),
-      text: `出售了 ${itemName} x${count}，获得 ${sellPrice} 金币`,
+      text: `出售了 ${itemName} x${count}，获得 ${sellPrice} 金币。`,
       type: "info",
     })
 
@@ -1523,17 +1394,17 @@ export class GameEngine {
       },
       {
         timestamp: Date.now(),
-        text: `⚔️ 攻击力: ${this.getCombatAtk()}`,
+        text: `攻击力: ${this.getCombatAtk()}`,
         type: "info",
       },
       {
         timestamp: Date.now(),
-        text: `🛡️ 防御力: ${this.getCombatDef()}`,
+        text: `防御力: ${this.getCombatDef()}`,
         type: "info",
       },
       {
         timestamp: Date.now(),
-        text: `✨ 法术强度: ${this.getCombatSpellPower()}`,
+        text: `法术强度: ${this.getCombatSpellPower()}`,
         type: "info",
       },
     ]
@@ -1541,27 +1412,5 @@ export class GameEngine {
     return logs
   }
 
-  private showHelp(): LogEntry[] {
-    const logs: LogEntry[] = [
-      {
-        timestamp: Date.now(),
-        text: "=== 可用命令 ===",
-        type: "info",
-      },
-      { timestamp: Date.now(), text: "/bag - 查看背包", type: "info" },
-      { timestamp: Date.now(), text: "/equip <部位> <物品名> - 装备物品", type: "info" },
-      { timestamp: Date.now(), text: "/unequip <部位> - 卸下装备", type: "info" },
-      { timestamp: Date.now(), text: "/use <物品名> - 使用消耗品", type: "info" },
-      { timestamp: Date.now(), text: "/learn <技能名> - 学习技能", type: "info" },
-      { timestamp: Date.now(), text: "/skills - 查看已学技能", type: "info" },
-      { timestamp: Date.now(), text: "/rest - 休息恢复 HP", type: "info" },
-      { timestamp: Date.now(), text: "/shop - 查看商店", type: "info" },
-      { timestamp: Date.now(), text: "/buy <物品名> - 购买物品", type: "info" },
-      { timestamp: Date.now(), text: "/sell <物品名> - 出售物品", type: "info" },
-      { timestamp: Date.now(), text: "/status - 查看详细属性", type: "info" },
-      { timestamp: Date.now(), text: "/help - 查看帮助", type: "info" },
-    ]
 
-    return logs
-  }
 }

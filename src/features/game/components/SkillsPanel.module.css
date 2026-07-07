@@ -71,16 +71,22 @@
 .progressBar {
   flex: 1;
   height: 6px;
+  border: 0;
   background: var(--color-border-light);
   border-radius: var(--radius-full);
   overflow: hidden;
 }
 
-.progressFill {
-  height: 100%;
+.progressBar::-webkit-progress-bar {
+  background: var(--color-border-light);
+}
+
+.progressBar::-webkit-progress-value {
   background: var(--color-accent);
-  border-radius: var(--radius-full);
-  transition: width var(--dur-300) var(--ease-smooth);
+}
+
+.progressBar::-moz-progress-bar {
+  background: var(--color-accent);
 }
 
 .progressText {
