@@ -1,0 +1,143 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  height: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.title {
+  font-size: var(--text-base);
+  font-weight: 700;
+  margin: 0;
+}
+
+.gold {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: #f59e0b;
+}
+
+.hint {
+  padding: var(--space-12);
+  background: var(--color-accent-faint);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.hint p {
+  font-size: var(--text-xs);
+  color: var(--color-foreground-secondary);
+  margin: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.tierGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.tierHeader {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-6) var(--space-12);
+  border-left: 3px solid;
+  background: var(--color-accent-faint);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+.tierName {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.tierDesc {
+  font-size: var(--text-xs);
+  color: var(--color-foreground-muted);
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-12);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.itemInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemName {
+  font-weight: 600;
+  font-size: var(--text-sm);
+}
+
+.itemDesc {
+  font-size: var(--text-xs);
+  color: var(--color-foreground-secondary);
+  margin-top: var(--space-4);
+}
+
+.itemPrice {
+  flex-shrink: 0;
+}
+
+.priceTag {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: #f59e0b;
+}
+
+.itemActions {
+  flex-shrink: 0;
+}
+
+.buyBtn {
+  padding: var(--space-6) var(--space-12);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.buyBtn:hover:not(:disabled) {
+  background: var(--color-accent);
+  color: white;
+  border-color: var(--color-accent);
+}
+
+.buyBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.empty {
+  padding: var(--space-24);
+  text-align: center;
+  color: var(--color-foreground-muted);
+  font-size: var(--text-sm);
+}

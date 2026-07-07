@@ -1,0 +1,89 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  height: 100%;
+}
+
+.title {
+  font-size: var(--text-base);
+  font-weight: 700;
+  margin: 0;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  overflow-y: auto;
+  flex: 1;
+}
+
+.empty {
+  text-align: center;
+  color: var(--color-foreground-muted);
+  padding: var(--space-24);
+  font-size: var(--text-sm);
+}
+
+.item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-12);
+  background: var(--color-background);
+  border: 1px solid var(--color-border-light);
+  border-radius: var(--radius-md);
+}
+
+.itemInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
+.itemName {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.itemCount {
+  font-size: var(--text-xs);
+  color: var(--color-foreground-muted);
+  font-weight: 600;
+}
+
+.itemActions {
+  display: flex;
+  gap: var(--space-8);
+}
+
+.actionBtn {
+  flex: 1;
+  padding: var(--space-6) var(--space-8);
+  background: var(--color-accent-wash);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-accent);
+  cursor: pointer;
+  transition: all var(--dur-150) var(--ease-smooth);
+}
+
+.actionBtn:hover {
+  background: var(--color-accent);
+  color: white;
+}
+
+.sell {
+  background: transparent;
+  border-color: var(--color-border);
+  color: var(--color-foreground-secondary);
+}
+
+.sell:hover {
+  background: var(--color-border);
+  color: var(--color-foreground);
+}

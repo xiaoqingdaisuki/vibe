@@ -1,0 +1,142 @@
+.entry {
+  display: flex;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  border-bottom: 1px solid var(--color-border-light);
+  line-height: 1.6;
+  animation: fadeIn var(--dur-200) var(--ease-smooth);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.time {
+  flex-shrink: 0;
+  font-size: var(--text-xs);
+  color: var(--color-foreground-muted);
+  font-family: monospace;
+  min-width: 60px;
+}
+
+.text {
+  flex: 1;
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.expandBtn {
+  flex-shrink: 0;
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 2px 8px;
+  font-size: var(--text-xs);
+  color: var(--color-foreground-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.expandBtn:hover {
+  background: var(--color-accent-faint);
+  color: var(--color-accent);
+}
+
+.details {
+  margin-top: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  font-family: monospace;
+  font-size: var(--text-xs);
+  color: var(--color-foreground-secondary);
+  line-height: 1.8;
+}
+
+.detailRow {
+  display: flex;
+  gap: var(--space-8);
+}
+
+.detailRound {
+  color: var(--color-accent);
+  min-width: 40px;
+}
+
+.detailPlayerAtk {
+  color: #f59e0b;
+}
+
+.detailMonsterHp {
+  color: #ef4444;
+}
+
+.detailPlayerHp {
+  color: #22c55e;
+}
+
+.detailCrit {
+  color: #ef4444;
+  font-weight: 600;
+}
+
+.detailDodge {
+  color: #3b82f6;
+  font-weight: 600;
+}
+
+.detailSkill {
+  color: #a855f7;
+  font-weight: 600;
+}
+
+.detailMiss {
+  color: var(--color-foreground-muted);
+}
+
+.diffBadge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: var(--space-8);
+}
+
+.diff1 { background: #dcfce7; color: #166534; }
+.diff2 { background: #fef9c3; color: #854d0e; }
+.diff3 { background: #fee2e2; color: #991b1b; }
+.diff4 { background: #f3e8ff; color: #6b21a8; }
+.diff5 { background: #1e1e1e; color: #ef4444; }
+
+/* Log type colors */
+.combat {
+  color: var(--color-foreground);
+}
+
+.loot {
+  color: var(--color-foreground);
+}
+
+.levelup {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+
+.info {
+  color: var(--color-foreground-secondary);
+}
+
+.system {
+  color: var(--color-foreground-muted);
+  font-style: italic;
+}
