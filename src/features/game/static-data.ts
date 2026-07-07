@@ -217,14 +217,14 @@ export const RARITY_COLORS: Record<ItemRarity, string> = {
 // Individual drop probability for each rarity from a common chest.
 // These are TRUE probabilities — the rollRarity function treats them as
 // cumulative thresholds from highest to lowest rarity.
-// 灰65% / 绿22% / 蓝8% / 紫3.5% / 橙1.5% / 红0.15% / 金0.001%
+// 灰68% / 绿22% / 蓝8% / 紫1.5% / 橙0.5% / 红0.1% / 金0.001%
 export const RARITY_BASE_CHANCE: Record<ItemRarity, number> = {
-  common:       0.65,    // 65%
+  common:       0.68,    // 68%
   uncommon:     0.22,    // 22%
   rare:         0.08,    // 8%
-  epic:         0.035,   // 3.5%
-  legendary:    0.015,   // 1.5%
-  mythic:       0.0015,  // 0.15%
+  epic:         0.015,   // 1.5%
+  legendary:    0.005,   // 0.5%
+  mythic:       0.001,  // 0.1%
   transcendent: 0.00001, // 0.001%
 }
 
@@ -418,13 +418,18 @@ const ARMOR_LABEL:  Record<string, string> = { warrior: "战甲", mage: "长袍"
 // ── Item Generation ────────────────────────────────────────────────────────
 
 /**
- * Generates a random item level within [charLevel - 10, charLevel + 5], clamped [1, 25].
- * Consumables/materials/chests/skill_books always roll 1-25 (no level restriction).
+ * Generates a random item level for chest rewards.
+ * Normal rarities: [max(1, charLevel-2), min(25, charLevel+3)] — biased near charLevel
+ * Transcendent (最稀有): always at character level (special logic)
  */
-function randomItemLevel(charLevel: number, _type: string): number {
-  if (_type === "consumable" || _type === "material") return Math.floor(Math.random() * 25) + 1
-  const lo = Math.max(1, charLevel - 10)
-  const hi = Math.min(25, charLevel + 5)
+function getChestItemLevel(charLevel: number, rarity: ItemRarity): number {
+  if (rarity === "transcendent") {
+    // 超越品质特殊逻辑：始终等于角色等级
+    return Math.max(1, Math.min(25, charLevel))
+  }
+  const lo = Math.max(1, charLevel - 2)
+  const hi = Math.min(25, charLevel + 3)
+  if (lo > hi) return hi
   return Math.floor(Math.random() * (hi - lo + 1)) + lo
 }
 
@@ -459,6 +464,7 @@ function generateEquipment(): ItemDef[] {
           scaleWithClass,
           description: `${RARITY_LABELS[rarity]}${mat}${label} Lv.${level}`,
           minLevel: level,
+          classRequired: cls.id,
         })
       }
     }
@@ -480,6 +486,7 @@ function generateEquipment(): ItemDef[] {
         scaleWithClass,
         description: accNames[i],
         minLevel: accMinLevels[i],
+        classRequired: cls.id,
       })
     }
   }
@@ -489,9 +496,11 @@ function generateEquipment(): ItemDef[] {
 
 /**
  * Get a random equipment ItemDef from the pool, with rarity re-rolled
- * according to the opening chest's tier.
+ * according to the opening chest's tier and level restricted to the
+ * character's level range.
  */
-export function randomEquipItem(chestRarity: ItemRarity, charLevel: number): ItemDef | undefined {
+export function randomEquipItem(chestRarity: ItemRarity, charLevel: number, _charClass: ClassType): ItemDef | undefined {
+  // Chests can drop ANY class's equipment — class restriction is enforced at equip time
   const allEquip = ITEMS.filter(it => it.type === "equipment")
   if (allEquip.length === 0) return undefined
 
@@ -501,24 +510,31 @@ export function randomEquipItem(chestRarity: ItemRarity, charLevel: number): Ite
 
   // Re-roll rarity based on chest tier
   const newRarity = rollRarity(chestRarity)
-  const level = randomItemLevel(charLevel, base.type)
+
+  // Generate level within [1, charLevel+3] (closest to charLevel)
+  // Transcendent items always drop at character level
+  const level = getChestItemLevel(charLevel, newRarity)
 
   // Rebuild stats for the new rarity (keeping same slot)
   const slot = base.slot || "weapon"
+  const isAccessory = slot === "accessory"
   const { stats, scaleWithClass } = buildItemStats(level, newRarity, slot)
-  const mat = slot === "weapon"
-    ? WEAPON_NAMES[Math.min(level - 1, WEAPON_NAMES.length - 1)]
-    : ARMOR_NAMES[Math.min(level - 1, ARMOR_NAMES.length - 1)]
-  const label = slot === "weapon" ? WEAPON_LABEL[base.id.split("_")[0]] : ARMOR_LABEL[base.id.split("_")[0]]
+
+  // Accessories keep their original fixed name; weapons/armor get material-based names
+  const name = isAccessory
+    ? base.name
+    : `${WEAPON_NAMES[Math.min(level - 1, WEAPON_NAMES.length - 1)]}${slot === "weapon" ? WEAPON_LABEL[base.id.split("_")[0]] : ARMOR_LABEL[base.id.split("_")[0]]}`
+
+  const description = `${RARITY_LABELS[newRarity]}${name} Lv.${level}`
 
   return {
     ...base,
     id: `${base.id.split("_").slice(0, 2).join("_")}_${String(level).padStart(2, "0")}_${newRarity}`,
-    name: `${mat}${label}`,
+    name,
     stats,
     rarity: newRarity,
     scaleWithClass,
-    description: `${RARITY_LABELS[newRarity]}${mat}${label} Lv.${level}`,
+    description,
     minLevel: level,
   }
 }

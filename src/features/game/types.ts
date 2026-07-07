@@ -35,6 +35,7 @@ export interface Item {
   description: string
   scaleWithClass?: boolean
   minLevel?: number
+  classRequired?: ClassType
 }
 
 export interface Equipment {
@@ -154,6 +155,7 @@ export interface ItemDef {
   description: string
   minLevel: number
   scaleWithClass?: boolean // true → stats are per-class at equip time
+  classRequired?: ClassType // required class to equip (undefined = any class)
 }
 
 export interface SkillDef {

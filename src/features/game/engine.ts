@@ -12,7 +12,7 @@ import type {
   GameInteraction,
   EquipSlot,
 } from "./types.ts"
-import { CLASSES, SKILLS, MONSTERS, SHOP_ITEMS, ITEMS, DIFFICULTY_TIERS, RARITY_LABELS, resolveStatsForClass, resolveMainStatValue, rollRarity, getSkillEffectValue, tryLevelUpSkill, SKILL_USES_PER_LEVEL, SKILL_CATEGORY, recalcItemStats } from "./static-data.ts"
+import { CLASSES, SKILLS, MONSTERS, SHOP_ITEMS, ITEMS, DIFFICULTY_TIERS, RARITY_LABELS, resolveStatsForClass, resolveMainStatValue, rollRarity, getSkillEffectValue, tryLevelUpSkill, SKILL_USES_PER_LEVEL, SKILL_CATEGORY, randomEquipItem } from "./static-data.ts"
 
 export class GameEngine {
   public character: Character
@@ -773,6 +773,18 @@ export class GameEngine {
       return logs
     }
 
+    // Check class requirement
+    const itemClassRequired = item.classRequired
+    if (itemClassRequired && this.character.class !== itemClassRequired) {
+      const className = CLASSES.find(c => c.id === itemClassRequired)?.name || itemClassRequired
+      logs.push({
+        timestamp: Date.now(),
+        text: `${itemName} 是 ${className} 专属装备，无法装备。`,
+        type: "info",
+      })
+      return logs
+    }
+
     // Check equipment level requirement
     const itemMinLevel = item.minLevel
     if (itemMinLevel && this.character.level < itemMinLevel) {
@@ -888,7 +900,6 @@ export class GameEngine {
     this.character.inventory.splice(chestIndex, 1)
 
     const chestRarity = chest.rarity
-    const ITEM_MAP = new Map(ITEMS.map(item => [item.id, item]))
     const rewards: Item[] = []
 
     const rewardCount =
@@ -901,28 +912,8 @@ export class GameEngine {
 
     const addSkillBook = () => {
       const classBooks = ITEMS.filter(it => it.type === "skill_book" && it.name.includes(this.getClassName()))
-      const book = classBooks.length > 0 ? classBooks[Math.floor(Math.random() * classBooks.length)] : ITEM_MAP.get("skill_book_warrior")
+      const book = classBooks.length > 0 ? classBooks[Math.floor(Math.random() * classBooks.length)] : ITEMS.find(it => it.id === "skill_book_warrior")
       if (book) rewards.push({ ...book })
-    }
-
-    const addEquipReward = (rolledRarity: ItemRarity) => {
-      const equipItems = ITEMS.filter(it => it.type === "equipment")
-      const randomEquip = equipItems[Math.floor(Math.random() * equipItems.length)]
-      if (!randomEquip) return
-
-      let stats = randomEquip.stats
-      if (rolledRarity !== randomEquip.rarity && randomEquip.scaleWithClass) {
-        const recalc = recalcItemStats(randomEquip, rolledRarity)
-        stats = recalc.scaleWithClass ? resolveStatsForClass(recalc.stats, this.character.class) : recalc.stats
-      } else if (randomEquip.scaleWithClass && stats) {
-        stats = resolveStatsForClass(stats, this.character.class)
-      }
-
-      rewards.push({
-        ...randomEquip,
-        rarity: rolledRarity,
-        stats,
-      })
     }
 
     for (let i = 0; i < rewardCount; i++) {
@@ -931,8 +922,11 @@ export class GameEngine {
         continue
       }
 
-      const rarity = rollRarity(chestRarity)
-      addEquipReward(rarity)
+      // Use randomEquipItem which properly generates items with correct level, stats, and name
+      const equipItem = randomEquipItem(chestRarity, this.character.level, this.character.class)
+      if (equipItem) {
+        rewards.push(equipItem)
+      }
     }
 
     for (const item of rewards) {
@@ -1271,22 +1265,21 @@ export class GameEngine {
       return logs
     }
 
-    const itemDef = this.findItemDefByName(itemName)
+    // Find items in inventory by name directly (chest-generated items have modified IDs)
+    const itemIndices: number[] = []
+    for (let i = 0; i < this.character.inventory.length && itemIndices.length < count; i++) {
+      if (this.character.inventory[i].name === itemName) {
+        itemIndices.push(i)
+      }
+    }
 
-    if (!itemDef) {
+    if (itemIndices.length === 0) {
       logs.push({
         timestamp: Date.now(),
         text: `找不到物品：${itemName}`,
         type: "info",
       })
       return logs
-    }
-
-    const itemIndices: number[] = []
-    for (let i = 0; i < this.character.inventory.length && itemIndices.length < count; i++) {
-      if (this.character.inventory[i].id === itemDef.id) {
-        itemIndices.push(i)
-      }
     }
 
     if (itemIndices.length < count) {
@@ -1298,13 +1291,17 @@ export class GameEngine {
       return logs
     }
 
+    // Use the actual item's rarity for pricing
+    const sampleItem = this.character.inventory[itemIndices[0]]
+    const rarity = sampleItem.rarity
+
     // Sell price: gray=10, green=100, blue=200, purple+=chestPrice/10
     let unitPrice: number
-    if (itemDef.rarity === "common") {
+    if (rarity === "common") {
       unitPrice = 10
-    } else if (itemDef.rarity === "uncommon") {
+    } else if (rarity === "uncommon") {
       unitPrice = 100
-    } else if (itemDef.rarity === "rare") {
+    } else if (rarity === "rare") {
       unitPrice = 200
     } else {
       // epic/legendary/mythic/transcendent: use equivalent chest price / 10
@@ -1314,7 +1311,7 @@ export class GameEngine {
         mythic: "mythic_chest",
         transcendent: "mythic_chest",
       }
-      const chestId = rarityToChest[itemDef.rarity]
+      const chestId = rarityToChest[rarity]
       const chestItem = SHOP_ITEMS.find(s => s.itemId === chestId)
       unitPrice = Math.floor((chestItem?.price || 1_000_000) / 10)
     }

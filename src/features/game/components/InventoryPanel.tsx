@@ -2,7 +2,13 @@
 
 import type { Character, GameInteraction } from "../types"
 import { RarityBadge } from "./RarityBadge"
+import { CLASSES, RARITY_LABELS } from "../static-data"
 import styles from "./InventoryPanel.module.css"
+
+const CLASS_NAME_MAP: Record<string, string> = {}
+for (const c of CLASSES) {
+  CLASS_NAME_MAP[c.id] = c.name
+}
 
 interface InventoryPanelProps {
   character: Character
@@ -22,6 +28,17 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
 
   const items = Array.from(grouped.values()).reverse()
 
+  const canEquip = (item: Character["inventory"][0]): boolean => {
+    if (item.type !== "equipment") return false
+    if (!item.classRequired) return true // no restriction
+    return character.class === item.classRequired
+  }
+
+  const getItemClassLabel = (item: Character["inventory"][0]): string | null => {
+    if (!item.classRequired || item.classRequired === character.class) return null
+    return CLASS_NAME_MAP[item.classRequired] || item.classRequired
+  }
+
   return (
     <div className={styles.container}>
       <h3 className={styles.title}>背包（{character.inventory.length}）</h3>
@@ -29,47 +46,54 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
         {items.length === 0 ? (
           <p className={styles.empty}>背包是空的。</p>
         ) : (
-          items.map(({ item, count }) => (
-            <div key={item.id} className={styles.item}>
-              <div className={styles.itemInfo}>
-                <span className={styles.itemName}>{item.name}</span>
-                <RarityBadge rarity={item.rarity} />
+          items.map(({ item, count }) => {
+            const equippable = canEquip(item)
+            const classLabel = getItemClassLabel(item)
+
+            return (
+              <div key={item.id} className={`${styles.item} ${!equippable && item.type === "equipment" ? styles.itemLocked : ""}`}>
+                <div className={styles.itemInfo}>
+                  <span className={styles.itemName}>{item.name}</span>
+                  {item.minLevel && <span className={styles.itemLevel}>Lv.{item.minLevel}</span>}
+                  {classLabel && <span className={styles.classBadge}>{classLabel}专属</span>}
+                  <RarityBadge rarity={item.rarity} />
+                </div>
+                <span className={styles.itemCount}>x{count}</span>
+                <div className={styles.itemActions}>
+                  {equippable && item.type === "equipment" && item.slot && (
+                    <button
+                      onClick={() => onAction({ type: "equip", slot: item.slot!, itemName: item.name })}
+                      className={styles.actionBtn}
+                    >
+                      装备
+                    </button>
+                  )}
+                  {item.type === "chest" && (
+                    <button
+                      onClick={() => onAction({ type: "open", itemName: item.name })}
+                      className={`${styles.actionBtn} ${styles.openBtn}`}
+                    >
+                      开启
+                    </button>
+                  )}
+                  {item.type === "skill_book" && (
+                    <button
+                      onClick={() => onAction({ type: "use", itemName: item.name })}
+                      className={`${styles.actionBtn} ${styles.skillBtn}`}
+                    >
+                      使用
+                    </button>
+                  )}
+                  <button
+                    onClick={() => onAction({ type: "sell", itemName: item.name })}
+                    className={`${styles.actionBtn} ${styles.sell}`}
+                  >
+                    {equippable ? "出售" : "出售"}
+                  </button>
+                </div>
               </div>
-              <span className={styles.itemCount}>x{count}</span>
-              <div className={styles.itemActions}>
-                {item.type === "equipment" && item.slot && (
-                  <button
-                    onClick={() => onAction({ type: "equip", slot: item.slot!, itemName: item.name })}
-                    className={styles.actionBtn}
-                  >
-                    装备
-                  </button>
-                )}
-                {item.type === "chest" && (
-                  <button
-                    onClick={() => onAction({ type: "open", itemName: item.name })}
-                    className={`${styles.actionBtn} ${styles.openBtn}`}
-                  >
-                    开启
-                  </button>
-                )}
-                {item.type === "skill_book" && (
-                  <button
-                    onClick={() => onAction({ type: "use", itemName: item.name })}
-                    className={`${styles.actionBtn} ${styles.skillBtn}`}
-                  >
-                    使用
-                  </button>
-                )}
-                <button
-                  onClick={() => onAction({ type: "sell", itemName: item.name })}
-                  className={`${styles.actionBtn} ${styles.sell}`}
-                >
-                  出售
-                </button>
-              </div>
-            </div>
-          ))
+            )
+          })
         )}
       </div>
     </div>
