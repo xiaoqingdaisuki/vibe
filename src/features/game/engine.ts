@@ -292,12 +292,10 @@ export class GameEngine {
     const now = Date.now()
     const offlineMs = now - this.character.lastActive
     const offlineMinutes = Math.floor(offlineMs / 60000)
-    // Reduced: only 15 minutes max offline
-    const maxOfflineMinutes = 15
+    const maxOfflineMinutes = 480 // 8 hours max
 
     const effectiveMinutes = Math.min(offlineMinutes, maxOfflineMinutes)
-    // Reduced: 1 combat per 5 minutes offline
-    const combats = Math.floor(effectiveMinutes / 5)
+    const combats = Math.floor(effectiveMinutes / 2) // 1 combat per 2 minutes
 
     const result: OfflineResult = {
       totalCombats: combats,
@@ -310,44 +308,53 @@ export class GameEngine {
     }
 
     for (let i = 0; i < combats; i++) {
-      const monster = this.getMonster(this.character.level)
-      const playerAtk = this.calculatePlayerAtk()
-      const playerDef = this.calculatePlayerDef()
-      let playerHp = this.character.maxHp
-      let monsterHp = monster.hp
-      let rounds = 0
+      // Auto-downgrade: try up to 30 weaker monster levels on loss
+      let monsterLevel = this.character.level
       let victory = false
 
-      while (playerHp > 0 && monsterHp > 0 && rounds < 100) {
-        rounds++
-        monsterHp -= this.calculateDamage(playerAtk, monster.def)
-        if (monsterHp <= 0) {
-          victory = true
+      for (let retry = 0; retry < 30; retry++) {
+        const monster = this.getMonster(monsterLevel)
+        const difficulty = this.getDifficultyTier(monsterLevel)
+        const diffMult = 1 + (difficulty - 1) * 0.3
+
+        // Offline combat: reduced player strength (80% of normal)
+        const playerAtk = Math.floor(this.calculatePlayerAtk() * 0.8)
+        const playerDef = Math.floor(this.calculatePlayerDef() * 0.8)
+
+        let playerHp = this.character.maxHp
+        let monsterHp = monster.hp
+        let rounds = 0
+
+        while (playerHp > 0 && monsterHp > 0 && rounds < 100) {
+          rounds++
+          monsterHp -= this.calculateDamage(playerAtk, monster.def)
+          if (monsterHp <= 0) {
+            victory = true
+            break
+          }
+          playerHp -= this.calculateDamage(monster.atk, playerDef)
+        }
+
+        if (victory) {
+          result.totalWins++
+          result.totalExpGained += Math.floor((monster.expReward + Math.floor(monsterLevel * 2)) * diffMult)
+          result.totalGoldGained += Math.floor((monster.goldReward + Math.floor(Math.random() * monsterLevel * 3)) * diffMult)
           break
         }
-        playerHp -= this.calculateDamage(monster.atk, playerDef)
-      }
 
-      if (victory) {
-        result.totalWins++
-        const difficulty = this.getDifficultyTier(this.character.level)
-        const diffMult = 1 + (difficulty - 1) * 0.3
-        result.totalExpGained += Math.floor(monster.expReward * diffMult)
-        result.totalGoldGained += monster.goldReward
-        const loot = this.rollLoot(monster.lootTable, this.character.level)
-        result.totalItemsGained.push(...loot)
-      } else {
         result.totalLosses++
+        monsterLevel = Math.max(1, monsterLevel - 1)
+        if (monsterLevel < 1) break
       }
     }
 
     if (result.totalWins > 0) {
       this.character.exp += result.totalExpGained
       this.character.gold += result.totalGoldGained
-      for (const item of result.totalItemsGained) {
-        this.tryAddToInventory(item)
+      // Offline: no item drops
+      while (this.checkLevelUp()) {
+        result.levelUps++
       }
-      this.checkLevelUp()
     }
 
     this.character.lastActive = now
