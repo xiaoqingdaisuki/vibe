@@ -9,9 +9,10 @@ interface GameLogProps {
   logs: LogEntry[]
   character: Character | null
   nextCombatIn: number | null
+  onClearLogs?: () => void
 }
 
-export function GameLog({ logs, character, nextCombatIn }: GameLogProps) {
+export function GameLog({ logs, character, nextCombatIn, onClearLogs }: GameLogProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set())
@@ -48,9 +49,16 @@ export function GameLog({ logs, character, nextCombatIn }: GameLogProps) {
     <div className={styles.container}>
       <div className={styles.header}>
         <h2 className={styles.title}>战斗日志</h2>
-        <div className={styles.status}>
-          <span className={styles.statusDot} />
-          <span className={styles.statusText}>{character ? `${character.name} 运行中` : "本地运行"}</span>
+        <div className={styles.headerActions}>
+          {onClearLogs && (
+            <button onClick={onClearLogs} className={styles.clearBtn}>
+              清屏
+            </button>
+          )}
+          <div className={styles.status}>
+            <span className={styles.statusDot} />
+            <span className={styles.statusText}>{character ? `${character.name} 运行中` : "本地运行"}</span>
+          </div>
         </div>
       </div>
 

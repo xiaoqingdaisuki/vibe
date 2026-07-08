@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import { flushSync } from "react-dom"
 import type { Character, LogEntry, ClassType, ActiveTab, GameInteraction } from "./types"
 import { GameLayout } from "./components/GameLayout"
 import { ClassSelect } from "./components/ClassSelect"
@@ -49,6 +50,8 @@ function createDefaultCharacter(username: string, classId: ClassType): Character
     skillUsage: {},
     lastActive: Date.now(),
     createdAt: now,
+    inventoryMax: 20,
+    favorites: [],
   }
 }
 
@@ -96,7 +99,8 @@ export default function GamePageClient() {
 
     try {
       const result = engineRef.current.autoRetryCombat()
-      const updatedChar = saveCharacterSnapshot({ ...engineRef.current.character })
+      // Sync engine ref first, then snapshot — ensures combat results are captured correctly
+      const updatedChar = saveCharacterSnapshot(engineRef.current.character)
       engineRef.current.character = updatedChar
       setCharacter(updatedChar)
 
@@ -253,6 +257,10 @@ export default function GamePageClient() {
           localData.skillUsage[sk.skillId] = 0
         }
       }
+      // Migrate inventory capacity
+      if (!localData.inventoryMax) localData.inventoryMax = 20
+      // Migrate favorites
+      if (!localData.favorites) localData.favorites = []
 
       // Load persisted logs and sync the module-level ID counter
       const savedLogs = loadPersistedLogs(trimmedUsername)
@@ -302,22 +310,23 @@ export default function GamePageClient() {
 
     try {
       const result = engineRef.current.performAction(action)
+      // Sync engine ref to the latest character state BEFORE any combat tick can fire
       const updatedChar = saveCharacterSnapshot(engineRef.current.character)
       engineRef.current.character = updatedChar
-      setCharacter(updatedChar)
+      // flushSync ensures React commits the state update immediately,
+      // so the next combat tick reads the correct (post-action) inventory
+      flushSync(() => {
+        setCharacter(updatedChar)
+      })
 
       if (result.logs.length > 0) {
         const logsWithId = result.logs.map(log => ({ ...log, id: ensureLogId(log.id) }))
         setLogs(prev => [...prev, ...logsWithId].slice(-50))
       }
-    } catch {
-      // silently fail
+    } catch (err) {
+      console.error("[handleAction] error:", err)
     }
   }, [character])
-
-  const getRestCooldown = useCallback(() => {
-    return engineRef.current?.getRestCooldownRemaining() ?? 0
-  }, [])
 
   // Cleanup
   useEffect(() => {
@@ -407,7 +416,6 @@ export default function GamePageClient() {
         nextCombatIn={nextCombatIn}
         onTabChange={setActiveTab}
         onAction={handleAction}
-        getRestCooldown={getRestCooldown}
       />
     )
   }

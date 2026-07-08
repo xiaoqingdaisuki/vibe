@@ -10,7 +10,6 @@ interface CharacterPanelProps {
   activeTab: ActiveTab
   onTabChange: (tab: ActiveTab) => void
   onAction: (action: GameInteraction | { type: "clearLogs" }) => void
-  getRestCooldown?: () => number
 }
 
 const CLASS_NAMES: Record<Character["class"], string> = {
@@ -30,22 +29,24 @@ function getDifficultyInfo(level: number): { name: string; tier: number } {
   return tier ? { name: tier.name, tier: tier.tier } : { name: "未知", tier: 1 }
 }
 
-function formatCooldown(seconds: number): string {
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`
-}
-
 export function CharacterPanel({
   character,
   activeTab,
   onTabChange,
   onAction,
-  getRestCooldown,
 }: CharacterPanelProps) {
   const diff = getDifficultyInfo(character.level)
-  const restCooldown = getRestCooldown?.() ?? 0
-  const restDisabled = restCooldown > 0
   const hpValue = Math.max(0, Math.min(character.hp, character.maxHp))
   const expValue = Math.max(0, Math.min(character.exp, character.expToNext))
+
+  const bagUsed = character.inventory.length
+  const bagMax = character.inventoryMax
+  const bagPercent = Math.round((bagUsed / bagMax) * 100)
+  const isFull = bagUsed >= bagMax
+
+  const expandCost = bagMax >= 50
+    ? Infinity
+    : Math.floor(100 * Math.pow(1.35, bagMax - 20))
 
   return (
     <div className={styles.panel}>
@@ -151,37 +152,35 @@ export function CharacterPanel({
         </div>
       </div>
 
-      <div className={styles.actions}>
-        <button
-          onClick={() => onTabChange("inventory")}
-          className={`${styles.actionBtn} ${activeTab === "inventory" ? styles.actionActive : ""}`}
-        >
-          背包
-        </button>
-        <button
-          onClick={() => onTabChange("equipment")}
-          className={`${styles.actionBtn} ${activeTab === "equipment" ? styles.actionActive : ""}`}
-        >
-          装备
-        </button>
-        <button
-          onClick={() => onTabChange("skills")}
-          className={`${styles.actionBtn} ${activeTab === "skills" ? styles.actionActive : ""}`}
-        >
-          技能
-        </button>
-        <button
-          onClick={() => onTabChange("shop")}
-          className={`${styles.actionBtn} ${activeTab === "shop" ? styles.actionActive : ""}`}
-        >
-          商店
-        </button>
-        <button onClick={() => onAction({ type: "rest" })} className={styles.actionBtn} disabled={restDisabled}>
-          {restDisabled ? `休息 ${formatCooldown(restCooldown)}` : "休息"}
-        </button>
-        <button onClick={() => onAction({ type: "clearLogs" })} className={`${styles.actionBtn} ${styles.clearAction}`}>
-          清屏
-        </button>
+      {/* Bag Capacity */}
+      <div className={styles.section}>
+        <div className={styles.bagSection}>
+          <div className={styles.bagInfo}>
+            <span className={styles.bagLabel}>背包</span>
+            <span className={styles.bagCount}>
+              {bagUsed}/{bagMax}
+            </span>
+            {isFull && (
+              <span className={styles.bagFull}>已满</span>
+            )}
+          </div>
+          <div className={styles.bagBar}>
+            <div
+              className={`${styles.bagBarFill} ${bagPercent >= 95 ? styles.bagBarDanger : bagPercent >= 80 ? styles.bagBarWarning : ""}`}
+              style={{ width: `${Math.min(bagPercent, 100)}%` }}
+            />
+          </div>
+          {bagMax < 50 && (
+            <button
+              onClick={() => onAction({ type: "expand" })}
+              className={`${styles.expandBtn} ${character.gold < expandCost ? styles.expandDisabled : ""}`}
+              disabled={character.gold < expandCost}
+              title={expandCost === Infinity ? "已达上限" : `扩充需要 ${expandCost.toLocaleString()} 金币`}
+            >
+              {expandCost === Infinity ? "已满" : `扩充 +${expandCost.toLocaleString()}金`}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

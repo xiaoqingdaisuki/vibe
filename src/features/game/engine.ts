@@ -12,7 +12,7 @@ import type {
   GameInteraction,
   EquipSlot,
 } from "./types.ts"
-import { CLASSES, SKILLS, MONSTERS, SHOP_ITEMS, ITEMS, DIFFICULTY_TIERS, RARITY_LABELS, resolveStatsForClass, resolveMainStatValue, rollRarity, getSkillEffectValue, tryLevelUpSkill, SKILL_USES_PER_LEVEL, SKILL_CATEGORY, randomEquipItem } from "./static-data.ts"
+import { CLASSES, SKILLS, MONSTERS, SHOP_ITEMS, ITEMS, DIFFICULTY_TIERS, RARITY_ORDER, RARITY_LABELS, resolveStatsForClass, resolveMainStatValue, rollRarity, getSkillEffectValue, tryLevelUpSkill, SKILL_USES_PER_LEVEL, SKILL_CATEGORY, randomEquipItem } from "./static-data.ts"
 
 export class GameEngine {
   public character: Character
@@ -27,6 +27,14 @@ export class GameEngine {
       for (const sk of this.character.skills) {
         this.character.skillUsage[sk.skillId] = 0
       }
+    }
+    // Backwards compat: ensure inventoryMax exists
+    if (!this.character.inventoryMax) {
+      this.character.inventoryMax = 20
+    }
+    // Backwards compat: ensure favorites exists
+    if (!this.character.favorites) {
+      this.character.favorites = []
     }
   }
 
@@ -209,7 +217,7 @@ export class GameEngine {
       result.itemsGained = this.rollLoot(monster.lootTable, monsterLevel)
 
       for (const item of result.itemsGained) {
-        this.character.inventory.push(item)
+        this.tryAddToInventory(item)
       }
 
       result.levelUp = this.checkLevelUp()
@@ -240,14 +248,23 @@ export class GameEngine {
       case "open":
         logs.push(...this.openChest(action.itemName))
         break
-      case "rest":
-        logs.push(...this.rest())
-        break
       case "buy":
         logs.push(...this.buyItem(action.itemName, action.count ?? 1))
         break
       case "sell":
         logs.push(...this.sellItem(action.itemName, action.count ?? 1))
+        break
+      case "expand":
+        logs.push(...this.expandBag())
+        break
+      case "sort":
+        logs.push(...this.sortInventory())
+        break
+      case "bulkSell":
+        logs.push(...this.bulkSell(action.itemNames))
+        break
+      case "toggleFavorite":
+        logs.push(...this.toggleFavorite(action.itemName))
         break
       case "command":
         logs.push({
@@ -328,7 +345,7 @@ export class GameEngine {
       this.character.exp += result.totalExpGained
       this.character.gold += result.totalGoldGained
       for (const item of result.totalItemsGained) {
-        this.character.inventory.push(item)
+        this.tryAddToInventory(item)
       }
       this.checkLevelUp()
     }
@@ -390,7 +407,32 @@ export class GameEngine {
     return tier ? tier.tier : 1
   }
 
-  // ---- private helpers ----
+  /** Try to add item to inventory. If full, drop lowest-rarity items to make space. */
+  private tryAddToInventory(item: Item): boolean {
+    if (this.character.inventory.length < this.character.inventoryMax) {
+      this.character.inventory.push(item)
+      return true
+    }
+
+    // Inventory full: try to drop common items first, then uncommon
+    const dropOrder: ItemRarity[] = ["common", "uncommon", "rare", "epic", "legendary", "mythic", "transcendent"]
+
+    for (const rarity of dropOrder) {
+      if (item.rarity === rarity) break // don't drop items of same or higher rarity
+      const dropIdx = this.character.inventory.findIndex(i => i.rarity === rarity)
+      if (dropIdx >= 0) {
+        this.character.inventory = [
+          ...this.character.inventory.slice(0, dropIdx),
+          ...this.character.inventory.slice(dropIdx + 1),
+          item,
+        ]
+        return true
+      }
+    }
+
+    // Could not make space - item is lost
+    return false
+  }
 
   private calculatePlayerAtk(): number {
     const classId = this.character.class
@@ -468,15 +510,6 @@ export class GameEngine {
   }
 
   /** Returns remaining rest cooldown in seconds, 0 if ready */
-  getRestCooldownRemaining(): number {
-    const lastRest = this.character.lastRestTime
-    if (!lastRest) return 0
-    const elapsed = Date.now() - lastRest
-    const cooldown = 10 * 60 * 1000 // 10 minutes
-    const remaining = cooldown - elapsed
-    return Math.max(0, Math.ceil(remaining / 1000))
-  }
-
   getSpellPower(): number {
     const int = this.character.stats.int
     const weaponInt = this.character.equipment.weapon
@@ -798,7 +831,7 @@ export class GameEngine {
 
     // Unequip current item if any
     if (this.character.equipment[slot]) {
-      this.character.inventory.push(this.character.equipment[slot]!)
+      this.tryAddToInventory(this.character.equipment[slot]!)
     }
 
     // Equip new item (resolve per-class stats if needed)
@@ -808,7 +841,7 @@ export class GameEngine {
     }
     itemToEquip.scaleWithClass = undefined
     this.character.equipment[slot] = itemToEquip
-    this.character.inventory.splice(itemIndex, 1)
+    this.character.inventory = this.character.inventory.filter((_, i) => i !== itemIndex)
 
     logs.push({
       timestamp: Date.now(),
@@ -832,7 +865,7 @@ export class GameEngine {
       return logs
     }
 
-    this.character.inventory.push(current)
+    this.tryAddToInventory(current)
     this.character.equipment[slot] = null
 
     logs.push({
@@ -861,7 +894,7 @@ export class GameEngine {
 
     if (item.type === "skill_book") {
       logs.push(...this.useSkillBook(item))
-      this.character.inventory.splice(itemIndex, 1)
+      this.character.inventory = this.character.inventory.filter((_, i) => i !== itemIndex)
       return logs
     }
 
@@ -897,18 +930,13 @@ export class GameEngine {
       return logs
     }
 
-    this.character.inventory.splice(chestIndex, 1)
+    this.character.inventory = this.character.inventory.filter((_, i) => i !== chestIndex)
 
     const chestRarity = chest.rarity
     const rewards: Item[] = []
 
-    const rewardCount =
-      chestRarity === "common" ? 2 :
-      chestRarity === "uncommon" ? 3 :
-      chestRarity === "rare" ? 4 :
-      chestRarity === "epic" ? 5 :
-      chestRarity === "legendary" ? 6 :
-      chestRarity === "mythic" ? 7 : 8
+    // Each chest gives 1 item by default
+    let rewardCount = 1
 
     const addSkillBook = () => {
       const classBooks = ITEMS.filter(it => it.type === "skill_book" && it.name.includes(this.getClassName()))
@@ -916,21 +944,33 @@ export class GameEngine {
       if (book) rewards.push({ ...book })
     }
 
+    // 1% chance to also drop a skill book (2 items total)
+    const skillBookTriggered = Math.random() < 0.01
+    if (skillBookTriggered) {
+      rewardCount = 2
+    }
+
     for (let i = 0; i < rewardCount; i++) {
-      if (Math.random() < 0.01) {
+      if (i === 1 && skillBookTriggered) {
         addSkillBook()
         continue
       }
 
-      // Use randomEquipItem which properly generates items with correct level, stats, and name
       const equipItem = randomEquipItem(chestRarity, this.character.level, this.character.class)
       if (equipItem) {
         rewards.push(equipItem)
+        // Mythic/transcendent items bypass the 1-item limit: add an extra item
+        if (equipItem.rarity === "mythic" || equipItem.rarity === "transcendent") {
+          const extraItem = randomEquipItem(chestRarity, this.character.level, this.character.class)
+          if (extraItem) {
+            rewards.push(extraItem)
+          }
+        }
       }
     }
 
     for (const item of rewards) {
-      this.character.inventory.push(item)
+      this.tryAddToInventory(item)
     }
 
     logs.push({
@@ -1126,38 +1166,6 @@ export class GameEngine {
 
     return logs
   }
-  private rest(): LogEntry[] {
-    const logs: LogEntry[] = []
-    const now = Date.now()
-    const REST_COOLDOWN = 10 * 60 * 1000
-
-    const lastRest = this.character.lastRestTime
-    if (lastRest) {
-      const elapsed = now - lastRest
-      if (elapsed < REST_COOLDOWN) {
-        const remaining = Math.ceil((REST_COOLDOWN - elapsed) / 1000)
-        const mins = Math.floor(remaining / 60)
-        const secs = remaining % 60
-        logs.push({
-          timestamp: now,
-          text: `休息冷却中，请等待 ${mins}分${secs}秒。`,
-          type: "info",
-        })
-        return logs
-      }
-    }
-
-    this.character.hp = this.character.maxHp
-    this.character.lastRestTime = now
-
-    logs.push({
-      timestamp: now,
-      text: "休息完毕，HP 已完全恢复！",
-      type: "info",
-    })
-
-    return logs
-  }
   private showShop(): LogEntry[] {
     const logs: LogEntry[] = [
       {
@@ -1241,7 +1249,7 @@ export class GameEngine {
     const itemDef = ITEM_MAP.get(shopItem.itemId)
     if (itemDef) {
       for (let i = 0; i < count; i++) {
-        this.character.inventory.push({ ...itemDef })
+        this.tryAddToInventory({ ...itemDef })
       }
     }
 
@@ -1319,15 +1327,231 @@ export class GameEngine {
     const sellPrice = unitPrice * count
     this.character.gold += sellPrice
 
-    for (let i = itemIndices.length - 1; i >= 0; i--) {
-      this.character.inventory.splice(itemIndices[i], 1)
-    }
+    const removeSet = new Set(itemIndices)
+    this.character.inventory = this.character.inventory.filter((_, i) => !removeSet.has(i))
 
     logs.push({
       timestamp: Date.now(),
       text: `出售了 ${itemName} x${count}，获得 ${sellPrice} 金币。`,
       type: "info",
     })
+
+    return logs
+  }
+
+  private getExpandCost(): number {
+    const current = this.character.inventoryMax
+    if (current >= 50) return Infinity
+    // 20->21: 100, then ×1.35 each step
+    const stepsFrom20 = current - 20
+    return Math.floor(100 * Math.pow(1.35, stepsFrom20))
+  }
+
+  private expandBag(): LogEntry[] {
+    const logs: LogEntry[] = []
+    const cost = this.getExpandCost()
+
+    if (cost === Infinity) {
+      logs.push({ timestamp: Date.now(), text: "背包已达到最大容量（50格）。", type: "info" })
+      return logs
+    }
+
+    if (this.character.gold < cost) {
+      logs.push({ timestamp: Date.now(), text: `金币不足，扩充需要 ${cost.toLocaleString()} 金币。`, type: "info" })
+      return logs
+    }
+
+    this.character.gold -= cost
+    this.character.inventoryMax++
+
+    logs.push({
+      timestamp: Date.now(),
+      text: `背包扩充到 ${this.character.inventoryMax} 格，花费 ${cost.toLocaleString()} 金币。`,
+      type: "info",
+    })
+
+    return logs
+  }
+
+  private sortInventory(): LogEntry[] {
+    const logs: LogEntry[] = []
+    if (this.character.inventory.length === 0) {
+      logs.push({ timestamp: Date.now(), text: "背包是空的，无需整理。", type: "info" })
+      return logs
+    }
+
+    // Rarity order index (higher = better)
+    const rarityIdx = (rarity: ItemRarity) => RARITY_ORDER.indexOf(rarity)
+
+    // Sort: rarity desc, then minLevel desc, then name asc
+    this.character.inventory.sort((a, b) => {
+      const rDiff = rarityIdx(b.rarity) - rarityIdx(a.rarity)
+      if (rDiff !== 0) return rDiff
+      const lvlDiff = (b.minLevel || 0) - (a.minLevel || 0)
+      if (lvlDiff !== 0) return lvlDiff
+      return a.name.localeCompare(b.name)
+    })
+
+    // Merge duplicates (same id), keep favorites separate
+    const merged: Item[] = []
+    const seen = new Map<string, { item: Item; count: number }>()
+
+    for (const item of this.character.inventory) {
+      if (seen.has(item.id)) {
+        seen.get(item.id)!.count++
+      } else {
+        seen.set(item.id, { item, count: 1 })
+      }
+    }
+
+    // Rebuild inventory from merged map, preserving sort order
+    this.character.inventory = []
+    for (const { item, count } of seen.values()) {
+      for (let i = 0; i < count; i++) {
+        this.character.inventory.push({ ...item })
+      }
+    }
+
+    logs.push({
+      timestamp: Date.now(),
+      text: "背包已整理（按品质排序，合并同类物品）。",
+      type: "info",
+    })
+
+    return logs
+  }
+
+  private bulkSell(itemNames: string[]): LogEntry[] {
+    const logs: LogEntry[] = []
+    if (itemNames.length === 0) {
+      logs.push({ timestamp: Date.now(), text: "请先选择要出售的物品。", type: "info" })
+      return logs
+    }
+
+    const BLOCKED_RARITIES: ItemRarity[] = ["mythic", "transcendent"]
+    let totalGold = 0
+    let soldCount = 0
+    const skippedBlocked: string[] = []
+    const skippedFavorite: string[] = []
+
+    // Deduplicate names
+    const namesToSell = [...new Set(itemNames)]
+
+    for (const itemName of namesToSell) {
+      // Find all matching items in inventory directly (no need for static lookup)
+      const itemIndices: number[] = []
+      let sampleRarity: ItemRarity = "common"
+
+      for (let i = 0; i < this.character.inventory.length && itemIndices.length < 999; i++) {
+        if (this.character.inventory[i].name === itemName) {
+          if (itemIndices.length === 0) {
+            sampleRarity = this.character.inventory[i].rarity
+          }
+          // Skip favorited items
+          if (this.character.favorites.includes(this.character.inventory[i].name)) {
+            if (!skippedFavorite.includes(itemName)) {
+              skippedFavorite.push(itemName)
+            }
+            continue
+          }
+          itemIndices.push(i)
+        }
+      }
+
+      if (itemIndices.length === 0) {
+        logs.push({ timestamp: Date.now(), text: `背包中没有找到：${itemName}`, type: "info" })
+        continue
+      }
+
+      // Block mythic/transcendent from bulk sell
+      if (BLOCKED_RARITIES.includes(sampleRarity)) {
+        skippedBlocked.push(itemName)
+        continue
+      }
+
+      // Calculate sell price from the actual item's rarity
+      const rarity = sampleRarity
+      let unitPrice: number
+      if (rarity === "common") {
+        unitPrice = 10
+      } else if (rarity === "uncommon") {
+        unitPrice = 100
+      } else if (rarity === "rare") {
+        unitPrice = 200
+      } else {
+        const rarityToChest: Record<string, string> = {
+          epic: "epic_chest",
+          legendary: "legendary_chest",
+          mythic: "mythic_chest",
+          transcendent: "mythic_chest",
+        }
+        const chestId = rarityToChest[rarity]
+        const chestItem = SHOP_ITEMS.find(s => s.itemId === chestId)
+        unitPrice = Math.floor((chestItem?.price || 1_000_000) / 10)
+      }
+
+      const count = itemIndices.length
+      const sellPrice = unitPrice * count
+      totalGold += sellPrice
+      soldCount += count
+
+      // Remove items from inventory (create new array to trigger React re-render)
+      const removeSet = new Set(itemIndices)
+      this.character.inventory = this.character.inventory.filter((_, i) => !removeSet.has(i))
+    }
+
+    this.character.gold += totalGold
+
+    if (soldCount > 0) {
+      logs.push({
+        timestamp: Date.now(),
+        text: `批量出售了 ${soldCount} 件物品，获得 ${totalGold.toLocaleString()} 金币。`,
+        type: "info",
+      })
+    }
+
+    if (skippedBlocked.length > 0) {
+      const rarityLabels: Record<string, string> = {
+        mythic: "神话",
+        transcendent: "超越",
+      }
+      logs.push({
+        timestamp: Date.now(),
+        text: `以下物品无法批量出售（${rarityLabels[skippedBlocked[0]] || "高稀有度"}品质），请逐个操作：${skippedBlocked.join("、")}`,
+        type: "info",
+      })
+    }
+
+    if (skippedFavorite.length > 0) {
+      logs.push({
+        timestamp: Date.now(),
+        text: `已跳过收藏的物品：${skippedFavorite.join("、")}`,
+        type: "info",
+      })
+    }
+
+    if (soldCount === 0 && skippedBlocked.length === 0 && skippedFavorite.length === 0) {
+      logs.push({
+        timestamp: Date.now(),
+        text: "没有可出售的物品。",
+        type: "info",
+      })
+    }
+
+    return logs
+  }
+
+  private toggleFavorite(itemName: string): LogEntry[] {
+    const logs: LogEntry[] = []
+    const idx = this.character.favorites.indexOf(itemName)
+
+    if (idx >= 0) {
+      this.character.favorites.splice(idx, 1)
+      logs.push({ timestamp: Date.now(), text: `取消收藏：${itemName}`, type: "info" })
+    } else {
+      this.character.favorites.push(itemName)
+      logs.push({ timestamp: Date.now(), text: `已收藏：${itemName}`, type: "info" })
+    }
 
     return logs
   }

@@ -89,6 +89,8 @@ export interface Character {
   skillUsage: Record<string, number>  // skillId -> total usage count
   lastActive: number
   createdAt: string
+  inventoryMax: number // max inventory slots, default 20, max 50
+  favorites: string[] // item names marked as favorite (skip in bulk sell/sort)
   // Computed combat stats (populated by GameEngine before rendering)
   _combatAtk?: number
   _combatDef?: number
@@ -122,9 +124,12 @@ export type GameInteraction =
   | { type: "unequip"; slot: EquipSlot }
   | { type: "use"; itemName: string }
   | { type: "open"; itemName: string }
-  | { type: "rest" }
   | { type: "buy"; itemName: string; count?: number }
   | { type: "sell"; itemName: string; count?: number }
+  | { type: "expand" }
+  | { type: "sort" }
+  | { type: "bulkSell"; itemNames: string[] }
+  | { type: "toggleFavorite"; itemName: string }
   | { type: "command"; value: string }
 
 export interface ShopItem {

@@ -16,7 +16,6 @@ interface GameLayoutProps {
   nextCombatIn: number | null
   onTabChange: (tab: ActiveTab) => void
   onAction: (action: GameInteraction | { type: "clearLogs" }) => void
-  getRestCooldown?: () => number
 }
 
 export function GameLayout({
@@ -26,7 +25,6 @@ export function GameLayout({
   nextCombatIn,
   onTabChange,
   onAction,
-  getRestCooldown,
 }: GameLayoutProps) {
   return (
     <div className={styles.gameContainer}>
@@ -37,12 +35,11 @@ export function GameLayout({
             activeTab={activeTab}
             onTabChange={onTabChange}
             onAction={onAction}
-            getRestCooldown={getRestCooldown}
           />
         </div>
 
         <div className={styles.centerPanel}>
-          <GameLog logs={logs} character={character} nextCombatIn={nextCombatIn} />
+          <GameLog logs={logs} character={character} nextCombatIn={nextCombatIn} onClearLogs={() => onAction({ type: "clearLogs" })} />
         </div>
 
         <div className={styles.rightPanel}>
@@ -51,7 +48,7 @@ export function GameLayout({
               className={`${styles.tab} ${activeTab === "inventory" ? styles.active : ""}`}
               onClick={() => onTabChange("inventory")}
             >
-              背包
+              背包 {character.inventory.length}/{character.inventoryMax}
             </button>
             <button
               className={`${styles.tab} ${activeTab === "equipment" ? styles.active : ""}`}

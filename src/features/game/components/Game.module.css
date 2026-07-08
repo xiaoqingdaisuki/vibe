@@ -99,14 +99,14 @@
 
   .rightPanel {
     order: 3;
-    min-height: 300px;
+    min-height: 500px;
   }
 }
 
 @media (max-width: 640px) {
   .gameContainer {
     padding: var(--space-8);
-    height: 100vh;
+    height: 1000px;
   }
 
   .gameLayout {
