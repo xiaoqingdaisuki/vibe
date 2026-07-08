@@ -19,5 +19,5 @@ export type LabApp = {
   href: string
   cover?: string
   featured?: boolean
-  dataSource?: "local" | "public-api" | "bun-service" | "future-backend"
+  dataSource?: "local" | "public-api" | "future-backend"
 }

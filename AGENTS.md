@@ -32,7 +32,7 @@ Core stack:
 - TypeScript strict mode
 - Tailwind CSS v4
 - CSS Modules
-- Bun
+- pnpm
 - Vercel
 
 Engineering direction:
@@ -45,19 +45,17 @@ Engineering direction:
 
 ## 2. Commands And Package Management
 
-Bun is the project package manager and command entrypoint. Use `bun run ...` in docs, comments, final answers, and task instructions.
+pnpm is the project package manager and command entrypoint. Use `pnpm ...` in docs, comments, final answers, and task instructions.
 
 Common commands:
 
 ```bash
-bun run dev
-bun run test
-bun run lint
-bun run typecheck
-bun run build
-bun run format
-bun run bun:server
-bun run dev:server
+pnpm run dev
+pnpm run test
+pnpm run lint
+pnpm run typecheck
+pnpm run build
+pnpm run format
 ```
 
 Rules:
@@ -65,8 +63,8 @@ Rules:
 - Do not add `npm run ...` examples to `README.md`, `AGENTS.md`, or user-facing instructions.
 - Do not use `pnpm` or `yarn`.
 - Before adding a dependency, check whether React, TypeScript, CSS, or a Web API can solve the problem cleanly.
-- If dependencies change, keep the Bun lockfile in sync.
-- If the current environment cannot run Bun, say so and report any substitute verification you performed.
+- If dependencies change, keep the pnpm lockfile in sync.
+- If the current environment cannot run pnpm, say so and report any substitute verification you performed.
 
 ## 3. Project Structure
 
@@ -86,7 +84,7 @@ src/
     lab/                  # Lab registry, types, cards
   lib/                    # Pure utilities, site config, public API helpers
   types/                  # Global TypeScript types
-server/                   # Bun auxiliary server
+server/                   # Removed (was auxiliary server)
 public/                   # Static assets
 ```
 
@@ -429,12 +427,6 @@ Lab:
 - The loader map is the code-loading entrypoint.
 - Individual app internals should not leak into the Lab feature.
 
-Bun server:
-
-- Use it only for lightweight proxying, mock APIs, format adapters, and webhook testing.
-- Do not put auth, payment, admin, or complex database logic in `server/`.
-- Frontend code accesses it through `NEXT_PUBLIC_BUN_API_BASE_URL`.
-
 ## 14. Code Review Standards
 
 Review for risk before style.
@@ -462,32 +454,32 @@ Review output:
 Run the relevant commands before completing code changes:
 
 ```bash
-bun run test
-bun run lint
-bun run typecheck
-bun run build
+pnpm run test
+pnpm run lint
+pnpm run typecheck
+pnpm run build
 ```
 
 Hard gate for any code modification:
 
-- Any change to application code, server code, configuration, build pipeline, or shared logic is not complete until local `bun run typecheck` passes with `0` errors.
-- Any change to application code, server code, configuration, build pipeline, or shared logic is not complete until local `bun run build` passes with `0` errors.
-- Treat Vercel build failures as local verification failures that must be reproduced and fixed before delivery whenever the environment can run Bun.
-- Do not hand off, summarize as done, or ask the user to verify later if local `bun run typecheck` or local `bun run build` still reports any error.
-- If Bun cannot run in the current environment, explicitly say that the hard gate could not be executed and report the closest substitute verification you performed.
+- Any change to application code, server code, configuration, build pipeline, or shared logic is not complete until local `pnpm run typecheck` passes with `0` errors.
+- Any change to application code, server code, configuration, build pipeline, or shared logic is not complete until local `pnpm run build` passes with `0` errors.
+- Treat Vercel build failures as local verification failures that must be reproduced and fixed before delivery whenever the environment can run pnpm.
+- Do not hand off, summarize as done, or ask the user to verify later if local `pnpm run typecheck` or local `pnpm run build` still reports any error.
+- If pnpm cannot run in the current environment, explicitly say that the hard gate could not be executed and report the closest substitute verification you performed.
 
 Minimum expectations:
 
 - Behavior changes need tests.
 - Shared helper changes need tests.
-- Route or build pipeline changes need `bun run build`.
-- Every code modification must include local `bun run typecheck` and local `bun run build`, and both must finish with `0` errors before the task is considered complete.
+- Route or build pipeline changes need `pnpm run build`.
+- Every code modification must include local `pnpm run typecheck` and local `pnpm run build`, and both must finish with `0` errors before the task is considered complete.
 - Responsive/style rule changes need mobile and desktop checks.
-- If Bun cannot run in the environment, explain why and report substitute verification.
+- If pnpm cannot run in the environment, explain why and report substitute verification.
 
 Current test entrypoint:
 
-- `bun run test` calls the Node test runner.
+- `pnpm run test` calls the Node test runner.
 - Lightweight regression tests are colocated `*.test.ts` files.
 - Tests should focus on behavior, not implementation details.
 
@@ -498,7 +490,7 @@ Test file lifecycle:
 
 Lint:
 
-- Use `bun run lint`.
+- Use `pnpm run lint`.
 - The underlying command is `eslint .`.
 - Do not use `next lint`.
 
@@ -522,8 +514,8 @@ When delivering:
 
 - Summarize what changed.
 - State which verification commands ran.
-- For any code modification, explicitly report the results of local `bun run typecheck` and local `bun run build`.
-- Do not describe a code change as complete unless both commands passed with `0` errors, unless Bun was unavailable and that limitation was stated clearly.
+- For any code modification, explicitly report the results of local `pnpm run typecheck` and local `pnpm run build`.
+- Do not describe a code change as complete unless both commands passed with `0` errors, unless pnpm was unavailable and that limitation was stated clearly.
 - If a command was not run, explain why.
 - Do not leave cleanup work for the user when Codex can complete it.
 

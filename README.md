@@ -19,7 +19,5 @@ The blog is a lightweight space for thoughts, notes, and experiments, powered by
 - TypeScript with strict mode
 - Tailwind CSS v4
 - CSS Modules
-- Bun
 - MDX content via `next-mdx-remote`
-- Lightweight Bun server utilities for small API or proxy-style helpers
 - Vercel-ready deployment model

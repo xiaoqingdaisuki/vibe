@@ -9,7 +9,7 @@ export const metadata: Metadata = {
     template: "%s | Vibe",
   },
   description: "A personal Web Lab — apps, experiments, and public API powered demos.",
-  keywords: ["web lab", "next.js", "bun", "experiments", "tools"],
+  keywords: ["web lab", "next.js", "experiments", "tools"],
   authors: [{ name: "xiaoqingdaisuki" }],
   openGraph: {
     type: "website",
