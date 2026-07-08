@@ -1,5 +1,3 @@
-export type LabAppStatus = "idea" | "building" | "beta" | "stable"
-
 export type LabAppCategory =
   | "tool"
   | "game"
@@ -14,7 +12,6 @@ export type LabApp = {
   title: string
   description: string
   category: LabAppCategory
-  status: LabAppStatus
   tags: string[]
   href: string
   cover?: string

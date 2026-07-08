@@ -1,8 +1,8 @@
 import GamePageClient from "@/features/game/page-client"
 
 export const metadata = {
-  title: "文字冒险 RPG",
-  description: "纯文字冒险挂机RPG游戏",
+  title: "Adventure RPG",
+  description: "Adventure RPG is a text-based role-playing game where you can explore dungeons, fight monsters, and collect loot. Embark on an epic adventure and become a legendary hero!",
 }
 
 export default function GamePage() {
