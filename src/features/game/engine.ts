@@ -12,7 +12,7 @@ import type {
   GameInteraction,
   EquipSlot,
 } from "./types.ts"
-import { CLASSES, SKILLS, MONSTERS, SHOP_ITEMS, ITEMS, DIFFICULTY_TIERS, RARITY_ORDER, RARITY_LABELS, resolveStatsForClass, resolveMainStatValue, rollRarity, getSkillEffectValue, tryLevelUpSkill, SKILL_USES_PER_LEVEL, SKILL_CATEGORY, randomEquipItem } from "./static-data.ts"
+import { CLASSES, SKILLS, MONSTERS, SHOP_ITEMS, ITEMS, DIFFICULTY_TIERS, RARITY_ORDER, RARITY_LABELS, resolveStatsForClass, resolveMainStatValue, rollRarity, getSkillEffectValue, tryLevelUpSkill, SKILL_USES_PER_LEVEL, SKILL_CATEGORY, randomEquipItem, getTierLootTable } from "./static-data.ts"
 
 export class GameEngine {
   public character: Character
@@ -51,7 +51,6 @@ export class GameEngine {
 
       const monster = this.getMonster(monsterLevel)
       this.defeatLogs.push(`被 Lv.${monsterLevel} ${monster.name} 击败，正在寻找更弱的对手...`)
-      // Full restore after death before retrying lower-level monster
       this.character.hp = this.character.maxHp
 
       monsterLevel = Math.max(1, monsterLevel - 1)
@@ -214,7 +213,7 @@ export class GameEngine {
       this.character.exp += expGained
       this.character.gold += goldGained
 
-      result.itemsGained = this.rollLoot(monster.lootTable, monsterLevel)
+      result.itemsGained = this.rollLoot(getTierLootTable(difficulty), monsterLevel)
 
       for (const item of result.itemsGained) {
         this.tryAddToInventory(item)

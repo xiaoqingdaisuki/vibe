@@ -2,11 +2,9 @@
 
 A personal Web Lab for apps, experiments, demos, and technical writing.
 
-## Overview
+**Live site:** [vibe-xiaoqingdaisuki.vercel.app](https://vibe-xiaoqingdaisuki.vercel.app)
 
-Vibe is a lightweight Next.js project that hosts interactive web apps, experiments, and blog posts. Each Lab app is self-contained with its own styles, types, and logic — the project stays minimal in dependencies and architecture.
-
-### Lab Apps
+## Lab Apps
 
 | App | Route | Description |
 |-----|-------|-------------|
@@ -19,11 +17,10 @@ A lightweight space for thoughts, notes, and experiments, powered by local Markd
 
 ## Tech Stack
 
-- Next.js 16 with App Router
+- Next.js 16
 - React 19
-- TypeScript with strict mode
+- TypeScript 5
 - Tailwind CSS v4
 - CSS Modules
 - MDX content via `next-mdx-remote`
 - pnpm
-- Vercel-ready deployment model

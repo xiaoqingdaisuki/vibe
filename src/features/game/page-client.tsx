@@ -99,7 +99,6 @@ export default function GamePageClient() {
 
     try {
       const result = engineRef.current.autoRetryCombat()
-      // Sync engine ref first, then snapshot — ensures combat results are captured correctly
       const updatedChar = saveCharacterSnapshot(engineRef.current.character)
       engineRef.current.character = updatedChar
       setCharacter(updatedChar)

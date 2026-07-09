@@ -172,18 +172,26 @@ export const DIFFICULTY_TIERS: DifficultyTier[] = [
   { tier: 5, name: "不可能", minLevel: 30, maxLevel: 30, description: "理论上无法到达" },
 ]
 
-// Stat progression per level (index = level - 1) — values multiplied by 3 for impactful equipment
-const warriorWeaponStats: number[] = [9, 15, 21, 27, 36, 45, 54, 66, 78, 90, 105, 120, 138, 156, 174, 195, 216, 240, 264, 288, 315, 342, 372, 402, 435]
-const warriorArmorStats: number[]   = [9, 15, 21, 27, 33, 39, 48, 57, 66, 75, 84, 93, 105, 117, 129, 141, 153, 165, 180, 195, 210, 225, 240, 258, 276]
-const warriorAccStats: number[]     = [0, 3, 3, 6, 6, 9, 9, 12, 12, 15, 15, 18, 18, 21, 21, 24, 24, 27, 27, 30, 30, 33, 33, 36, 36]
+// ── Equipment Stat Curves ────────────────────────────────────────────────────
+// Quadratic formulas for base stat value at a given level.
+// Level 1 = ~4, Level 10 = ~4-6, Level 25 = ~14-22 base per slot.
+// Combined with rarity bonus (×1 to ×64), this produces reasonable endgame numbers
+// without the old array-based system's inflated values.
 
-const mageWeaponStats: number[] = [9, 15, 21, 30, 39, 48, 60, 72, 84, 96, 111, 126, 144, 162, 180, 201, 222, 246, 270, 294, 321, 348, 378, 408, 441]
-const mageArmorStats: number[]   = [3, 6, 9, 12, 15, 21, 24, 30, 36, 42, 48, 54, 63, 72, 81, 90, 99, 108, 120, 132, 144, 156, 168, 183, 198]
-const mageAccStats: number[]     = [0, 6, 6, 9, 9, 12, 12, 15, 15, 18, 18, 21, 21, 24, 24, 27, 27, 30, 30, 33, 33, 36, 36, 39, 39]
+function wpnStat(lv: number): number {
+  return Math.floor(2 + lv * lv * 0.02)
+}
 
-const rogueWeaponStats: number[] = [6, 12, 18, 24, 30, 39, 48, 57, 69, 81, 93, 105, 120, 135, 150, 168, 186, 204, 225, 246, 267, 291, 315, 339, 366]
-const rogueArmorStats: number[]   = [3, 6, 9, 12, 15, 21, 24, 30, 36, 42, 48, 54, 60, 69, 78, 87, 96, 105, 114, 126, 138, 150, 162, 174, 189]
-const rogueAccStats: number[]     = [0, 6, 6, 9, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45, 48, 51, 54, 57, 60, 63, 66, 69]
+function armorStat(lv: number): number {
+  return Math.floor(2 + lv * lv * 0.015)
+}
+
+function accStat(lv: number): number {
+  return Math.floor(2 + lv * lv * 0.01)
+}
+
+// Rarity bonus multiplier: common=1x, uncommon=2x, rare=4x, epic=8x, legendary=16x, mythic=32x, transcendent=64x
+// (rarityBonus function already handles this)
 
 // ── Rarity System ──────────────────────────────────────────────────────────
 // 灰色 → 绿 → 蓝 → 紫 → 橙 → 红 → 金色
@@ -338,26 +346,30 @@ function buildItemStats(
   level: number, rarity: ItemRarity, slot: string
 ): { stats: Record<ClassType, Partial<Stats>>; scaleWithClass: boolean; mainStatValue: number } {
   const bonus = rarityBonus(rarity)
-  const idx = Math.max(0, level - 1)
+  const lv = Math.max(1, level)
   let stats: Record<ClassType, Partial<Stats>>
 
   if (slot === "weapon") {
+    const base = wpnStat(lv)
     stats = {
-      warrior: { str: Math.floor(warriorWeaponStats[idx] * bonus) },
-      mage:    { int: Math.floor(mageWeaponStats[idx] * bonus) },
-      rogue:   { dex: Math.floor(rogueWeaponStats[idx] * bonus) },
+      warrior: { str: Math.floor(base * bonus) },
+      mage:    { int: Math.floor(base * bonus) },
+      rogue:   { dex: Math.floor(base * bonus) },
     }
   } else if (slot === "armor") {
+    const base = armorStat(lv)
+    // All armor provides VIT (defense stat), keeping it simple and uniform
     stats = {
-      warrior: { vit: Math.floor(warriorArmorStats[idx] * bonus) },
-      mage:    { int: Math.floor(mageArmorStats[idx] * bonus), vit: Math.floor(mageArmorStats[idx] * 0.3 * bonus) },
-      rogue:   { dex: Math.floor(rogueArmorStats[idx] * bonus), vit: Math.floor(rogueArmorStats[idx] * 0.3 * bonus) },
+      warrior: { vit: Math.floor(base * bonus) },
+      mage:    { vit: Math.floor(base * bonus) },
+      rogue:   { vit: Math.floor(base * bonus) },
     }
   } else {
+    const base = accStat(lv)
     stats = {
-      warrior: { str: Math.floor(warriorAccStats[idx] * bonus) },
-      mage:    { int: Math.floor(mageAccStats[idx] * bonus) },
-      rogue:   { luk: Math.floor(rogueAccStats[idx] * bonus) },
+      warrior: { str: Math.floor(base * bonus) },
+      mage:    { int: Math.floor(base * bonus) },
+      rogue:   { luk: Math.floor(base * bonus) },
     }
   }
 
@@ -556,6 +568,35 @@ export const ITEMS: ItemDef[] = [
   ...generateEquipment(),
 ]
 
+// Monster loot: one shared base lootTable for all 30 monsters.
+// Base probabilities (at tier 1):
+//   common=30%, uncommon=4%, rare=0.8%, epic=0.3%, legendary=0.03%, mythic=0.003%, transcendent=0.0003%
+// Higher rarity chances scale with the monster's static difficulty tier:
+//   each tier adds +10% to all non-common chest chances (capped at 100%).
+const CHEST_LOOT_BASE: LootEntry[] = [
+  { itemId: "common_chest",      chance: 0.30,      minCount: 1, maxCount: 1 },
+  { itemId: "uncommon_chest",    chance: 0.04,      minCount: 1, maxCount: 1 },
+  { itemId: "rare_chest",        chance: 0.008,     minCount: 1, maxCount: 1 },
+  { itemId: "epic_chest",        chance: 0.003,     minCount: 1, maxCount: 1 },
+  { itemId: "legendary_chest",   chance: 0.0003,    minCount: 1, maxCount: 1 },
+  { itemId: "mythic_chest",      chance: 0.00003,   minCount: 1, maxCount: 1 },
+  { itemId: "transcendent_chest",chance: 0.000003,  minCount: 1, maxCount: 1 },
+]
+
+/**
+ * Returns a tier-scaled loot table based on the monster's static difficulty tier.
+ * Common chest is always included. Higher rarity chances scale +10% per tier above 1 (capped at 100%).
+ * @param tier - static difficulty tier (1 = easy, max 5 = impossible)
+ * @returns scaled loot entries
+ */
+export function getTierLootTable(tier: number): LootEntry[] {
+  const scale = 1 + (tier - 1) * 0.1
+  return CHEST_LOOT_BASE.map(entry => ({
+    ...entry,
+    chance: Math.min(1, entry.chance * scale),
+  }))
+}
+
 export const MONSTERS: MonsterDef[] = [
   // Level 1-5: Slime family
   ...Array.from({ length: 5 }, (_, i) => {
@@ -568,10 +609,7 @@ export const MONSTERS: MonsterDef[] = [
       def: 1 + level * 0.5,
       expReward: 15 + level * 3,
       goldReward: 5 + level * 2,
-      lootTable: [
-        { itemId: "common_chest",    chance: 0.55, minCount: 1, maxCount: 1 },
-        { itemId: "uncommon_chest",  chance: 0.10, minCount: 1, maxCount: 1 },
-      ] as LootEntry[],
+      lootTable: CHEST_LOOT_BASE,
     }
   }),
   // Level 6-10: Goblin family
@@ -585,11 +623,7 @@ export const MONSTERS: MonsterDef[] = [
       def: 2 + level * 0.8,
       expReward: 25 + level * 4,
       goldReward: 8 + level * 3,
-      lootTable: [
-        { itemId: "common_chest",     chance: 0.35, minCount: 1, maxCount: 1 },
-        { itemId: "warrior_weapon_05",chance: 0.05, minCount: 1, maxCount: 1 },
-        { itemId: "warrior_armor_05", chance: 0.05, minCount: 1, maxCount: 1 },
-      ] as LootEntry[],
+      lootTable: CHEST_LOOT_BASE,
     }
   }),
   // Level 11-15: Skeleton family
@@ -603,11 +637,7 @@ export const MONSTERS: MonsterDef[] = [
       def: 4 + level * 1,
       expReward: 40 + level * 5,
       goldReward: 12 + level * 4,
-      lootTable: [
-        { itemId: "common_chest",     chance: 0.30, minCount: 1, maxCount: 1 },
-        { itemId: "mage_weapon_10",   chance: 0.04, minCount: 1, maxCount: 1 },
-        { itemId: "rogue_weapon_10",  chance: 0.04, minCount: 1, maxCount: 1 },
-      ] as LootEntry[],
+      lootTable: CHEST_LOOT_BASE,
     }
   }),
   // Level 16-20: Orc family
@@ -621,11 +651,7 @@ export const MONSTERS: MonsterDef[] = [
       def: 6 + level * 1.2,
       expReward: 60 + level * 6,
       goldReward: 18 + level * 5,
-      lootTable: [
-        { itemId: "common_chest",     chance: 0.35, minCount: 1, maxCount: 1 },
-        { itemId: "warrior_armor_15", chance: 0.05, minCount: 1, maxCount: 1 },
-        { itemId: "mage_armor_15",    chance: 0.05, minCount: 1, maxCount: 1 },
-      ] as LootEntry[],
+      lootTable: CHEST_LOOT_BASE,
     }
   }),
   // Level 21-25: Demon family
@@ -639,13 +665,7 @@ export const MONSTERS: MonsterDef[] = [
       def: 10 + level * 1.5,
       expReward: 100 + level * 8,
       goldReward: 30 + level * 7,
-      lootTable: [
-        { itemId: "common_chest",     chance: 0.30, minCount: 1, maxCount: 1 },
-        { itemId: "uncommon_chest",   chance: 0.10, minCount: 1, maxCount: 1 },
-        { itemId: "warrior_acc_06",   chance: 0.03, minCount: 1, maxCount: 1 },
-        { itemId: "mage_acc_06",      chance: 0.03, minCount: 1, maxCount: 1 },
-        { itemId: "rogue_acc_06",     chance: 0.03, minCount: 1, maxCount: 1 },
-      ] as LootEntry[],
+      lootTable: CHEST_LOOT_BASE,
     }
   }),
   // Level 26-30: Dragon family (theoretical)
@@ -659,12 +679,7 @@ export const MONSTERS: MonsterDef[] = [
       def: 15 + level * 2,
       expReward: 200 + level * 15,
       goldReward: 50 + level * 10,
-      lootTable: [
-        { itemId: "common_chest",     chance: 0.30, minCount: 1, maxCount: 1 },
-        { itemId: "uncommon_chest",   chance: 0.10, minCount: 1, maxCount: 1 },
-        { itemId: "rare_chest",       chance: 0.05, minCount: 1, maxCount: 1 },
-        { itemId: "warrior_acc_08",   chance: 0.02, minCount: 1, maxCount: 1 },
-      ] as LootEntry[],
+      lootTable: CHEST_LOOT_BASE,
     }
   }),
 ]
