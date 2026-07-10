@@ -21,4 +21,14 @@ export const labApps: LabApp[] = [
     featured: true,
     dataSource: "local",
   },
+  {
+    slug: "rss",
+    title: "RSS Reader",
+    description: "聚合你的RSS订阅",
+    category: "app",
+    tags: ["rss", "reader", "feed"],
+    href: "/lab/rss",
+    featured: true,
+    dataSource: "local",
+  },
 ]
