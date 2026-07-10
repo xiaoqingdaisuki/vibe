@@ -5,6 +5,27 @@ const SESSION_KEY = "game_session"
 const LOGS_KEY_SUFFIX = "_logs"
 const MAX_STORED_LOGS = 200
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null
+}
+
+function isCharacterSnapshot(value: unknown): value is Character {
+  if (!isRecord(value) || !isRecord(value.stats) || !isRecord(value.equipment)) return false
+  const strings = ["username", "name", "class", "createdAt"]
+  const numbers = ["level", "exp", "expToNext", "hp", "maxHp", "gold", "lastActive"]
+  if (strings.some((key) => typeof value[key] !== "string") || numbers.some((key) => typeof value[key] !== "number" || !Number.isFinite(value[key]))) return false
+  if (!Array.isArray(value.inventory) || !Array.isArray(value.skills)) return false
+  if (value.skillUsage !== undefined && !isRecord(value.skillUsage)) return false
+  if (value.inventoryMax !== undefined && (typeof value.inventoryMax !== "number" || !Number.isFinite(value.inventoryMax))) return false
+  if (value.favorites !== undefined && (!Array.isArray(value.favorites) || value.favorites.some((name) => typeof name !== "string"))) return false
+  const stats = value.stats
+  return ["str", "dex", "int", "vit", "luk"].every((key) => typeof stats[key] === "number" && Number.isFinite(stats[key])) && value.skills.every((skill) => isRecord(skill) && typeof skill.skillId === "string" && typeof skill.level === "number" && Number.isFinite(skill.level))
+}
+
+function isLogEntry(value: unknown): value is LogEntry {
+  return isRecord(value) && typeof value.timestamp === "number" && typeof value.text === "string" && typeof value.type === "string"
+}
+
 function getBrowserStorage(): Storage | null {
   return typeof localStorage === "undefined" ? null : localStorage
 }
@@ -22,7 +43,8 @@ export function loadCharacterSnapshot(username: string, storage = getBrowserStor
 
   try {
     const data = storage.getItem(getCharacterStorageKey(username))
-    return data ? (JSON.parse(data) as Character) : null
+    const parsed: unknown = data ? JSON.parse(data) : null
+    return isCharacterSnapshot(parsed) ? parsed : null
   } catch {
     return null
   }
@@ -51,7 +73,8 @@ export function loadPersistedLogs(username: string, storage = getBrowserStorage(
 
   try {
     const data = storage.getItem(getLogsStorageKey(username))
-    return data ? (JSON.parse(data) as LogEntry[]) : []
+    const parsed: unknown = data ? JSON.parse(data) : []
+    return Array.isArray(parsed) ? parsed.filter(isLogEntry) : []
   } catch {
     return []
   }

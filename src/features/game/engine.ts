@@ -103,6 +103,7 @@ export class GameEngine {
 
       // --- Skill activation (before attack) ---
       let skillUsedName: string | undefined
+      let skillUsedId: string | undefined
       let skillDmgBonus = 0
       let skillHealAmount = 0
 
@@ -111,6 +112,7 @@ export class GameEngine {
         if (skillResult) {
           const { skillDef, skillInst, levelUp, newLevel } = skillResult
           skillUsedName = skillDef.name
+          skillUsedId = skillInst.skillId
 
           // Log level-up in combat
           if (levelUp) {
@@ -139,7 +141,10 @@ export class GameEngine {
       }
 
       // Player attack
-      const playerDamage = this.calculateDamage(playerAtk, monster.def)
+      const playerDamage = this.calculateDamage(
+        Math.floor(playerAtk * (1 + this.getActiveBuffValue(appliedBuffs, learnedSkills, "war_cry"))),
+        monster.def,
+      )
       const critical = this.rollCritical()
       const finalDamage = critical ? Math.floor(playerDamage * 2) : playerDamage
 
@@ -165,18 +170,19 @@ export class GameEngine {
       }
 
       // Monster attack
-      const dodgeRoll = this.rollDodge()
+      const dodgeRoll = skillUsedId === "dodge" || this.rollDodge()
       if (dodgeRoll) {
         isDodged = true
         roundDetail.isDodged = true
         roundDetail.monsterDmg = 0
         roundDetail.playerHpAfter = playerHp
       } else {
-        const monsterDamage = this.calculateDamage(monster.atk, playerDef)
-        playerHp -= Math.floor(monsterDamage)
-        playerDmgTaken += Math.floor(monsterDamage)
+        const reduction = this.getActiveBuffValue(appliedBuffs, learnedSkills, "shield_wall") + this.getActiveBuffValue(appliedBuffs, learnedSkills, "magic_shield")
+        const monsterDamage = Math.floor(this.calculateDamage(monster.atk, playerDef) * (1 - Math.min(reduction, 0.9)))
+        playerHp -= monsterDamage
+        playerDmgTaken += monsterDamage
         isDodged = false
-        roundDetail.monsterDmg = Math.floor(monsterDamage)
+        roundDetail.monsterDmg = monsterDamage
         roundDetail.playerHpAfter = Math.max(0, playerHp)
       }
 
@@ -478,10 +484,6 @@ export class GameEngine {
     let def = this.character.stats.vit
     def += this.statBonus(this.character.equipment.armor, "vit")
     def += this.statBonus(this.character.equipment.accessory, "vit")
-    const hasShieldWall = this.character.skills.some(s => s.skillId === "shield_wall")
-    if (hasShieldWall) {
-      def *= 1.5
-    }
     return def
   }
 
@@ -535,6 +537,13 @@ export class GameEngine {
   private statBonus(item: Item | null, stat: keyof Character["stats"]): number {
     const stats = item?.stats ? resolveStatsForClass(item.stats, this.character.class) : undefined
     return stats?.[stat] ?? 0
+  }
+
+  private getActiveBuffValue(appliedBuffs: Set<string>, skills: { skillId: string; level: number }[], skillId: string): number {
+    if (!appliedBuffs.has(skillId)) return 0
+    const definition = SKILLS.find((skill) => skill.id === skillId)
+    const instance = skills.find((skill) => skill.skillId === skillId)
+    return definition && instance ? getSkillEffectValue(definition, instance.level) : 0
   }
 
   private isPositiveWholeNumber(value: number): boolean {
@@ -623,7 +632,7 @@ export class GameEngine {
       forceActivate = true
     }
     // 3) Buff: only once per combat, 50% chance
-    else if (buffSkills.length > 0 && !appliedBuffs.has("__buff__")) {
+    else if (buffSkills.length > 0 && appliedBuffs.size === 0) {
       pool = buffSkills
       forceActivate = false // 50% chance
     }
@@ -639,7 +648,7 @@ export class GameEngine {
 
     // Mark buff as applied this combat
     if (SKILL_CATEGORY[skillInst.skillId] === "buff") {
-      appliedBuffs.add("__buff__")
+      appliedBuffs.add(skillInst.skillId)
     }
 
     // Set cooldown
@@ -673,7 +682,7 @@ export class GameEngine {
     const baseMonster = MONSTERS[index]
     const tier = this.getDifficultyTier(level)
     // Stat multiplier: tier 1=1.0, tier 2=1.3, tier 3=1.6, tier 4=1.9, tier 5=2.2
-    const diffMult = 1 + tier * 0.3
+    const diffMult = 1 + (tier - 1) * 0.3
 
     // Scale stats with level
     const hpScale = 1 + (level - 1) * 0.12

@@ -128,12 +128,11 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
 
   // Generic one-click sell for a specific item type
   const handleOneClickSellForType = useCallback((itemType: string) => {
-    const maxRarityIdx = Math.max(...Array.from(rarityFilter).map(r => RARITY_INDEX[r]))
     const namesToSell: string[] = []
 
     for (const item of character.inventory) {
       if (item.type !== itemType) continue
-      if (RARITY_INDEX[item.rarity] > maxRarityIdx) continue
+      if (!rarityFilter.has(item.rarity)) continue
       if (character.favorites.includes(item.name)) continue
       if (!namesToSell.includes(item.name)) {
         namesToSell.push(item.name)

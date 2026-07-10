@@ -16,7 +16,8 @@ function resolveLink(baseUrl: string, linkText: string): string {
   const trimmed = linkText.trim()
   if (!trimmed || trimmed === "#") return "#"
   try {
-    return new URL(trimmed, baseUrl).href
+    const url = new URL(trimmed, baseUrl)
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : "#"
   } catch {
     return trimmed
   }
@@ -123,7 +124,7 @@ function parseRSSXml(xmlText: string, feedUrl: string): RssFeed {
     }
     if (!thumbnail) {
       const imgMatch = contentHtml.match(/src="([^"]+)"/)
-      if (imgMatch?.[1]) thumbnail = imgMatch[1]
+      if (imgMatch?.[1]) thumbnail = resolveLink(feedUrl, imgMatch[1])
     }
 
     return { title, link, pubDate, contentSnippet, author, thumbnail }
@@ -167,7 +168,7 @@ function parseAtomFeed(feedEl: Element, feedUrl: string): RssFeed {
     let thumbnail: string | undefined
     const contentWithHtml = contentEl?.innerHTML || summaryEl?.innerHTML || ""
     const imgMatch = contentWithHtml.match(/src="([^"]+)"/)
-    if (imgMatch?.[1]) thumbnail = imgMatch[1]
+    if (imgMatch?.[1]) thumbnail = resolveLink(feedUrl, imgMatch[1])
 
     return { title, link, pubDate, contentSnippet, author, thumbnail }
   })
@@ -341,7 +342,8 @@ function AddFeedForm({ onAdd }: { onAdd: (url: string) => void }) {
         return
       }
       try {
-        new URL(trimmed)
+        const parsed = new URL(trimmed)
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") throw new Error("unsupported")
       } catch {
         setError("请输入有效的URL")
         return
@@ -394,6 +396,7 @@ export default function RSSReader() {
   const [loadingFeeds, setLoadingFeeds] = useState<Set<string>>(new Set())
   const [errors, setErrors] = useState<Map<string, string>>(new Map())
   const [expandedUrl, setExpandedUrl] = useState<string | null>(null)
+  const userToggledRef = useRef(false)
   const [showBackTop, setShowBackTop] = useState(false)
 
   const feedsRef = useRef(feeds)
@@ -408,12 +411,6 @@ export default function RSSReader() {
   }, [feeds])
 
   useEffect(() => {
-    if (subscriptions.length > 0 && expandedUrl === null) {
-      setExpandedUrl(subscriptions[0])
-    }
-  }, [subscriptions])
-
-  useEffect(() => {
     const handleScroll = () => {
       setShowBackTop(window.scrollY > 400)
     }
@@ -426,14 +423,21 @@ export default function RSSReader() {
   }
 
   const handleToggle = useCallback((url: string) => {
-    setExpandedUrl((prev) => prev === url ? null : url)
+    userToggledRef.current = true
+    setExpandedUrl((prev) => (prev === url ? null : url))
   }, [])
 
   // Load saved subscriptions and auto-subscribe defaults
   useEffect(() => {
     const saved = getStorageItem<string[]>(STORAGE_KEY, [])
-    const merged = [...DEFAULT_FEEDS, ...saved.filter((url) => !DEFAULT_FEEDS.includes(url))]
-    setSubscriptions(merged)
+    const validSaved = saved.filter((url): url is string => {
+      try {
+        const parsed = new URL(url)
+        return (parsed.protocol === "http:" || parsed.protocol === "https:") && !DEFAULT_FEEDS.includes(url)
+      } catch { return false }
+    })
+    const frame = requestAnimationFrame(() => setSubscriptions([...DEFAULT_FEEDS, ...validSaved]))
+    return () => cancelAnimationFrame(frame)
   }, [])
 
   // Fetch feeds whenever subscriptions change
@@ -551,7 +555,7 @@ export default function RSSReader() {
                   key={url}
                   feed={feed}
                   onRemove={() => removeSubscription(url)}
-                  expanded={expandedUrl === url}
+                  expanded={userToggledRef.current ? expandedUrl === url : url === subscriptions[0]}
                   onToggle={() => handleToggle(url)}
                 />
               )
