@@ -9,6 +9,7 @@ export const labApps: LabApp[] = [
     tags: ["skills", "knowledge", "collection"],
     href: "/lab/skills",
     featured: true,
+    recentOrder: 3,
     dataSource: "local",
   },
   {
@@ -19,6 +20,7 @@ export const labApps: LabApp[] = [
     tags: ["game", "rpg", "idle"],
     href: "/game",
     featured: true,
+    recentOrder: 2,
     dataSource: "local",
   },
   {
@@ -29,6 +31,7 @@ export const labApps: LabApp[] = [
     tags: ["rss", "reader", "feed"],
     href: "/lab/rss",
     featured: true,
+    recentOrder: 1,
     dataSource: "local",
   },
 ]

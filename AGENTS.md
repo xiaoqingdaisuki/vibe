@@ -336,7 +336,7 @@ Purple (accent) only appears on interactive elements: buttons, links, active nav
 
 ### Typography
 
-- Font family: browser default system font stack only. No external font imports (no Google Fonts, no `next/font`).
+- Font family: use the locally hosted Inter files in `public/fonts/` globally, with a system font fallback stack. Do not add remote font requests such as Google Fonts; keep only the Inter files required by the declared `@font-face` weights and styles.
 - Font sizes: even px values only. Mobile minimum: 10px.
   - Mobile: 12px, 14px, 16px, 18px, 20px, 22px, 26px, 32px
   - Desktop (≥768px): 14px, 16px, 18px, 20px, 22px, 24px, 28px, 36px

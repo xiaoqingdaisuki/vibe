@@ -16,5 +16,6 @@ export type LabApp = {
   href: string
   cover?: string
   featured?: boolean
+  recentOrder?: number
   dataSource?: "local" | "public-api" | "future-backend"
 }

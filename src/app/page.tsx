@@ -1,3 +1,6 @@
+import Link from "next/link"
+import { LabCard } from "@/features/lab/components/LabCard"
+import { getRecentLabApps } from "@/features/lab/lib/get-recent-lab-apps"
 import styles from "./styles/Home.module.css"
 
 export const metadata = {
@@ -6,6 +9,8 @@ export const metadata = {
 }
 
 export default function HomePage() {
+  const recentApps = getRecentLabApps()
+
   return (
     <div className={styles.hero}>
       {/* Large title with accent dot */}
@@ -36,6 +41,30 @@ export default function HomePage() {
           various web applications, tools, games, experiments, and interactive demos.
         </p>
       </section>
+
+      <div className={styles.actions}>
+        <Link href="/lab" className={styles.exploreButton}>
+          <span>Explore Lab</span>
+          <svg className={styles.exploreArrow} aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M5 12h14" />
+            <path d="m13 6 6 6-6 6" />
+          </svg>
+        </Link>
+      </div>
+
+      {recentApps.length > 0 && (
+        <section className={styles.recent} aria-labelledby="recent-updates-title">
+          <div className={styles.recentHeading}>
+            <span className="eyebrow">Latest</span>
+            <h2 id="recent-updates-title" className={styles.recentTitle}>Recent updates</h2>
+          </div>
+          <div className={styles.recentGrid}>
+            {recentApps.map((app) => (
+              <LabCard key={app.slug} app={app} />
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   )
 }

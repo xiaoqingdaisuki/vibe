@@ -131,8 +131,98 @@
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: var(--space-12);
-  margin-top: var(--space-16);
+  margin-top: var(--space-20);
+}
+
+.exploreButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  min-height: var(--touch-target);
+  padding: var(--space-12) var(--space-24);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-full);
+  background: linear-gradient(100deg, var(--color-accent-wash), var(--color-background), var(--color-accent-wash));
+  background-size: 200% 100%;
+  color: var(--color-foreground);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-decoration: none;
+  transition: border-color var(--dur-200) var(--ease-smooth), color var(--dur-200) var(--ease-smooth);
+  animation: exploreGradient 4s var(--ease-smooth) infinite;
+}
+
+.exploreArrow {
+  width: 24px;
+  height: 24px;
+  color: var(--color-accent);
+  transition: color var(--dur-200) var(--ease-smooth);
+}
+
+.exploreButton:hover,
+.exploreButton:active {
+  border-color: var(--color-accent-hover);
+  color: var(--color-accent);
+}
+
+.exploreButton:hover .exploreArrow,
+.exploreButton:active .exploreArrow {
+  color: var(--color-accent-hover);
+}
+
+@keyframes exploreGradient {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .exploreButton {
+    animation: none;
+  }
+}
+
+/* ---- Recent updates ---- */
+
+.recent {
+  position: relative;
+  max-width: 960px;
+  margin: var(--space-40) auto 0;
+  text-align: left;
+}
+
+.recentHeading {
+  text-align: center;
+}
+
+.recentTitle {
+  margin-top: var(--space-8);
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--color-foreground);
+}
+
+.recentGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-16);
+  margin-top: var(--space-20);
+}
+
+@media (min-width: 768px) {
+  .recent {
+    margin-top: var(--space-48);
+  }
+
+  .recentGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-20);
+    margin-top: var(--space-24);
+  }
 }
 
 @media (min-width: 768px) {
