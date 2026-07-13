@@ -1,15 +1,15 @@
-import { EmptyState } from "@/components/shared/EmptyState"
-import { SectionTitle } from "@/components/shared/SectionTitle"
-import { BlogCard } from "@/features/blog/components/BlogCard"
-import { getBlogPosts } from "@/features/blog/lib/posts"
+import { EmptyState } from '@/components/shared/EmptyState';
+import { SectionTitle } from '@/components/shared/SectionTitle';
+import { BlogCard } from '@/features/blog/components/BlogCard';
+import { getBlogPosts } from '@/features/blog/lib/posts';
 
 export const metadata = {
-  title: "Blog",
-  description: "Thoughts, notes and experiments.",
-}
+  title: 'Blog',
+  description: 'Thoughts, notes and experiments.',
+};
 
 export default async function BlogPage() {
-  const posts = getBlogPosts()
+  const posts = getBlogPosts();
 
   return (
     <div className="page-enter">
@@ -33,5 +33,5 @@ export default async function BlogPage() {
         )}
       </div>
     </div>
-  )
+  );
 }

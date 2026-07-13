@@ -1,12 +1,12 @@
-"use client"
+'use client';
 
-import type { ClassType } from "../types"
-import { CLASSES } from "../static-data"
-import styles from "./ClassSelect.module.css"
+import type { ClassType } from '../types';
+import { CLASSES } from '../static-data';
+import styles from './ClassSelect.module.css';
 
 interface ClassSelectProps {
-  selected: ClassType | null
-  onSelect: (classType: ClassType) => void
+  selected: ClassType | null;
+  onSelect: (classType: ClassType) => void;
 }
 
 export function ClassSelect({ selected, onSelect }: ClassSelectProps) {
@@ -16,7 +16,7 @@ export function ClassSelect({ selected, onSelect }: ClassSelectProps) {
         <button
           key={cls.id}
           onClick={() => onSelect(cls.id)}
-          className={`${styles.card} ${selected === cls.id ? styles.selected : ""}`}
+          className={`${styles.card} ${selected === cls.id ? styles.selected : ''}`}
           type="button"
         >
           <h3 className={styles.name}>{cls.name}</h3>
@@ -51,5 +51,5 @@ export function ClassSelect({ selected, onSelect }: ClassSelectProps) {
         </button>
       ))}
     </div>
-  )
+  );
 }

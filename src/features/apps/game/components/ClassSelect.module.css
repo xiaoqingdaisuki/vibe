@@ -16,7 +16,9 @@
   background: var(--color-background);
   text-align: left;
   cursor: pointer;
-  transition: border-color var(--dur-150) var(--ease-smooth), box-shadow var(--dur-150) var(--ease-smooth);
+  transition:
+    border-color var(--dur-150) var(--ease-smooth),
+    box-shadow var(--dur-150) var(--ease-smooth);
 }
 
 .card:hover {

@@ -1,15 +1,15 @@
-import { EmptyState } from "@/components/shared/EmptyState"
-import { SectionTitle } from "@/components/shared/SectionTitle"
-import { LabCard } from "@/features/lab/components/LabCard"
-import { getLabApps } from "@/features/lab/lib/get-lab-apps"
+import { EmptyState } from '@/components/shared/EmptyState';
+import { SectionTitle } from '@/components/shared/SectionTitle';
+import { LabCard } from '@/features/lab/components/LabCard';
+import { getLabApps } from '@/features/lab/lib/get-lab-apps';
 
 export const metadata = {
-  title: "Lab",
-  description: "Interactive apps, tools and experiments.",
-}
+  title: 'Lab',
+  description: 'Interactive apps, tools and experiments.',
+};
 
 export default async function LabPage() {
-  const apps = getLabApps()
+  const apps = getLabApps();
 
   return (
     <div className="page-enter">
@@ -33,5 +33,5 @@ export default async function LabPage() {
         )}
       </div>
     </div>
-  )
+  );
 }

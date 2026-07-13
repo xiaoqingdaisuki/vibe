@@ -1,23 +1,23 @@
-import Link from "next/link"
-import styles from "./Breadcrumb.module.css"
+import Link from 'next/link';
+import styles from './Breadcrumb.module.css';
 
 interface BreadcrumbItem {
-  label: string
-  href?: string
+  label: string;
+  href?: string;
 }
 
 interface BreadcrumbProps {
-  items: BreadcrumbItem[]
+  items: BreadcrumbItem[];
 }
 
 export function Breadcrumb({ items }: BreadcrumbProps) {
-  if (items.length <= 1) return null
+  if (items.length <= 1) return null;
 
   return (
     <nav className={styles.wrapper} aria-label="Breadcrumb">
       <ol className={styles.list}>
         {items.map((item, index) => {
-          const isLast = index === items.length - 1
+          const isLast = index === items.length - 1;
 
           return (
             <li key={index} className={styles.item}>
@@ -26,22 +26,31 @@ export function Breadcrumb({ items }: BreadcrumbProps) {
                   {item.label}
                 </span>
               ) : (
-                <Link href={item.href ?? "#"} className={styles.link}>
+                <Link href={item.href ?? '#'} className={styles.link}>
                   {item.label}
                 </Link>
               )}
 
               {!isLast && (
                 <span className={styles.separator} aria-hidden="true">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
                     <polyline points="9 18 15 12 9 6" />
                   </svg>
                 </span>
               )}
             </li>
-          )
+          );
         })}
       </ol>
     </nav>
-  )
+  );
 }

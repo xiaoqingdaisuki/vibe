@@ -1,51 +1,51 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 @font-face {
-  font-family: "Inter";
+  font-family: 'Inter';
   font-style: normal;
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/Inter_18pt-Regular.ttf") format("truetype");
+  src: url('/fonts/Inter_18pt-Regular.ttf') format('truetype');
 }
 
 @font-face {
-  font-family: "Inter";
+  font-family: 'Inter';
   font-style: normal;
   font-weight: 500;
   font-display: swap;
-  src: url("/fonts/Inter_18pt-Medium.ttf") format("truetype");
+  src: url('/fonts/Inter_18pt-Medium.ttf') format('truetype');
 }
 
 @font-face {
-  font-family: "Inter";
+  font-family: 'Inter';
   font-style: normal;
   font-weight: 600;
   font-display: swap;
-  src: url("/fonts/Inter_18pt-SemiBold.ttf") format("truetype");
+  src: url('/fonts/Inter_18pt-SemiBold.ttf') format('truetype');
 }
 
 @font-face {
-  font-family: "Inter";
+  font-family: 'Inter';
   font-style: normal;
   font-weight: 700;
   font-display: swap;
-  src: url("/fonts/Inter_18pt-Bold.ttf") format("truetype");
+  src: url('/fonts/Inter_18pt-Bold.ttf') format('truetype');
 }
 
 @font-face {
-  font-family: "Inter";
+  font-family: 'Inter';
   font-style: normal;
   font-weight: 800;
   font-display: swap;
-  src: url("/fonts/Inter_18pt-ExtraBold.ttf") format("truetype");
+  src: url('/fonts/Inter_18pt-ExtraBold.ttf') format('truetype');
 }
 
 @font-face {
-  font-family: "Inter";
+  font-family: 'Inter';
   font-style: italic;
   font-weight: 400;
   font-display: swap;
-  src: url("/fonts/Inter_18pt-Italic.ttf") format("truetype");
+  src: url('/fonts/Inter_18pt-Italic.ttf') format('truetype');
 }
 
 @theme {
@@ -132,7 +132,7 @@
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 
   /* ---- Font — locally hosted Inter with system fallbacks ---- */
-  --font-display: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+  --font-display: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', sans-serif;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -154,7 +154,9 @@
    BASE
    ============================================ */
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
@@ -175,7 +177,9 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-input, textarea, select {
+input,
+textarea,
+select {
   font: inherit;
 }
 
@@ -208,7 +212,12 @@ input, textarea, select {
 
 /* ---- Headings ---- */
 
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-family: var(--font-display);
   font-weight: 700;
   letter-spacing: -0.025em;
@@ -232,7 +241,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .eyebrow::before {
-  content: "";
+  content: '';
   display: block;
   width: 16px;
   height: 2px;
@@ -262,8 +271,12 @@ h1, h2, h3, h4, h5, h6 {
 /* ---- Page entrance ---- */
 
 @keyframes pageIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .page-enter {
@@ -279,10 +292,20 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ---- Scrollbar ---- */
 
-::-webkit-scrollbar { width: 5px; height: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--color-foreground-muted); }
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-foreground-muted);
+}
 
 /* ============================================
    SEMANTIC UTILITY CLASSES
@@ -292,25 +315,53 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
 }
 
-.text-primary   { color: var(--color-foreground); }
-.text-secondary { color: var(--color-foreground-secondary); }
-.text-muted     { color: var(--color-foreground-muted); }
-.text-accent    { color: var(--color-accent); }
-.text-strong    { color: var(--color-border-strong); }
-
-.bg-wash  { background: var(--color-accent-wash); }
-.bg-faint { background: var(--color-accent-faint); }
-.bg-base  { background: var(--color-border); }
-.bg-error { background: #fef2f2; }
-
-@media (prefers-color-scheme: dark) {
-  .bg-error { background: rgba(220, 38, 38, 0.1); }
+.text-primary {
+  color: var(--color-foreground);
+}
+.text-secondary {
+  color: var(--color-foreground-secondary);
+}
+.text-muted {
+  color: var(--color-foreground-muted);
+}
+.text-accent {
+  color: var(--color-accent);
+}
+.text-strong {
+  color: var(--color-border-strong);
 }
 
-.border-base   { border-color: var(--color-border); }
-.border-strong { border-color: var(--color-border-strong); }
-.border-light  { border-color: var(--color-border-light); }
-.border-accent { border-color: var(--color-accent); }
+.bg-wash {
+  background: var(--color-accent-wash);
+}
+.bg-faint {
+  background: var(--color-accent-faint);
+}
+.bg-base {
+  background: var(--color-border);
+}
+.bg-error {
+  background: #fef2f2;
+}
+
+@media (prefers-color-scheme: dark) {
+  .bg-error {
+    background: rgba(220, 38, 38, 0.1);
+  }
+}
+
+.border-base {
+  border-color: var(--color-border);
+}
+.border-strong {
+  border-color: var(--color-border-strong);
+}
+.border-light {
+  border-color: var(--color-border-light);
+}
+.border-accent {
+  border-color: var(--color-accent);
+}
 
 .border-top-base {
   border-top: 1px solid var(--color-border);
@@ -348,7 +399,9 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 500;
   font-size: var(--text-sm);
   color: var(--color-foreground-secondary);
-  transition: color var(--dur-150) var(--ease-smooth), background var(--dur-150) var(--ease-smooth);
+  transition:
+    color var(--dur-150) var(--ease-smooth),
+    background var(--dur-150) var(--ease-smooth);
   text-decoration: none;
 }
 
@@ -368,7 +421,9 @@ h1, h2, h3, h4, h5, h6 {
   font-weight: 500;
   font-size: var(--text-base);
   color: var(--color-foreground-secondary);
-  transition: color var(--dur-150) var(--ease-smooth), background var(--dur-150) var(--ease-smooth);
+  transition:
+    color var(--dur-150) var(--ease-smooth),
+    background var(--dur-150) var(--ease-smooth);
   text-decoration: none;
 }
 

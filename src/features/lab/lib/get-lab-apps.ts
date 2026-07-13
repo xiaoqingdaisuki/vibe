@@ -1,18 +1,18 @@
-import type { LabApp } from "../types"
-import { labApps } from "../registry"
+import type { LabApp } from '../types';
+import { labApps } from '../registry';
 
 export function getAllLabAppSlugs(): string[] {
-  return labApps.map((app) => app.slug)
+  return labApps.map((app) => app.slug);
 }
 
 export function getLabApps(): LabApp[] {
-  return [...labApps]
+  return [...labApps];
 }
 
 export function getLabAppBySlug(slug: string): LabApp | undefined {
-  return labApps.find((app) => app.slug === slug)
+  return labApps.find((app) => app.slug === slug);
 }
 
 export function getFeaturedLabApps(): LabApp[] {
-  return labApps.filter((app) => app.featured)
+  return labApps.filter((app) => app.featured);
 }

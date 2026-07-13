@@ -179,7 +179,13 @@
   height: 1px;
   border: none;
   margin: var(--space-20) 0;
-  background: linear-gradient(90deg, transparent 0%, var(--color-border) 20%, var(--color-border) 80%, transparent 100%);
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-border) 20%,
+    var(--color-border) 80%,
+    transparent 100%
+  );
 }
 
 .content {
@@ -243,7 +249,7 @@
   padding: var(--space-4) var(--space-6);
   border-radius: var(--radius-sm);
   background: var(--color-accent-wash);
-  font-family: ui-monospace, "SF Mono", "Fira Code", Consolas, monospace;
+  font-family: ui-monospace, 'SF Mono', 'Fira Code', Consolas, monospace;
   font-size: var(--text-sm);
   color: var(--color-accent);
 }

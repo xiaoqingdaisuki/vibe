@@ -1,9 +1,9 @@
-import Link from "next/link"
-import { PageHeader } from "@/components/shared/PageHeader"
+import Link from 'next/link';
+import { PageHeader } from '@/components/shared/PageHeader';
 
 export const metadata = {
-  title: "404 - Page Not Found",
-}
+  title: '404 - Page Not Found',
+};
 
 export default function NotFoundPage() {
   return (
@@ -12,19 +12,29 @@ export default function NotFoundPage() {
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl mb-5 bg-wash">
           <span className="text-2xl font-extrabold font-display text-accent">404</span>
         </div>
-        <PageHeader title="Page not found" description="The page you are looking for does not exist or has been moved." />
+        <PageHeader
+          title="Page not found"
+          description="The page you are looking for does not exist or has been moved."
+        />
 
-        <Link
-          href="/"
-          className="button primary inline-flex items-center gap-1.5 mt-8"
-        >
+        <Link href="/" className="button primary inline-flex items-center gap-1.5 mt-8">
           Go back home
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
             <path d="M19 12H5" />
             <path d="M12 19l-7-7 7-7" />
           </svg>
         </Link>
       </div>
     </div>
-  )
+  );
 }

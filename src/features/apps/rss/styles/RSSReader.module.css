@@ -182,7 +182,9 @@
   background: transparent;
   color: var(--color-foreground-muted);
   cursor: pointer;
-  transition: color var(--dur-150) var(--ease-smooth), background var(--dur-150) var(--ease-smooth);
+  transition:
+    color var(--dur-150) var(--ease-smooth),
+    background var(--dur-150) var(--ease-smooth);
   flex-shrink: 0;
 }
 

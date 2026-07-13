@@ -65,30 +65,72 @@
 }
 
 /* Rarity-colored pills */
-.pillRarityCommon { color: #9ca3af; }
-.pillRarityUncommon { color: #22c55e; }
-.pillRarityRare { color: #3b82f6; }
-.pillRarityEpic { color: #a855f7; }
-.pillRarityLegendary { color: #f97316; }
-.pillRarityMythic { color: #ef4444; }
-.pillRarityTranscendent { color: #fbbf24; }
+.pillRarityCommon {
+  color: #9ca3af;
+}
+.pillRarityUncommon {
+  color: #22c55e;
+}
+.pillRarityRare {
+  color: #3b82f6;
+}
+.pillRarityEpic {
+  color: #a855f7;
+}
+.pillRarityLegendary {
+  color: #f97316;
+}
+.pillRarityMythic {
+  color: #ef4444;
+}
+.pillRarityTranscendent {
+  color: #fbbf24;
+}
 
-.pillRarityCommon.pillActive { color: white; }
-.pillRarityUncommon.pillActive { color: white; }
-.pillRarityRare.pillActive { color: white; }
-.pillRarityEpic.pillActive { color: white; }
-.pillRarityLegendary.pillActive { color: white; }
-.pillRarityMythic.pillActive { color: white; }
-.pillRarityTranscendent.pillActive { color: white; }
+.pillRarityCommon.pillActive {
+  color: white;
+}
+.pillRarityUncommon.pillActive {
+  color: white;
+}
+.pillRarityRare.pillActive {
+  color: white;
+}
+.pillRarityEpic.pillActive {
+  color: white;
+}
+.pillRarityLegendary.pillActive {
+  color: white;
+}
+.pillRarityMythic.pillActive {
+  color: white;
+}
+.pillRarityTranscendent.pillActive {
+  color: white;
+}
 
 /* Rarity pills hover: only darken border, no background */
-.pillRarityCommon:hover { border-color: #9ca3af; }
-.pillRarityUncommon:hover { border-color: #22c55e; }
-.pillRarityRare:hover { border-color: #3b82f6; }
-.pillRarityEpic:hover { border-color: #a855f7; }
-.pillRarityLegendary:hover { border-color: #f97316; }
-.pillRarityMythic:hover { border-color: #ef4444; }
-.pillRarityTranscendent:hover { border-color: #fbbf24; }
+.pillRarityCommon:hover {
+  border-color: #9ca3af;
+}
+.pillRarityUncommon:hover {
+  border-color: #22c55e;
+}
+.pillRarityRare:hover {
+  border-color: #3b82f6;
+}
+.pillRarityEpic:hover {
+  border-color: #a855f7;
+}
+.pillRarityLegendary:hover {
+  border-color: #f97316;
+}
+.pillRarityMythic:hover {
+  border-color: #ef4444;
+}
+.pillRarityTranscendent:hover {
+  border-color: #fbbf24;
+}
 
 /* One-click sell */
 .oneClickSellGroup {
@@ -207,7 +249,9 @@
   border-bottom: 1px solid var(--color-border-light);
   border-left: 4px solid;
   background: var(--color-background);
-  transition: outline var(--dur-150) var(--ease-smooth), box-shadow var(--dur-150) var(--ease-smooth);
+  transition:
+    outline var(--dur-150) var(--ease-smooth),
+    box-shadow var(--dur-150) var(--ease-smooth);
   outline: 1px solid transparent;
   outline-offset: -1px;
 }

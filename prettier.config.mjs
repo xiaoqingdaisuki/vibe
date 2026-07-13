@@ -3,7 +3,7 @@ const prettierConfig = {
   singleQuote: true,
   tabWidth: 2,
   trailingComma: 'all',
-  printWidth: 100,
-}
+  printWidth: 120,
+};
 
-export default prettierConfig
+export default prettierConfig;

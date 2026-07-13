@@ -1,11 +1,11 @@
-import Link from "next/link"
-import { PageHeader } from "@/components/shared/PageHeader"
-import { siteConfig } from "@/lib/site"
+import Link from 'next/link';
+import { PageHeader } from '@/components/shared/PageHeader';
+import { siteConfig } from '@/lib/site';
 
 export const metadata = {
-  title: "About",
-  description: "About the author of Vibe.",
-}
+  title: 'About',
+  description: 'About the author of Vibe.',
+};
 
 export default function AboutPage() {
   return (
@@ -19,16 +19,16 @@ export default function AboutPage() {
 
         <div className="mt-8 md:mt-10 space-y-5 text-base leading-relaxed text-secondary">
           <p>
-            Hi, I&apos;m the creator of Vibe. I build web apps, experiment with new
-            technologies, and write about what I learn along the way.
+            Hi, I&apos;m the creator of Vibe. I build web apps, experiment with new technologies, and write about what I
+            learn along the way.
           </p>
           <p>
-            This site is my personal Web Lab, a space to explore ideas, share tools,
-            and document experiments. Everything here is built with care and curiosity.
+            This site is my personal Web Lab, a space to explore ideas, share tools, and document experiments.
+            Everything here is built with care and curiosity.
           </p>
           <p>
-            I believe in keeping things minimal — fewer dependencies, more browser-native
-            capabilities, and intentional complexity. This site reflects that philosophy.
+            I believe in keeping things minimal — fewer dependencies, more browser-native capabilities, and intentional
+            complexity. This site reflects that philosophy.
           </p>
         </div>
 
@@ -55,5 +55,5 @@ export default function AboutPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

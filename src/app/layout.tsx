@@ -1,36 +1,36 @@
-import type { Metadata, Viewport } from "next"
-import { SiteHeader } from "@/components/layout/SiteHeader"
-import { SiteFooter } from "@/components/layout/SiteFooter"
-import "./globals.css"
+import type { Metadata, Viewport } from 'next';
+import { SiteHeader } from '@/components/layout/SiteHeader';
+import { SiteFooter } from '@/components/layout/SiteFooter';
+import './globals.css';
 
 export const metadata: Metadata = {
   title: {
-    default: "Vibe",
-    template: "%s | Vibe",
+    default: 'Vibe',
+    template: '%s | Vibe',
   },
-  description: "A personal Web Lab — apps, experiments, and public API powered demos.",
-  keywords: ["web lab", "next.js", "experiments", "tools"],
-  authors: [{ name: "xiaoqingdaisuki" }],
+  description: 'A personal Web Lab — apps, experiments, and public API powered demos.',
+  keywords: ['web lab', 'next.js', 'experiments', 'tools'],
+  authors: [{ name: 'xiaoqingdaisuki' }],
   openGraph: {
-    type: "website",
-    locale: "en_US",
-    siteName: "Vibe",
+    type: 'website',
+    locale: 'en_US',
+    siteName: 'Vibe',
   },
-}
+};
 
 export const viewport: Viewport = {
-  width: "device-width",
+  width: 'device-width',
   initialScale: 1,
   maximumScale: 5,
   userScalable: true,
-  themeColor: "#ffffff",
-  viewportFit: "cover",
-}
+  themeColor: '#ffffff',
+  viewportFit: 'cover',
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -42,5 +42,5 @@ export default function RootLayout({
         </div>
       </body>
     </html>
-  )
+  );
 }

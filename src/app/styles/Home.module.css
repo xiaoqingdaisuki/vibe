@@ -19,7 +19,7 @@
 /* ---- Dot grid background ---- */
 
 .hero::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   background-image: radial-gradient(circle, var(--color-border) 1px, transparent 1px);
@@ -151,7 +151,9 @@
   font-weight: 700;
   letter-spacing: -0.01em;
   text-decoration: none;
-  transition: border-color var(--dur-200) var(--ease-smooth), color var(--dur-200) var(--ease-smooth);
+  transition:
+    border-color var(--dur-200) var(--ease-smooth),
+    color var(--dur-200) var(--ease-smooth);
   animation: exploreGradient 4s var(--ease-smooth) infinite;
 }
 
@@ -174,8 +176,13 @@
 }
 
 @keyframes exploreGradient {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

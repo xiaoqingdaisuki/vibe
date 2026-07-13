@@ -1,42 +1,42 @@
-"use client"
+'use client';
 
-import { useState, useEffect, useCallback } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 
 const NAV_LINKS = [
-  { href: "/", label: "Home" },
-  { href: "/lab", label: "Lab" },
-  { href: "/blog", label: "Blog" },
-  { href: "/about", label: "About" },
-]
+  { href: '/', label: 'Home' },
+  { href: '/lab', label: 'Lab' },
+  { href: '/blog', label: 'Blog' },
+  { href: '/about', label: 'About' },
+];
 
 export function SiteHeader() {
-  const [mobileOpen, setMobileOpen] = useState(false)
-  const pathname = usePathname()
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const pathname = usePathname();
 
   useEffect(() => {
     if (mobileOpen) {
-      document.body.style.overflow = "hidden"
+      document.body.style.overflow = 'hidden';
     } else {
-      document.body.style.overflow = ""
+      document.body.style.overflow = '';
     }
     return () => {
-      document.body.style.overflow = ""
-    }
-  }, [mobileOpen])
+      document.body.style.overflow = '';
+    };
+  }, [mobileOpen]);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && mobileOpen) {
-        setMobileOpen(false)
+      if (e.key === 'Escape' && mobileOpen) {
+        setMobileOpen(false);
       }
     }
-    document.addEventListener("keydown", handleKey)
-    return () => document.removeEventListener("keydown", handleKey)
-  }, [mobileOpen])
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [mobileOpen]);
 
-  const closeMenu = useCallback(() => setMobileOpen(false), [])
+  const closeMenu = useCallback(() => setMobileOpen(false), []);
 
   return (
     <header className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-bottom-base">
@@ -54,16 +54,12 @@ export function SiteHeader() {
           {/* Desktop nav — active underline indicator */}
           <nav className="hidden md:flex items-center gap-0.5">
             {NAV_LINKS.map((link) => {
-              const isActive = pathname === link.href
+              const isActive = pathname === link.href;
               return (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={`nav-link ${isActive ? "nav-link--active" : ""}`}
-                >
+                <Link key={link.href} href={link.href} className={`nav-link ${isActive ? 'nav-link--active' : ''}`}>
                   {link.label}
                 </Link>
-              )
+              );
             })}
           </nav>
 
@@ -71,7 +67,7 @@ export function SiteHeader() {
           <button
             className="md:hidden flex items-center justify-center w-11 h-11 -mr-2 rounded-md text-primary"
             onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label={mobileOpen ? "Close menu" : "Open menu"}
+            aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
             aria-expanded={mobileOpen}
           >
             <svg
@@ -104,31 +100,27 @@ export function SiteHeader() {
       {/* Mobile overlay menu */}
       {mobileOpen && (
         <div className="md:hidden">
-          <div
-            className="fixed inset-0 z-40 bg-black/10 backdrop-blur-sm"
-            onClick={closeMenu}
-            aria-hidden="true"
-          />
+          <div className="fixed inset-0 z-40 bg-black/10 backdrop-blur-sm" onClick={closeMenu} aria-hidden="true" />
           <nav
             className="fixed inset-x-0 top-14 z-50 bg-white/96 px-4 pb-4 pt-3 border-bottom-base"
             aria-label="Mobile navigation"
           >
             {NAV_LINKS.map((link) => {
-              const isActive = pathname === link.href
+              const isActive = pathname === link.href;
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   onClick={closeMenu}
-                  className={`nav-link-mobile ${isActive ? "nav-link-mobile--active" : ""}`}
+                  className={`nav-link-mobile ${isActive ? 'nav-link-mobile--active' : ''}`}
                 >
                   {link.label}
                 </Link>
-              )
+              );
             })}
           </nav>
         </div>
       )}
     </header>
-  )
+  );
 }

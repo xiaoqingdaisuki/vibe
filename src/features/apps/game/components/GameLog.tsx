@@ -1,49 +1,49 @@
-"use client"
+'use client';
 
-import { useCallback, useEffect, useRef, useState } from "react"
-import type { Character, LogEntry } from "../types"
-import { LogEntryComponent } from "./LogEntry"
-import styles from "./GameLog.module.css"
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Character, LogEntry } from '../types';
+import { LogEntryComponent } from './LogEntry';
+import styles from './GameLog.module.css';
 
 interface GameLogProps {
-  logs: LogEntry[]
-  character: Character | null
-  nextCombatIn: number | null
-  onClearLogs?: () => void
+  logs: LogEntry[];
+  character: Character | null;
+  nextCombatIn: number | null;
+  onClearLogs?: () => void;
 }
 
 export function GameLog({ logs, character, nextCombatIn, onClearLogs }: GameLogProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set())
-  const [isAtBottom, setIsAtBottom] = useState(true)
+  const containerRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+  const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
+  const [isAtBottom, setIsAtBottom] = useState(true);
 
   const toggleExpand = useCallback((timestamp: number) => {
     setExpandedLogs((prev) => {
-      const next = new Set(prev)
-      if (next.has(timestamp)) next.delete(timestamp)
-      else next.add(timestamp)
-      return next
-    })
-  }, [])
+      const next = new Set(prev);
+      if (next.has(timestamp)) next.delete(timestamp);
+      else next.add(timestamp);
+      return next;
+    });
+  }, []);
 
   const handleScroll = useCallback(() => {
-    const el = containerRef.current
-    if (!el) return
-    const threshold = 60
-    setIsAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < threshold)
-  }, [])
+    const el = containerRef.current;
+    if (!el) return;
+    const threshold = 60;
+    setIsAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < threshold);
+  }, []);
 
   useEffect(() => {
     if (isAtBottom) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [logs, isAtBottom])
+  }, [logs, isAtBottom]);
 
   const scrollToBottom = useCallback(() => {
-    setIsAtBottom(true)
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [])
+    setIsAtBottom(true);
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
 
   return (
     <div className={styles.container}>
@@ -57,7 +57,7 @@ export function GameLog({ logs, character, nextCombatIn, onClearLogs }: GameLogP
           )}
           <div className={styles.status}>
             <span className={styles.statusDot} />
-            <span className={styles.statusText}>{character ? `${character.name} 运行中` : "本地运行"}</span>
+            <span className={styles.statusText}>{character ? `${character.name} 运行中` : '本地运行'}</span>
           </div>
         </div>
       </div>
@@ -95,5 +95,5 @@ export function GameLog({ logs, character, nextCombatIn, onClearLogs }: GameLogP
         </div>
       )}
     </div>
-  )
+  );
 }

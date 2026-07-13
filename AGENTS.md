@@ -123,29 +123,29 @@ src/features/apps/{slug}/
 Client app template:
 
 ```tsx
-'use client'
+'use client';
 
 export function AppName() {
-  return <div>App UI</div>
+  return <div>App UI</div>;
 }
 
-export default AppName
+export default AppName;
 ```
 
 Wrapper template:
 
 ```tsx
-import AppName from './page-client'
+import AppName from './page-client';
 
 export default function Page() {
-  return <AppName />
+  return <AppName />;
 }
 ```
 
 Never use a template-string dynamic import inside `src/app/lab/[slug]/page.tsx`:
 
 ```ts
-import(`@/features/apps/${slug}/page-client`)
+import(`@/features/apps/${slug}/page-client`);
 ```
 
 Turbopack needs an explicit import map for stable builds and static analysis.
@@ -157,11 +157,11 @@ Blog files live in `src/content/blog/` and may use `.md` or `.mdx`.
 Required frontmatter:
 
 ```yaml
-title: "Post title"
-description: "Post description"
-date: "2026-07-06"
-tags: ["tag"]
-category: "Category"
+title: 'Post title'
+description: 'Post description'
+date: '2026-07-06'
+tags: ['tag']
+category: 'Category'
 published: true
 ```
 
@@ -245,6 +245,16 @@ Data boundaries:
 - Validate external data at the smallest useful boundary.
 - Do not make components depend directly on raw third-party API response shapes.
 - Treat `localStorage`, `fetch` responses, and frontmatter as untrusted until adapted.
+
+### 7.1 Code Formatting
+
+The repository's `prettier.config.mjs` is the source of truth for formatting and takes precedence over user-level VS Code settings. VS Code uses the Prettier extension for JavaScript, TypeScript, TSX, JSON, and JSONC files.
+
+- Use 2 spaces for indentation, LF line endings, UTF-8 encoding, no trailing whitespace, and a final newline.
+- Use single quotes, semicolons, and trailing commas wherever Prettier supports them.
+- Use a 120-character print width.
+- For CSS, preserve the existing CSS language formatter behavior while following the shared `.editorconfig` whitespace and line-ending rules.
+- Do not reformat unrelated files. When formatting changed files manually, use `pnpm exec prettier --write <changed-files>` so the repository config is applied.
 
 ## 8. Elegant Code Standards
 

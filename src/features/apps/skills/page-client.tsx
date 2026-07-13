@@ -1,13 +1,13 @@
-"use client"
+'use client';
 
-import { useState } from "react"
-import type { Skill } from "./types"
-import { skills } from "./data"
-import { renderSkillNotes } from "./render-skill-notes"
-import styles from "./styles/Skills.module.css"
+import { useState } from 'react';
+import type { Skill } from './types';
+import { skills } from './data';
+import { renderSkillNotes } from './render-skill-notes';
+import styles from './styles/Skills.module.css';
 
 function MarkdownRenderer({ content }: { content: string }) {
-  return <div className={styles.markdown}>{renderSkillNotes(content)}</div>
+  return <div className={styles.markdown}>{renderSkillNotes(content)}</div>;
 }
 
 function SkillCard({ skill, onClick }: { skill: Skill; onClick: () => void }) {
@@ -26,14 +26,24 @@ function SkillCard({ skill, onClick }: { skill: Skill; onClick: () => void }) {
         ))}
       </div>
     </button>
-  )
+  );
 }
 
 function SkillDetail({ skill, onBack }: { skill: Skill; onBack: () => void }) {
   return (
     <div className={styles.detail}>
       <button onClick={onBack} className={styles.backBtn} type="button">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <svg
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
           <path d="M19 12H5" />
           <path d="M12 19l-7-7 7-7" />
         </svg>
@@ -54,7 +64,17 @@ function SkillDetail({ skill, onBack }: { skill: Skill; onBack: () => void }) {
         {skill.link && (
           <a href={skill.link} target="_blank" rel="noopener noreferrer" className={styles.externalLink}>
             Reference
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
               <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
               <polyline points="15 3 21 3 21 9" />
               <line x1="10" y1="14" x2="21" y2="3" />
@@ -70,12 +90,12 @@ function SkillDetail({ skill, onBack }: { skill: Skill; onBack: () => void }) {
         <MarkdownRenderer content={skill.notes} />
       </div>
     </div>
-  )
+  );
 }
 
 export function Skills() {
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const selectedSkill = selectedId ? skills.find((s) => s.id === selectedId) : null
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedSkill = selectedId ? skills.find((s) => s.id === selectedId) : null;
 
   return (
     <div>
@@ -89,11 +109,9 @@ export function Skills() {
         </div>
       )}
 
-      {skills.length === 0 && (
-        <p className="mt-8 text-muted">No skills yet.</p>
-      )}
+      {skills.length === 0 && <p className="mt-8 text-muted">No skills yet.</p>}
     </div>
-  )
+  );
 }
 
-export default Skills
+export default Skills;

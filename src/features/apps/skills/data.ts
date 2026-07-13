@@ -1,13 +1,13 @@
-import type { Skill } from "./types"
+import type { Skill } from './types';
 
 export const skills: Skill[] = [
   {
-    id: "openai-skills-catalog",
-    name: "OpenAI Skills Catalog",
-    category: "Reference",
-    description: "Official OpenAI skills collection with system, curated, and experimental tiers.",
-    level: "intermediate",
-    agents: ["Claude Code"],
+    id: 'openai-skills-catalog',
+    name: 'OpenAI Skills Catalog',
+    category: 'Reference',
+    description: 'Official OpenAI skills collection with system, curated, and experimental tiers.',
+    level: 'intermediate',
+    agents: ['Claude Code'],
     notes: `# OpenAI Skills Catalog
 
 Official skills catalog from OpenAI.
@@ -26,15 +26,16 @@ Browse the catalog to discover skills that can be installed and used with Codex 
 
 This is a reference to the official source. Check the repo for the latest skills and installation instructions.
 `,
-    link: "https://github.com/openai/skills",
+    link: 'https://github.com/openai/skills',
   },
-    {
-    id: "anthropic-skills",
-    name: "Anthropic Skills",
-    category: "Reference",
-    description: "Official Anthropic skills specification and examples for Claude — document, creative, development, and enterprise skills.",
-    level: "intermediate",
-    agents: ["Claude"],
+  {
+    id: 'anthropic-skills',
+    name: 'Anthropic Skills',
+    category: 'Reference',
+    description:
+      'Official Anthropic skills specification and examples for Claude — document, creative, development, and enterprise skills.',
+    level: 'intermediate',
+    agents: ['Claude'],
     notes: `# Anthropic Skills
 
 Anthropic's public repository of Agent Skills for Claude. Demonstrates the "skills" system — a way to bundle instructions, scripts, and resources into folders that Claude loads dynamically.
@@ -62,15 +63,16 @@ Install via Claude Code plugin:
 
 Skills are YAML-based with \`name\` and \`description\` frontmatter. Available natively on Claude.ai paid plans and via the Skills API.
 `,
-    link: "https://github.com/anthropics/skills",
+    link: 'https://github.com/anthropics/skills',
   },
   {
-    id: "mattpocock-skills",
-    name: "Matt Pocock Skills",
-    category: "Reference",
-    description: "Collection of AI agent skills for real engineering — TDD, debugging, code review, architecture, and productivity workflows.",
-    level: "advanced",
-    agents: ["Claude Code"],
+    id: 'mattpocock-skills',
+    name: 'Matt Pocock Skills',
+    category: 'Reference',
+    description:
+      'Collection of AI agent skills for real engineering — TDD, debugging, code review, architecture, and productivity workflows.',
+    level: 'advanced',
+    agents: ['Claude Code'],
     notes: `# Matt Pocock Skills
 
 A collection of AI agent skills for "real engineering" designed to fix common failure modes when using coding agents like Claude Code.
@@ -103,15 +105,16 @@ A collection of AI agent skills for "real engineering" designed to fix common fa
 
 Addresses four failure modes: misinterpretation, verbosity, non-functional code, and architectural decay. Skills are small, composable, and model-agnostic.
 `,
-    link: "https://github.com/mattpocock/skills",
+    link: 'https://github.com/mattpocock/skills',
   },
   {
-    id: "composio-codex-skills",
-    name: "Composio Awesome Codex Skills",
-    category: "Reference",
-    description: "Practical automation-focused skills covering GitHub, Notion, deployment, meetings, and productivity integrations.",
-    level: "intermediate",
-    agents: ["Claude Code", "Cursor"],
+    id: 'composio-codex-skills',
+    name: 'Composio Awesome Codex Skills',
+    category: 'Reference',
+    description:
+      'Practical automation-focused skills covering GitHub, Notion, deployment, meetings, and productivity integrations.',
+    level: 'intermediate',
+    agents: ['Claude Code', 'Cursor'],
     notes: `# Composio Awesome Codex Skills
 
 A curated collection of practical Codex skills focused on automation and integration.
@@ -128,6 +131,6 @@ A curated collection of practical Codex skills focused on automation and integra
 
 One of the most comprehensive automation skill sets. Good reference for building custom workflows and understanding what's possible with agent skills.
 `,
-    link: "https://github.com/ComposioHQ/awesome-codex-skills",
+    link: 'https://github.com/ComposioHQ/awesome-codex-skills',
   },
-]
+];
