@@ -1,4 +1,4 @@
-import GamePageClient from "@/features/game/page-client"
+import GamePageClient from "@/features/apps/game/page-client"
 
 export const metadata = {
   title: "Adventure RPG",

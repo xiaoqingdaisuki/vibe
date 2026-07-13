@@ -20,7 +20,7 @@ export const DEFAULT_FEEDS: string[] = [
   "https://feeds.feedburner.com/ruanyifeng",
   "https://36kr.com/feed",
   "https://sspai.com/feed",
-  "https://openai.com/news/rss.xml",
+  "https://openai.com/blog/rss.xml",
   "https://api.xgo.ing/rss/user/01f60d63a61b44d692cc35c7feb0b4a4",
   "https://plink.anyfeeder.com/zhihu/daily",
 ]

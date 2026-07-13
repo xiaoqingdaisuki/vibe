@@ -6,3 +6,7 @@ test("getLabAppLoader returns a loader for registered apps", () => {
   assert.equal(typeof getLabAppLoader("skills"), "function")
   assert.equal(getLabAppLoader("missing-app"), undefined)
 })
+
+test("getLabAppLoader returns a loader for the RPG Lab app", () => {
+  assert.equal(typeof getLabAppLoader("rpg"), "function")
+})
