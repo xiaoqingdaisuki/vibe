@@ -7,6 +7,14 @@ import { getBlogPostBySlug, getBlogPosts } from './posts.ts';
 const BLOG_DIR = path.join(process.cwd(), 'src/content/blog');
 const TEMP_POST_SLUG = 'temp-md-post';
 const TEMP_POST_PATH = path.join(BLOG_DIR, `${TEMP_POST_SLUG}.md`);
+const TEMP_PINNED_POST_SLUG = 'temp-pinned-post';
+const TEMP_PINNED_POST_PATH = path.join(BLOG_DIR, `${TEMP_PINNED_POST_SLUG}.md`);
+const TEMP_NEWER_POST_SLUG = 'temp-newer-post';
+const TEMP_NEWER_POST_PATH = path.join(BLOG_DIR, `${TEMP_NEWER_POST_SLUG}.md`);
+const TEMP_EXPLICITLY_UNPINNED_POST_SLUG = 'temp-a-explicitly-unpinned-post';
+const TEMP_EXPLICITLY_UNPINNED_POST_PATH = path.join(BLOG_DIR, `${TEMP_EXPLICITLY_UNPINNED_POST_SLUG}.md`);
+const TEMP_OMITTED_PINNED_POST_SLUG = 'temp-z-omitted-pinned-post';
+const TEMP_OMITTED_PINNED_POST_PATH = path.join(BLOG_DIR, `${TEMP_OMITTED_PINNED_POST_SLUG}.md`);
 
 test('getBlogPostBySlug supports .md posts as well as .mdx', () => {
   fs.writeFileSync(
@@ -64,5 +72,99 @@ published: true
     );
   } finally {
     fs.rmSync(TEMP_POST_PATH, { force: true });
+  }
+});
+
+test('getBlogPosts lists pinned posts before newer standard posts', () => {
+  fs.writeFileSync(
+    TEMP_PINNED_POST_PATH,
+    `---
+title: "Pinned Post"
+description: "Used for a sorting regression test."
+date: "2000-01-01"
+tags: ["test"]
+category: "Test"
+published: true
+pinned: true
+---
+
+# Pinned Post
+`,
+    'utf-8',
+  );
+  fs.writeFileSync(
+    TEMP_NEWER_POST_PATH,
+    `---
+title: "Newer Post"
+description: "Used for a sorting regression test."
+date: "2099-01-01"
+tags: ["test"]
+category: "Test"
+published: true
+---
+
+# Newer Post
+`,
+    'utf-8',
+  );
+
+  try {
+    const posts = getBlogPosts();
+    const pinnedPostIndex = posts.findIndex((post) => post.slug === TEMP_PINNED_POST_SLUG);
+    const newerPostIndex = posts.findIndex((post) => post.slug === TEMP_NEWER_POST_SLUG);
+
+    assert.ok(pinnedPostIndex >= 0);
+    assert.ok(newerPostIndex >= 0);
+    assert.ok(pinnedPostIndex < newerPostIndex);
+  } finally {
+    fs.rmSync(TEMP_PINNED_POST_PATH, { force: true });
+    fs.rmSync(TEMP_NEWER_POST_PATH, { force: true });
+  }
+});
+
+test('getBlogPosts sorts explicit and omitted unpinned posts by date', () => {
+  fs.writeFileSync(
+    TEMP_EXPLICITLY_UNPINNED_POST_PATH,
+    `---
+title: "Explicitly Unpinned Post"
+description: "Used for a sorting regression test."
+date: "2000-01-01"
+tags: ["test"]
+category: "Test"
+published: true
+pinned: false
+---
+
+# Explicitly Unpinned Post
+`,
+    'utf-8',
+  );
+  fs.writeFileSync(
+    TEMP_OMITTED_PINNED_POST_PATH,
+    `---
+title: "Omitted Pinned Post"
+description: "Used for a sorting regression test."
+date: "2099-01-01"
+tags: ["test"]
+category: "Test"
+published: true
+---
+
+# Omitted Pinned Post
+`,
+    'utf-8',
+  );
+
+  try {
+    const posts = getBlogPosts();
+    const explicitlyUnpinnedPostIndex = posts.findIndex((post) => post.slug === TEMP_EXPLICITLY_UNPINNED_POST_SLUG);
+    const omittedPinnedPostIndex = posts.findIndex((post) => post.slug === TEMP_OMITTED_PINNED_POST_SLUG);
+
+    assert.ok(explicitlyUnpinnedPostIndex >= 0);
+    assert.ok(omittedPinnedPostIndex >= 0);
+    assert.ok(omittedPinnedPostIndex < explicitlyUnpinnedPostIndex);
+  } finally {
+    fs.rmSync(TEMP_EXPLICITLY_UNPINNED_POST_PATH, { force: true });
+    fs.rmSync(TEMP_OMITTED_PINNED_POST_PATH, { force: true });
   }
 });

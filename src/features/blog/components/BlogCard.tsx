@@ -10,7 +10,10 @@ export function BlogCard({ post }: BlogCardProps) {
   return (
     <article className={`${styles.card} group`}>
       <Link href={`/blog/${post.slug}`} className={styles.link}>
-        <h3 className="text-xl font-semibold font-display">{post.title}</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-xl font-semibold font-display">{post.title}</h3>
+          {post.pinned && <span className="text-xs font-medium text-accent">置顶</span>}
+        </div>
         <p className="mt-2 text-sm text-muted">{post.description}</p>
         <div className="mt-4 flex items-center justify-between text-xs text-muted">
           <div className="flex items-center gap-3">

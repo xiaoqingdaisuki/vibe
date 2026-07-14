@@ -39,6 +39,10 @@ function parseBlogMetadata(data: unknown): BlogPostMetadata | null {
     return null;
   }
 
+  if (metadata.pinned !== undefined && typeof metadata.pinned !== 'boolean') {
+    return null;
+  }
+
   return {
     title: metadata.title,
     description: metadata.description,
@@ -47,6 +51,7 @@ function parseBlogMetadata(data: unknown): BlogPostMetadata | null {
     tags: tags ?? [],
     category: metadata.category,
     published: metadata.published ?? true,
+    pinned: metadata.pinned,
     cover: metadata.cover,
   };
 }
@@ -70,6 +75,7 @@ function readBlogFile(filePath: string): BlogPost | null {
     tags: metadata.tags || [],
     category: metadata.category,
     published: metadata.published ?? true,
+    pinned: metadata.pinned,
     cover: metadata.cover,
     content,
   };
@@ -99,7 +105,16 @@ export function getBlogPosts(): BlogPost[] {
   return getAllBlogSlugs()
     .map((slug) => getBlogPostBySlug(slug))
     .filter((post): post is BlogPost => post !== null && post.published)
-    .sort((left, right) => right.date.localeCompare(left.date));
+    .sort((left, right) => {
+      const leftIsPinned = Boolean(left.pinned);
+      const rightIsPinned = Boolean(right.pinned);
+
+      if (leftIsPinned !== rightIsPinned) {
+        return Number(rightIsPinned) - Number(leftIsPinned);
+      }
+
+      return right.date.localeCompare(left.date);
+    });
 }
 
 export function getBlogPostBySlug(slug: string): BlogPost | null {

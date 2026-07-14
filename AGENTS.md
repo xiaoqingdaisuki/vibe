@@ -172,6 +172,15 @@ Blog rendering rules:
 - Do not inject markdown with `dangerouslySetInnerHTML`.
 - Do not hand-roll a markdown parser.
 
+### 4.3 Update The Vibe Commit Log
+
+After every successful Git commit, update `src/content/blog/vibe-log.mdx` before delivering work:
+
+- Append the commit under its `YYYY年MM月DD日` heading with its original commit subject.
+- Add a new date heading when the commit date is not yet present.
+- Update the article's `updated` frontmatter date to the commit date.
+- Keep `pinned: true` so the commit log remains permanently pinned in the blog list.
+
 ## 5. Next.js Standards
 
 Use Server Components by default. Add `'use client'` only when a component needs browser state, event handlers, DOM APIs, `localStorage`, canvas, or another client-only capability.

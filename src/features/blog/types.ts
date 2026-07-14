@@ -7,6 +7,7 @@ export interface BlogPost {
   tags: string[];
   category: string;
   published: boolean;
+  pinned?: boolean;
   cover?: string;
   content: string;
 }
@@ -19,5 +20,6 @@ export interface BlogPostMetadata {
   tags: string[];
   category: string;
   published: boolean;
+  pinned?: boolean;
   cover?: string;
 }
