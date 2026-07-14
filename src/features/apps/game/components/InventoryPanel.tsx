@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import type { Character, GameInteraction, Item, ItemRarity } from '../types';
-import { RARITY_ORDER, RARITY_LABELS, RARITY_COLORS, CLASSES, resolveStatsForClass, SHOP_ITEMS } from '../static-data';
+import { RARITY_ORDER, RARITY_LABELS, CLASSES, resolveStatsForClass, SHOP_ITEMS } from '../static-data';
 import { RarityBadge } from './RarityBadge';
 import styles from './InventoryPanel.module.css';
 
@@ -27,6 +27,16 @@ const RARITY_INDEX: Record<ItemRarity, number> = {
   legendary: 4,
   mythic: 5,
   transcendent: 6,
+};
+
+const RARITY_CLASS_NAMES: Record<ItemRarity, string> = {
+  common: styles.rarityCommon,
+  uncommon: styles.rarityUncommon,
+  rare: styles.rarityRare,
+  epic: styles.rarityEpic,
+  legendary: styles.rarityLegendary,
+  mythic: styles.rarityMythic,
+  transcendent: styles.rarityTranscendent,
 };
 
 interface InventoryPanelProps {
@@ -93,6 +103,24 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
   const [sortBy, setSortBy] = useState<SortKey>('rarity');
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [detailItem, setDetailItem] = useState<Item | null>(null);
+  const detailCloseButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!detailItem) return;
+
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const frame = requestAnimationFrame(() => detailCloseButtonRef.current?.focus());
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setDetailItem(null);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [detailItem]);
 
   const toggleTypeFilter = useCallback((type: string) => {
     setTypeFilter((prev) => {
@@ -340,7 +368,7 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
                   <span className={styles.groupTitle}>
                     {TYPE_LABELS[type] || type}（{items.length}）
                   </span>
-                  <span className={styles.groupLine} style={{ backgroundColor: RARITY_COLORS[groupRarity] }} />
+                  <span className={`${styles.groupLine} ${RARITY_CLASS_NAMES[groupRarity]}`} />
                 </button>
 
                 {!isCollapsed && (
@@ -351,7 +379,6 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
                       const fav = isFavorite(item.name);
                       const comparison = item.type === 'equipment' ? getEquipComparison(item, character) : null;
                       const sellPrice = getSellPrice(item);
-                      const rarityColor = RARITY_COLORS[item.rarity];
                       const statPreview = item.type === 'equipment' ? getItemStatsPreview(item, character.class) : '';
                       const showDetail =
                         item.rarity === 'epic' ||
@@ -362,13 +389,10 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
                       return (
                         <div
                           key={item.id}
-                          className={`${styles.itemCard} ${fav ? styles.itemFav : ''}`}
-                          style={{ borderLeftColor: rarityColor }}
+                          className={`${styles.itemCard} ${RARITY_CLASS_NAMES[item.rarity]} ${fav ? styles.itemFav : ''}`}
                         >
                           <div className={styles.itemTop}>
-                            <span className={styles.itemName} style={{ color: rarityColor }}>
-                              {item.name}
-                            </span>
+                            <span className={styles.itemName}>{item.name}</span>
                             <span className={styles.itemCount}>x{count}</span>
                             <button
                               className={`${styles.favBtn} ${fav ? styles.favActive : ''}`}
@@ -458,13 +482,22 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
 
       {/* Item Detail Modal */}
       {detailItem && (
-        <div className={styles.modalOverlay} onClick={() => setDetailItem(null)} role="dialog" aria-modal="true" aria-label="Item details">
+        <div
+          className={styles.modalOverlay}
+          onClick={() => setDetailItem(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Item details"
+        >
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <span className={styles.modalName} style={{ color: RARITY_COLORS[detailItem.rarity] }}>
-                {detailItem.name}
-              </span>
-              <button className={styles.modalClose} onClick={() => setDetailItem(null)} aria-label="Close">
+              <span className={`${styles.modalName} ${RARITY_CLASS_NAMES[detailItem.rarity]}`}>{detailItem.name}</span>
+              <button
+                ref={detailCloseButtonRef}
+                className={styles.modalClose}
+                onClick={() => setDetailItem(null)}
+                aria-label="Close"
+              >
                 ✕
               </button>
             </div>

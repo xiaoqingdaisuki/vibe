@@ -7,6 +7,34 @@
   gap: var(--space-8);
 }
 
+.rarityCommon {
+  --rarity-color: #9ca3af;
+}
+
+.rarityUncommon {
+  --rarity-color: #22c55e;
+}
+
+.rarityRare {
+  --rarity-color: #3b82f6;
+}
+
+.rarityEpic {
+  --rarity-color: #a855f7;
+}
+
+.rarityLegendary {
+  --rarity-color: #f97316;
+}
+
+.rarityMythic {
+  --rarity-color: #ef4444;
+}
+
+.rarityTranscendent {
+  --rarity-color: #fbbf24;
+}
+
 /* ── Filter Row ─────────────────────────── */
 
 .filterRow {
@@ -228,6 +256,7 @@
 }
 
 .groupLine {
+  background: var(--rarity-color);
   flex: 1;
   height: 1px;
   opacity: 0.4;
@@ -247,13 +276,9 @@
   gap: var(--space-4);
   padding: var(--space-10) var(--space-12);
   border-bottom: 1px solid var(--color-border-light);
-  border-left: 4px solid;
+  border-left: 4px solid var(--rarity-color);
   background: var(--color-background);
-  transition:
-    outline var(--dur-150) var(--ease-smooth),
-    box-shadow var(--dur-150) var(--ease-smooth);
-  outline: 1px solid transparent;
-  outline-offset: -1px;
+  transition: background var(--dur-150) var(--ease-smooth);
 }
 
 .itemCard:last-child {
@@ -261,8 +286,7 @@
 }
 
 .itemCard:hover {
-  outline-color: var(--color-accent);
-  box-shadow: inset 0 0 0 1px var(--color-accent);
+  background: var(--color-accent-faint);
 }
 
 .itemFav {
@@ -270,8 +294,7 @@
 }
 
 .itemFav:hover {
-  outline-color: #fbbf24;
-  box-shadow: inset 0 0 0 1px #fbbf24;
+  background: var(--color-accent-faint);
 }
 
 /* Item Top Row */
@@ -282,6 +305,7 @@
 }
 
 .itemName {
+  color: var(--rarity-color);
   font-size: var(--text-sm);
   font-weight: 600;
   flex: 1;
@@ -544,6 +568,7 @@
 }
 
 .modalName {
+  color: var(--rarity-color);
   font-size: var(--text-lg);
   font-weight: 700;
 }

@@ -209,6 +209,44 @@ Server/client boundaries:
 - Do not pass server-only helpers into Client Components.
 - Do not turn an entire page into a Client Component just to make one interaction work.
 
+### 5.1 React And Next.js Performance
+
+Apply these rules when changing React components, routes, data fetching, or client bundles. Profile first for micro-optimizations; prioritize correctness, response waterfalls, and shipped JavaScript over speculative memoization.
+
+Async and server work:
+
+- Check cheap synchronous guards before starting I/O, and defer an `await` until the branch that needs its result.
+- Start independent I/O together with `Promise.all()`. For partially dependent work, start the parent promise early and chain only the dependent request from it.
+- Use `Suspense` to stream a non-layout-critical, slow server subtree when its fallback has stable dimensions. Do not introduce a boundary that harms SEO-critical content or causes disruptive layout shift.
+- Keep request-specific data local to the render or handler. Module scope may contain immutable config, explicit loader maps, and intentionally keyed caches, never mutable request/user state.
+- Rely on Next.js request memoization for identical `fetch` calls. Use `React.cache()` only to deduplicate non-`fetch` server work within one request, and add cross-request caches only with a bounded size, TTL, and clear invalidation need.
+- Treat Server Actions and route handlers as public endpoints: validate input and authenticate/authorize every mutation inside the handler.
+- For static server assets or configuration, start or read immutable I/O at module scope when it is safe to keep resident; do not hoist user-specific, mutable, or large runtime data.
+
+Bundles and boundaries:
+
+- Keep import and filesystem paths statically analyzable. Use explicit maps whose values are literal `import()` functions; never construct dynamic module paths from user or route strings.
+- Use direct source imports instead of project barrel files when practical. Add `next/dynamic` only for genuinely heavy, non-critical client features and preserve a useful loading state.
+- Pass the smallest client-usable shape across an RSC boundary. Do not send both source data and a cheaply derived copy; derive it on the side that already owns the needed source.
+- Defer non-critical third-party scripts until after interaction. Use `next/script` with an appropriate strategy instead of raw blocking script tags.
+
+Client state, events, and storage:
+
+- Derive display state during render; put user-triggered work in the event handler. Use effects only to synchronize with browser or network systems.
+- Use functional state updates whenever the next value depends on the previous value. Use lazy `useState` initialization for storage reads or expensive initial work.
+- Do not add `memo`, `useMemo`, or `useCallback` by default. Use them only for measured expensive work, a stable callback required by a subscription, or a documented dependency boundary. Never define a component inside another component.
+- Keep effect dependencies as narrow reactive primitives where possible. Use `useEffectEvent` for subscriptions that need the latest callback without resubscribing; do not place an Effect Event in a dependency array.
+- Use `{ passive: true }` for scroll, wheel, and touch listeners that never call `preventDefault()`, and always remove global listeners and timers during cleanup.
+- Store only minimal, versioned localStorage data; validate parsed values and wrap storage access in `try`/`catch`. Cache storage reads only when profiling shows a hot path, and keep the cache synchronized with writes and cross-tab changes.
+- Use transitions or `useDeferredValue` only when a non-urgent update or expensive derived view demonstrably affects input responsiveness. Use refs for high-frequency transient values that do not need to render.
+
+Rendering and JavaScript hot paths:
+
+- For long, scrollable lists, consider `content-visibility: auto` with an appropriate intrinsic size before reaching for a virtualization dependency.
+- Prefer explicit conditional rendering when a numeric condition could render `0`. Use `toSorted()` or a copied array before sorting props or state.
+- Build `Set`/`Map` indexes for repeated membership/lookups, avoid sorting merely to find a minimum or maximum, and return early once an answer is known. Apply iteration and caching optimizations only to measured hot paths.
+- Batch DOM reads separately from DOM writes and prefer CSS classes over imperative inline style mutation.
+
 ## 6. React 19 Standards
 
 Component design:
@@ -523,7 +561,6 @@ Lint:
 
 - Do not use Superpowers skills or workflows for work in this repository.
 - Do not use subagents for work in this repository.
-- For every user request that does not specify a different skill, invoke the `grant-me` skill before taking task actions. If that skill is unavailable in the current session, state the limitation and continue with the repository rules.
 
 When starting a task:
 

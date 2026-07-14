@@ -337,7 +337,7 @@ function FeedSection({
   );
 }
 
-function AddFeedForm({ onAdd }: { onAdd: (url: string) => void }) {
+function AddFeedForm({ onAdd }: { onAdd: (url: string, feed: RssFeed) => void }) {
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -360,8 +360,8 @@ function AddFeedForm({ onAdd }: { onAdd: (url: string) => void }) {
         setError('请输入有效的URL');
         return;
       }
-      await fetchRSS(trimmed);
-      onAdd(trimmed);
+      const feed = await fetchRSS(trimmed);
+      onAdd(trimmed, feed);
       setUrl('');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : '获取RSS失败';
@@ -377,12 +377,6 @@ function AddFeedForm({ onAdd }: { onAdd: (url: string) => void }) {
         <Input
           value={url}
           onChange={(e) => setUrl(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              handleSubmit(e as unknown as React.FormEvent);
-            }
-          }}
           placeholder="输入RSS订阅地址…"
           className={styles.addInput}
           autoComplete="off"
@@ -484,7 +478,18 @@ export default function RSSReader() {
     });
   }, [subscriptions]);
 
-  const addSubscription = useCallback((url: string) => {
+  const addSubscription = useCallback((url: string, feed: RssFeed) => {
+    setFeeds((prev) => {
+      const next = new Map(prev);
+      next.set(url, feed);
+      feedsRef.current = next;
+      return next;
+    });
+    setErrors((prev) => {
+      const next = new Map(prev);
+      next.delete(url);
+      return next;
+    });
     setSubscriptions((prev) => {
       if (prev.includes(url)) return prev;
       const isDefault = DEFAULT_FEEDS.includes(url);

@@ -8,15 +8,28 @@ import styles from './GameLog.module.css';
 interface GameLogProps {
   logs: LogEntry[];
   character: Character | null;
-  nextCombatIn: number | null;
+  combatCycleStartedAt: number | null;
   onClearLogs?: () => void;
 }
 
-export function GameLog({ logs, character, nextCombatIn, onClearLogs }: GameLogProps) {
+export function GameLog({ logs, character, combatCycleStartedAt, onClearLogs }: GameLogProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (combatCycleStartedAt === null) return;
+
+    const updateNow = () => setNow(Date.now());
+    updateNow();
+    const interval = window.setInterval(updateNow, 1_000);
+    return () => window.clearInterval(interval);
+  }, [combatCycleStartedAt]);
+
+  const nextCombatIn =
+    combatCycleStartedAt === null ? null : Math.max(0, Math.ceil((combatCycleStartedAt + 10_000 - now) / 1_000));
 
   const toggleExpand = useCallback((timestamp: number) => {
     setExpandedLogs((prev) => {

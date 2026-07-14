@@ -42,7 +42,11 @@
   font-size: var(--text-xs);
   color: var(--color-foreground-muted);
   cursor: pointer;
-  transition: all 0.15s;
+  transition:
+    background var(--dur-150) var(--ease-smooth),
+    border-color var(--dur-150) var(--ease-smooth),
+    color var(--dur-150) var(--ease-smooth),
+    opacity var(--dur-150) var(--ease-smooth);
 }
 
 .expandBtn:hover {

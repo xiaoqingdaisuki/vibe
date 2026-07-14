@@ -1,4 +1,4 @@
-import { forwardRef } from 'react';
+import { forwardRef, useId } from 'react';
 
 import styles from './Input.module.css';
 
@@ -8,11 +8,21 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 }
 
 export const Input = forwardRef<HTMLInputElement, InputProps>(({ label, error, className = '', ...props }, ref) => {
-  const inputId = props.id || `input-${props.name || Math.random().toString(36).slice(2)}`;
+  const generatedId = useId();
+  const inputId = props.id || `input-${props.name || generatedId}`;
   return (
     <div className={styles.wrapper}>
-      {label && <label htmlFor={inputId} className={styles.label}>{label}</label>}
-      <input ref={ref} id={inputId} className={`${styles.input} ${error ? styles.error : ''} ${className}`} {...props} />
+      {label && (
+        <label htmlFor={inputId} className={styles.label}>
+          {label}
+        </label>
+      )}
+      <input
+        ref={ref}
+        id={inputId}
+        className={`${styles.input} ${error ? styles.error : ''} ${className}`}
+        {...props}
+      />
       {error && <p className={styles.errorText}>{error}</p>}
     </div>
   );

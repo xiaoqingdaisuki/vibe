@@ -13,12 +13,19 @@ interface GameLayoutProps {
   character: Character;
   logs: LogEntry[];
   activeTab: ActiveTab;
-  nextCombatIn: number | null;
+  combatCycleStartedAt: number | null;
   onTabChange: (tab: ActiveTab) => void;
   onAction: (action: GameInteraction | { type: 'clearLogs' }) => void;
 }
 
-export function GameLayout({ character, logs, activeTab, nextCombatIn, onTabChange, onAction }: GameLayoutProps) {
+export function GameLayout({
+  character,
+  logs,
+  activeTab,
+  combatCycleStartedAt,
+  onTabChange,
+  onAction,
+}: GameLayoutProps) {
   return (
     <div className={styles.gameContainer}>
       <div className={styles.gameLayout}>
@@ -30,7 +37,7 @@ export function GameLayout({ character, logs, activeTab, nextCombatIn, onTabChan
           <GameLog
             logs={logs}
             character={character}
-            nextCombatIn={nextCombatIn}
+            combatCycleStartedAt={combatCycleStartedAt}
             onClearLogs={() => onAction({ type: 'clearLogs' })}
           />
         </div>

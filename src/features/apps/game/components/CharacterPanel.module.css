@@ -296,23 +296,35 @@
 .bagBar {
   width: 100%;
   height: 6px;
-  background: var(--color-border-light);
+}
+
+.bagProgress {
+  display: block;
+  width: 100%;
+  height: 100%;
+  appearance: none;
+  border: 0;
   border-radius: var(--radius-full);
   overflow: hidden;
-}
-
-.bagBarFill {
-  height: 100%;
   background: var(--color-accent);
-  border-radius: var(--radius-full);
-  transition: width var(--dur-300) var(--ease-smooth);
 }
 
-.bagBarWarning {
+.bagProgress::-webkit-progress-bar {
+  background: var(--color-border-light);
+}
+
+.bagProgress::-webkit-progress-value,
+.bagProgress::-moz-progress-bar {
+  background: var(--color-accent);
+}
+
+.bagProgress.bagBarWarning::-webkit-progress-value,
+.bagProgress.bagBarWarning::-moz-progress-bar {
   background: #f59e0b;
 }
 
-.bagBarDanger {
+.bagProgress.bagBarDanger::-webkit-progress-value,
+.bagProgress.bagBarDanger::-moz-progress-bar {
   background: #ef4444;
 }
 

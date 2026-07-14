@@ -154,9 +154,10 @@ export function CharacterPanel({ character, onAction }: CharacterPanelProps) {
             {isFull && <span className={styles.bagFull}>已满</span>}
           </div>
           <div className={styles.bagBar}>
-            <div
-              className={`${styles.bagBarFill} ${bagPercent >= 95 ? styles.bagBarDanger : bagPercent >= 80 ? styles.bagBarWarning : ''}`}
-              style={{ width: `${Math.min(bagPercent, 100)}%` }}
+            <progress
+              className={`${styles.bagProgress} ${bagPercent >= 95 ? styles.bagBarDanger : bagPercent >= 80 ? styles.bagBarWarning : ''}`}
+              value={bagUsed}
+              max={bagMax}
             />
           </div>
           {bagMax < 50 && (

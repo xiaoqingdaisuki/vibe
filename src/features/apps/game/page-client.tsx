@@ -16,6 +16,7 @@ import {
 } from './persistence';
 
 type GamePhase = 'login' | 'class_select' | 'playing';
+const COMBAT_INTERVAL_MS = 10_000;
 
 // Module-level log ID counter — initialized from saved logs to avoid collisions
 let _logId = 0;
@@ -61,7 +62,7 @@ export default function GamePageClient() {
   const [character, setCharacter] = useState<Character | null>(null);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [activeTab, setActiveTab] = useState<ActiveTab>('inventory');
-  const [nextCombatIn, setNextCombatIn] = useState<number | null>(null);
+  const [combatCycleStartedAt, setCombatCycleStartedAt] = useState<number | null>(null);
   const [selectedClass, setSelectedClass] = useState<ClassType | null>(null);
   const [loginError, setLoginError] = useState('');
 
@@ -90,7 +91,6 @@ export default function GamePageClient() {
       clearInterval(combatTimerRef.current);
       combatTimerRef.current = null;
     }
-    setNextCombatIn(null);
   }, []);
 
   // Trigger combat
@@ -144,24 +144,19 @@ export default function GamePageClient() {
       setLogs((prev) => [...prev, ...allLogs].slice(-50));
     } catch {
       // silently fail
+    } finally {
+      setCombatCycleStartedAt(Date.now());
     }
   }, []);
 
   // Combat loop
   const startCombatLoop = useCallback(() => {
     stopCombatLoop();
-    let seconds = 10;
-    setNextCombatIn(seconds);
+    setCombatCycleStartedAt(Date.now());
 
     combatTimerRef.current = setInterval(() => {
-      seconds--;
-      setNextCombatIn(seconds);
-
-      if (seconds <= 0) {
-        triggerCombat();
-        seconds = 10;
-      }
-    }, 1000);
+      triggerCombat();
+    }, COMBAT_INTERVAL_MS);
   }, [stopCombatLoop, triggerCombat]);
 
   // Enter game - start combat loop
@@ -366,7 +361,9 @@ export default function GamePageClient() {
       <div className="w-full max-w-md space-y-4 p-6">
         <h1 className="text-3xl font-bold text-center">adventure 😜</h1>
         <p className="text-center text-muted">用户名是登录的唯一凭证</p>
-        <label htmlFor="game-username" className="sr-only">用户名</label>
+        <label htmlFor="game-username" className="sr-only">
+          用户名
+        </label>
         {loginError && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
             {loginError}
@@ -417,7 +414,7 @@ export default function GamePageClient() {
         character={character}
         logs={logs}
         activeTab={activeTab}
-        nextCombatIn={nextCombatIn}
+        combatCycleStartedAt={combatCycleStartedAt}
         onTabChange={setActiveTab}
         onAction={handleAction}
       />

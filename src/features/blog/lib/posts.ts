@@ -135,3 +135,12 @@ export function getBlogPostBySlug(slug: string): BlogPost | null {
 
   return readBlogFile(filePath);
 }
+
+export function getPublishedBlogPostBySlug(slug: string): BlogPost | null {
+  const post = getBlogPostBySlug(slug);
+  return post?.published ? post : null;
+}
+
+export function getPublishedBlogSlugs(): string[] {
+  return getBlogPosts().map((post) => post.slug);
+}

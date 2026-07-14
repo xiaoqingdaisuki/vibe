@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
-import { getBlogPostBySlug, getBlogPosts } from './posts.ts';
+import { getBlogPostBySlug, getBlogPosts, getPublishedBlogPostBySlug, getPublishedBlogSlugs } from './posts.ts';
 
 const BLOG_DIR = path.join(process.cwd(), 'src/content/blog');
 const TEMP_POST_SLUG = 'temp-md-post';
@@ -19,6 +19,8 @@ const TEMP_RECENT_POST_SLUG = 'temp-recent-post';
 const TEMP_RECENT_POST_PATH = path.join(BLOG_DIR, `${TEMP_RECENT_POST_SLUG}.md`);
 const TEMP_INVALID_RECENT_POST_SLUG = 'temp-invalid-recent-post';
 const TEMP_INVALID_RECENT_POST_PATH = path.join(BLOG_DIR, `${TEMP_INVALID_RECENT_POST_SLUG}.md`);
+const TEMP_DRAFT_POST_SLUG = 'temp-draft-post';
+const TEMP_DRAFT_POST_PATH = path.join(BLOG_DIR, `${TEMP_DRAFT_POST_SLUG}.md`);
 
 test('getBlogPostBySlug supports .md posts as well as .mdx', () => {
   fs.writeFileSync(
@@ -253,5 +255,31 @@ recentOrder: ${recentOrder}
     } finally {
       fs.rmSync(filePath, { force: true });
     }
+  }
+});
+
+test('published blog helpers exclude draft posts from public routes and static params', () => {
+  fs.writeFileSync(
+    TEMP_DRAFT_POST_PATH,
+    `---
+title: "Draft Post"
+description: "Used to verify unpublished posts stay private."
+date: "2026-07-14"
+tags: ["test"]
+category: "Test"
+published: false
+---
+
+# Draft Post
+`,
+    'utf-8',
+  );
+
+  try {
+    assert.ok(getBlogPostBySlug(TEMP_DRAFT_POST_SLUG));
+    assert.equal(getPublishedBlogPostBySlug(TEMP_DRAFT_POST_SLUG), null);
+    assert.equal(getPublishedBlogSlugs().includes(TEMP_DRAFT_POST_SLUG), false);
+  } finally {
+    fs.rmSync(TEMP_DRAFT_POST_PATH, { force: true });
   }
 });

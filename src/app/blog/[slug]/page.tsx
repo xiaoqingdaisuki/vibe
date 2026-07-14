@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Breadcrumb } from '@/components/shared/Breadcrumb';
 import { BlogContent } from '@/features/blog/components/BlogContent';
-import { getBlogPostBySlug, getAllBlogSlugs } from '@/features/blog/lib/posts';
+import { getPublishedBlogPostBySlug, getPublishedBlogSlugs } from '@/features/blog/lib/posts';
 
 interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
@@ -14,13 +14,13 @@ function formatDate(dateStr: string): string {
 }
 
 export async function generateStaticParams() {
-  const slugs = getAllBlogSlugs();
+  const slugs = getPublishedBlogSlugs();
   return slugs.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: BlogPostPageProps) {
   const { slug } = await params;
-  const post = getBlogPostBySlug(slug);
+  const post = getPublishedBlogPostBySlug(slug);
 
   if (!post) {
     return { title: 'Post Not Found' };
@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: BlogPostPageProps) {
 
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { slug } = await params;
-  const post = getBlogPostBySlug(slug);
+  const post = getPublishedBlogPostBySlug(slug);
 
   if (!post) {
     notFound();

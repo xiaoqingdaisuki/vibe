@@ -18,17 +18,17 @@
   cursor: pointer;
   transition:
     border-color var(--dur-150) var(--ease-smooth),
-    box-shadow var(--dur-150) var(--ease-smooth);
+    background var(--dur-150) var(--ease-smooth);
 }
 
 .card:hover {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-wash);
+  background: var(--color-accent-faint);
 }
 
 .selected {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px var(--color-accent-wash);
+  background: var(--color-accent-faint);
 }
 
 .name {
