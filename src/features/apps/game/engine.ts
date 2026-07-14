@@ -23,7 +23,6 @@ import {
   RARITY_LABELS,
   resolveStatsForClass,
   resolveMainStatValue,
-  rollRarity,
   getSkillEffectValue,
   tryLevelUpSkill,
   SKILL_USES_PER_LEVEL,
@@ -1007,12 +1006,12 @@ export class GameEngine {
         continue;
       }
 
-      const equipItem = randomEquipItem(chestRarity, this.character.level, this.character.class);
+      const equipItem = randomEquipItem(chestRarity, this.character.level);
       if (equipItem) {
         rewards.push(equipItem);
         // Mythic/transcendent items bypass the 1-item limit: add an extra item
         if (equipItem.rarity === 'mythic' || equipItem.rarity === 'transcendent') {
-          const extraItem = randomEquipItem(chestRarity, this.character.level, this.character.class);
+          const extraItem = randomEquipItem(chestRarity, this.character.level);
           if (extraItem) {
             rewards.push(extraItem);
           }
@@ -1443,7 +1442,6 @@ export class GameEngine {
     });
 
     // Merge duplicates (same id), keep favorites separate
-    const merged: Item[] = [];
     const seen = new Map<string, { item: Item; count: number }>();
 
     for (const item of this.character.inventory) {

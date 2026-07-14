@@ -23,7 +23,7 @@ export function GameLayout({ character, logs, activeTab, nextCombatIn, onTabChan
     <div className={styles.gameContainer}>
       <div className={styles.gameLayout}>
         <div className={styles.leftPanel}>
-          <CharacterPanel character={character} activeTab={activeTab} onTabChange={onTabChange} onAction={onAction} />
+          <CharacterPanel character={character} onAction={onAction} />
         </div>
 
         <div className={styles.centerPanel}>

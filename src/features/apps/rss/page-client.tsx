@@ -231,6 +231,8 @@ function FeedItemCard({ item }: { item: RssFeedItem }) {
     <a href={item.link} target="_blank" rel="noopener noreferrer" className={styles.itemCard}>
       {item.thumbnail && (
         <div className={styles.itemThumb}>
+          {/* RSS 缩略图来自用户订阅的任意主机，不能安全地使用需预先配置主机白名单的 next/image。 */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={item.thumbnail} alt="" loading="lazy" />
         </div>
       )}
@@ -400,7 +402,7 @@ export default function RSSReader() {
   const [loadingFeeds, setLoadingFeeds] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Map<string, string>>(new Map());
   const [expandedUrl, setExpandedUrl] = useState<string | null>(null);
-  const userToggledRef = useRef(false);
+  const [hasUserToggled, setHasUserToggled] = useState(false);
   const [showBackTop, setShowBackTop] = useState(false);
 
   const feedsRef = useRef(feeds);
@@ -427,7 +429,7 @@ export default function RSSReader() {
   };
 
   const handleToggle = useCallback((url: string) => {
-    userToggledRef.current = true;
+    setHasUserToggled(true);
     setExpandedUrl((prev) => (prev === url ? null : url));
   }, []);
 
@@ -514,6 +516,8 @@ export default function RSSReader() {
     });
   }, []);
 
+  const expandedFeedUrl = hasUserToggled ? expandedUrl : subscriptions[0];
+
   return (
     <div className={styles.container}>
       <header className={styles.header}>
@@ -563,7 +567,7 @@ export default function RSSReader() {
                   key={url}
                   feed={feed}
                   onRemove={() => removeSubscription(url)}
-                  expanded={userToggledRef.current ? expandedUrl === url : url === subscriptions[0]}
+                  expanded={expandedFeedUrl === url}
                   onToggle={() => handleToggle(url)}
                 />
               );

@@ -169,7 +169,7 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
       groups.get(key)!.push(item);
     }
 
-    for (const [_, items] of groups) {
+    for (const items of groups.values()) {
       items.sort((a, b) => {
         if (sortBy === 'rarity') {
           const rDiff = RARITY_INDEX[b.rarity] - RARITY_INDEX[a.rarity];
@@ -193,7 +193,7 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
     }
 
     return sortedGroups;
-  }, [character.inventory, character, typeFilter, rarityFilter, sortBy]);
+  }, [character.inventory, typeFilter, rarityFilter, sortBy]);
 
   const aggregated = useMemo(() => {
     const result = new Map<string, { item: Item; count: number }[]>();
@@ -209,7 +209,7 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
       result.set(type, Array.from(map.values()));
     }
     return result;
-  }, [grouped, character]);
+  }, [grouped]);
 
   const isFavorite = useCallback(
     (itemName: string) => {

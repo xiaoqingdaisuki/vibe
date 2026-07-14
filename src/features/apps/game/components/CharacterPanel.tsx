@@ -1,14 +1,12 @@
 'use client';
 
-import type { ActiveTab, Character, GameInteraction } from '../types';
+import type { Character, GameInteraction } from '../types';
 import { DIFFICULTY_TIERS } from '../static-data';
 import { RarityBadge } from './RarityBadge';
 import styles from './CharacterPanel.module.css';
 
 interface CharacterPanelProps {
   character: Character;
-  activeTab: ActiveTab;
-  onTabChange: (tab: ActiveTab) => void;
   onAction: (action: GameInteraction | { type: 'clearLogs' }) => void;
 }
 
@@ -29,7 +27,7 @@ function getDifficultyInfo(level: number): { name: string; tier: number } {
   return tier ? { name: tier.name, tier: tier.tier } : { name: '未知', tier: 1 };
 }
 
-export function CharacterPanel({ character, activeTab, onTabChange, onAction }: CharacterPanelProps) {
+export function CharacterPanel({ character, onAction }: CharacterPanelProps) {
   const diff = getDifficultyInfo(character.level);
   const hpValue = Math.max(0, Math.min(character.hp, character.maxHp));
   const expValue = Math.max(0, Math.min(character.exp, character.expToNext));

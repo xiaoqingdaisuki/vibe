@@ -575,11 +575,7 @@ function generateEquipment(): ItemDef[] {
  * according to the opening chest's tier and level restricted to the
  * character's level range.
  */
-export function randomEquipItem(
-  chestRarity: ItemRarity,
-  charLevel: number,
-  _charClass: ClassType,
-): ItemDef | undefined {
+export function randomEquipItem(chestRarity: ItemRarity, charLevel: number): ItemDef | undefined {
   // Chests can drop ANY class's equipment — class restriction is enforced at equip time
   const allEquip = ITEMS.filter((it) => it.type === 'equipment');
   if (allEquip.length === 0) return undefined;
