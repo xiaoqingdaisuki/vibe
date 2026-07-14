@@ -458,13 +458,13 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
 
       {/* Item Detail Modal */}
       {detailItem && (
-        <div className={styles.modalOverlay} onClick={() => setDetailItem(null)}>
+        <div className={styles.modalOverlay} onClick={() => setDetailItem(null)} role="dialog" aria-modal="true" aria-label="Item details">
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <span className={styles.modalName} style={{ color: RARITY_COLORS[detailItem.rarity] }}>
                 {detailItem.name}
               </span>
-              <button className={styles.modalClose} onClick={() => setDetailItem(null)}>
+              <button className={styles.modalClose} onClick={() => setDetailItem(null)} aria-label="Close">
                 ✕
               </button>
             </div>

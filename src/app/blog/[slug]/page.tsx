@@ -8,6 +8,11 @@ interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
 }
 
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00');
+  return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).format(d);
+}
+
 export async function generateStaticParams() {
   const slugs = getAllBlogSlugs();
   return slugs.map((slug) => ({ slug }));
@@ -46,13 +51,13 @@ export default async function BlogPostPage({ params }: BlogPostPageProps) {
             <p className="mt-3 text-base md:text-lg text-secondary">{post.description}</p>
             <div className="mt-4 flex flex-wrap items-center gap-2 text-sm text-muted">
               <time dateTime={post.date} className="inline-flex items-center px-2.5 py-1 rounded-full bg-wash">
-                {post.date}
+                {formatDate(post.date)}
               </time>
               {post.updated && post.updated !== post.date && (
                 <>
                   <span className="hidden md:inline text-strong">|</span>
                   <time dateTime={post.updated} className="hidden md:inline">
-                    Updated {post.updated}
+                    Updated {formatDate(post.updated)}
                   </time>
                 </>
               )}

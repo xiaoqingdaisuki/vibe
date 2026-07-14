@@ -366,6 +366,7 @@ export default function GamePageClient() {
       <div className="w-full max-w-md space-y-4 p-6">
         <h1 className="text-3xl font-bold text-center">adventure 😜</h1>
         <p className="text-center text-muted">用户名是登录的唯一凭证</p>
+        <label htmlFor="game-username" className="sr-only">用户名</label>
         {loginError && (
           <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
             {loginError}
@@ -377,6 +378,9 @@ export default function GamePageClient() {
           onChange={(e) => setUsername(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
           placeholder="用户名"
+          id="game-username"
+          name="username"
+          autoComplete="username"
           className="w-full rounded-lg border border-border bg-background px-4 py-3 text-base outline-none focus:border-accent"
           maxLength={20}
         />

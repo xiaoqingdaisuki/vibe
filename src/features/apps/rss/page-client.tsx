@@ -233,7 +233,7 @@ function FeedItemCard({ item }: { item: RssFeedItem }) {
         <div className={styles.itemThumb}>
           {/* RSS 缩略图来自用户订阅的任意主机，不能安全地使用需预先配置主机白名单的 next/image。 */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.thumbnail} alt="" loading="lazy" />
+          <img src={item.thumbnail} alt="" width="120" height="80" loading="lazy" />
         </div>
       )}
       <div className={styles.itemBody}>

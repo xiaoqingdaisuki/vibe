@@ -36,26 +36,34 @@ export function GameLayout({ character, logs, activeTab, nextCombatIn, onTabChan
         </div>
 
         <div className={styles.rightPanel}>
-          <div className={styles.tabs}>
+          <div className={styles.tabs} role="tablist">
             <button
+              role="tab"
+              aria-selected={activeTab === 'inventory'}
               className={`${styles.tab} ${activeTab === 'inventory' ? styles.active : ''}`}
               onClick={() => onTabChange('inventory')}
             >
               背包 {character.inventory.length}/{character.inventoryMax}
             </button>
             <button
+              role="tab"
+              aria-selected={activeTab === 'equipment'}
               className={`${styles.tab} ${activeTab === 'equipment' ? styles.active : ''}`}
               onClick={() => onTabChange('equipment')}
             >
               装备
             </button>
             <button
+              role="tab"
+              aria-selected={activeTab === 'skills'}
               className={`${styles.tab} ${activeTab === 'skills' ? styles.active : ''}`}
               onClick={() => onTabChange('skills')}
             >
               技能
             </button>
             <button
+              role="tab"
+              aria-selected={activeTab === 'shop'}
               className={`${styles.tab} ${activeTab === 'shop' ? styles.active : ''}`}
               onClick={() => onTabChange('shop')}
             >
