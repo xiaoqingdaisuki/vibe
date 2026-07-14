@@ -14,7 +14,6 @@ interface GameLogProps {
 
 export function GameLog({ logs, character, combatCycleStartedAt, onClearLogs }: GameLogProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
   const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [now, setNow] = useState(() => Date.now());
@@ -47,16 +46,24 @@ export function GameLog({ logs, character, combatCycleStartedAt, onClearLogs }: 
     setIsAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < threshold);
   }, []);
 
+  const scrollToLatest = useCallback(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    // Scrolling the container directly keeps page scroll position unchanged.
+    el.scrollTop = el.scrollHeight;
+  }, []);
+
   useEffect(() => {
     if (isAtBottom) {
-      bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      scrollToLatest();
     }
-  }, [logs, isAtBottom]);
+  }, [logs, isAtBottom, scrollToLatest]);
 
   const scrollToBottom = useCallback(() => {
     setIsAtBottom(true);
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
+    scrollToLatest();
+  }, [scrollToLatest]);
 
   return (
     <div className={styles.container}>
@@ -91,7 +98,6 @@ export function GameLog({ logs, character, combatCycleStartedAt, onClearLogs }: 
                 onToggleExpand={() => toggleExpand(log.id ?? log.timestamp)}
               />
             ))}
-            <div ref={bottomRef} />
           </>
         )}
       </div>

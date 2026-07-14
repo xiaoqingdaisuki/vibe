@@ -80,6 +80,7 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--space-8) 0;
   background: var(--color-background);
 }
