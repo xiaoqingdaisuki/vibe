@@ -178,8 +178,12 @@ After every successful Git commit, update `src/content/blog/vibe-log.mdx` before
 
 - Append the commit under its `YYYY年MM月DD日` heading with its original commit subject.
 - Add a new date heading when the commit date is not yet present.
-- Update the article's `updated` frontmatter date to the commit date.
+- Update the post's `updated` frontmatter date to the commit date.
 - Keep `pinned: true` so the commit log remains permanently pinned in the blog list.
+
+### 4.4 Maintain Homepage Recent Updates
+
+When adding or changing a Lab app or Blog post, update its `recentOrder` whenever it should appear in the homepage Recent updates module. Set the value in the Lab entry in `src/features/lab/registry.ts` for Lab apps, or in the post frontmatter for Blog posts. The homepage displays the three lowest finite `recentOrder` values across both types, so each value must be distinct globally and the ordering must remain intentional and current.
 
 ## 5. Next.js Standards
 
@@ -514,6 +518,12 @@ Lint:
 - Do not use `next lint`.
 
 ## 16. Codex Execution Principles
+
+### 16.1 Skills And Delegation
+
+- Do not use Superpowers skills or workflows for work in this repository.
+- Do not use subagents for work in this repository.
+- For every user request that does not specify a different skill, invoke the `grant-me` skill before taking task actions. If that skill is unavailable in the current session, state the limitation and continue with the repository rules.
 
 When starting a task:
 

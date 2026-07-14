@@ -1,6 +1,6 @@
 import type { LabApp } from './types';
 
-export const labApps: LabApp[] = [
+const registeredLabApps: LabApp[] = [
   {
     slug: 'skills',
     title: 'Skills',
@@ -9,7 +9,7 @@ export const labApps: LabApp[] = [
     tags: ['skills', 'knowledge', 'collection'],
     href: '/lab/skills',
     featured: true,
-    recentOrder: 3,
+    recentOrder: 4,
     dataSource: 'local',
   },
   {
@@ -20,7 +20,7 @@ export const labApps: LabApp[] = [
     tags: ['game', 'rpg', 'idle'],
     href: '/game',
     featured: true,
-    recentOrder: 2,
+    recentOrder: 3,
     dataSource: 'local',
   },
   {
@@ -31,7 +31,11 @@ export const labApps: LabApp[] = [
     tags: ['rss', 'reader', 'feed'],
     href: '/lab/rss',
     featured: true,
-    recentOrder: 1,
+    recentOrder: 2,
     dataSource: 'local',
   },
 ];
+
+export const labApps: LabApp[] = [...registeredLabApps].sort(
+  (firstApp, secondApp) => (firstApp.recentOrder ?? Infinity) - (secondApp.recentOrder ?? Infinity),
+);

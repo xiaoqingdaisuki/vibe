@@ -1,6 +1,9 @@
 import Link from 'next/link';
+import { BlogCard } from '@/features/blog/components/BlogCard';
+import { getBlogPosts } from '@/features/blog/lib/posts';
+import { getRecentUpdates } from '@/features/home/lib/get-recent-updates';
 import { LabCard } from '@/features/lab/components/LabCard';
-import { getRecentLabApps } from '@/features/lab/lib/get-recent-lab-apps';
+import { labApps } from '@/features/lab/registry';
 import styles from './styles/Home.module.css';
 
 export const metadata = {
@@ -9,7 +12,7 @@ export const metadata = {
 };
 
 export default function HomePage() {
-  const recentApps = getRecentLabApps();
+  const recentUpdates = getRecentUpdates({ apps: labApps, posts: getBlogPosts() });
 
   return (
     <div className={styles.hero}>
@@ -59,7 +62,7 @@ export default function HomePage() {
         </Link>
       </div>
 
-      {recentApps.length > 0 && (
+      {recentUpdates.length > 0 && (
         <section className={styles.recent} aria-labelledby="recent-updates-title">
           <div className={styles.recentHeading}>
             <span className="eyebrow">Latest</span>
@@ -68,9 +71,13 @@ export default function HomePage() {
             </h2>
           </div>
           <div className={styles.recentGrid}>
-            {recentApps.map((app) => (
-              <LabCard key={app.slug} app={app} />
-            ))}
+            {recentUpdates.map((update) =>
+              update.kind === 'lab' ? (
+                <LabCard key={`lab-${update.item.slug}`} app={update.item} />
+              ) : (
+                <BlogCard key={`blog-${update.item.slug}`} post={update.item} />
+              ),
+            )}
           </div>
         </section>
       )}

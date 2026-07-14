@@ -15,6 +15,10 @@ const TEMP_EXPLICITLY_UNPINNED_POST_SLUG = 'temp-a-explicitly-unpinned-post';
 const TEMP_EXPLICITLY_UNPINNED_POST_PATH = path.join(BLOG_DIR, `${TEMP_EXPLICITLY_UNPINNED_POST_SLUG}.md`);
 const TEMP_OMITTED_PINNED_POST_SLUG = 'temp-z-omitted-pinned-post';
 const TEMP_OMITTED_PINNED_POST_PATH = path.join(BLOG_DIR, `${TEMP_OMITTED_PINNED_POST_SLUG}.md`);
+const TEMP_RECENT_POST_SLUG = 'temp-recent-post';
+const TEMP_RECENT_POST_PATH = path.join(BLOG_DIR, `${TEMP_RECENT_POST_SLUG}.md`);
+const TEMP_INVALID_RECENT_POST_SLUG = 'temp-invalid-recent-post';
+const TEMP_INVALID_RECENT_POST_PATH = path.join(BLOG_DIR, `${TEMP_INVALID_RECENT_POST_SLUG}.md`);
 
 test('getBlogPostBySlug supports .md posts as well as .mdx', () => {
   fs.writeFileSync(
@@ -166,5 +170,88 @@ published: true
   } finally {
     fs.rmSync(TEMP_EXPLICITLY_UNPINNED_POST_PATH, { force: true });
     fs.rmSync(TEMP_OMITTED_PINNED_POST_PATH, { force: true });
+  }
+});
+
+test('getBlogPostBySlug exposes a numeric recentOrder from frontmatter', () => {
+  fs.writeFileSync(
+    TEMP_RECENT_POST_PATH,
+    `---
+title: "Recent Post"
+description: "Used for a recent updates regression test."
+date: "2026-07-14"
+tags: ["test"]
+category: "Test"
+published: true
+recentOrder: 2
+---
+
+# Recent Post
+`,
+    'utf-8',
+  );
+
+  try {
+    const post = getBlogPostBySlug(TEMP_RECENT_POST_SLUG);
+
+    assert.ok(post);
+    assert.equal(post.recentOrder, 2);
+  } finally {
+    fs.rmSync(TEMP_RECENT_POST_PATH, { force: true });
+  }
+});
+
+test('getBlogPostBySlug rejects a non-numeric recentOrder', () => {
+  fs.writeFileSync(
+    TEMP_INVALID_RECENT_POST_PATH,
+    `---
+title: "Invalid Recent Post"
+description: "Used for a recent updates regression test."
+date: "2026-07-14"
+tags: ["test"]
+category: "Test"
+published: true
+recentOrder: "two"
+---
+
+# Invalid Recent Post
+`,
+    'utf-8',
+  );
+
+  try {
+    assert.equal(getBlogPostBySlug(TEMP_INVALID_RECENT_POST_SLUG), null);
+  } finally {
+    fs.rmSync(TEMP_INVALID_RECENT_POST_PATH, { force: true });
+  }
+});
+
+test('getBlogPostBySlug rejects non-finite recentOrder values', () => {
+  for (const recentOrder of ['.nan', '.inf']) {
+    const slug = `temp-${recentOrder.slice(1)}-recent-post`;
+    const filePath = path.join(BLOG_DIR, `${slug}.md`);
+
+    fs.writeFileSync(
+      filePath,
+      `---
+title: "Invalid Recent Post"
+description: "Used for a recent updates regression test."
+date: "2026-07-14"
+tags: ["test"]
+category: "Test"
+published: true
+recentOrder: ${recentOrder}
+---
+
+# Invalid Recent Post
+`,
+      'utf-8',
+    );
+
+    try {
+      assert.equal(getBlogPostBySlug(slug), null);
+    } finally {
+      fs.rmSync(filePath, { force: true });
+    }
   }
 });
