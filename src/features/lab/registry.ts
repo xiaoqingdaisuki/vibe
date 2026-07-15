@@ -2,6 +2,17 @@ import type { LabApp } from './types';
 
 const registeredLabApps: LabApp[] = [
   {
+    slug: 'minesweeper',
+    title: '扫雷',
+    description: '经典扫雷游戏，支持预设与自定义难度。',
+    category: 'game',
+    tags: ['game', 'minesweeper'],
+    href: '/lab/minesweeper',
+    featured: true,
+    recentOrder: 1,
+    dataSource: 'local',
+  },
+  {
     slug: 'skills',
     title: 'Skills',
     description: 'A collection of skills, tools and knowledge resources.',
@@ -9,7 +20,7 @@ const registeredLabApps: LabApp[] = [
     tags: ['skills', 'knowledge', 'collection'],
     href: '/lab/skills',
     featured: true,
-    recentOrder: 4,
+    recentOrder: 5,
     dataSource: 'local',
   },
   {
@@ -20,7 +31,7 @@ const registeredLabApps: LabApp[] = [
     tags: ['game', 'rpg', 'idle'],
     href: '/game',
     featured: true,
-    recentOrder: 3,
+    recentOrder: 4,
     dataSource: 'local',
   },
   {
@@ -31,7 +42,7 @@ const registeredLabApps: LabApp[] = [
     tags: ['rss', 'reader', 'feed'],
     href: '/lab/rss',
     featured: true,
-    recentOrder: 2,
+    recentOrder: 3,
     dataSource: 'local',
   },
 ];

@@ -84,6 +84,6 @@ test('getRecentUpdates combines manually ordered Lab and Blog items, excluding u
 test('getRecentUpdates selects the current homepage updates in global recentOrder', () => {
   assert.deepEqual(
     getRecentUpdates({ apps: labApps, posts: getBlogPosts() }).map(({ kind, item }) => `${kind}:${item.slug}`),
-    ['blog:git-commit-guidelines', 'lab:rss', 'lab:rpg'],
+    ['lab:minesweeper', 'blog:git-commit-guidelines', 'lab:rss'],
   );
 });

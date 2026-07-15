@@ -2,11 +2,7 @@
 
 > Read this file completely before doing any work in this repository. It is the engineering guide for helping Codex understand, extend, and review Vibe.
 
-## 0. Session Capability Boundary
-
-If the current model does not support image input and the user provides or references an image file such as `image.png`, do not try to inspect that image through the filesystem as a workaround. State that this session cannot accept image input, ask the user to switch to a vision-capable model for image analysis, and continue with any text-only part of the request.
-
-## 0.1 Windows UTF-8 And Chinese Text Safety
+## 0. Windows UTF-8 And Chinese Text Safety
 
 This project contains Chinese UI text. On Windows, PowerShell terminal output may display UTF-8 Chinese as mojibake. Do not judge file text correctness from PowerShell-rendered output alone.
 
