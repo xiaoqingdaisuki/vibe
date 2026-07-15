@@ -1,0 +1,12 @@
+.header {
+  background: var(--color-header-background);
+  backdrop-filter: blur(12px);
+}
+
+.mobileOverlay {
+  background: var(--color-overlay);
+}
+
+.mobileMenu {
+  background: var(--color-panel-background);
+}

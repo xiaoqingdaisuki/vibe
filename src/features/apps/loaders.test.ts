@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { labApps } from '../lab/registry.ts';
 import { getLabAppLoader } from './loaders.ts';
 
-test('getLabAppLoader returns a loader for registered apps', () => {
-  assert.equal(typeof getLabAppLoader('minesweeper'), 'function');
-  assert.equal(typeof getLabAppLoader('skills'), 'function');
-  assert.equal(getLabAppLoader('missing-app'), undefined);
-});
+test('getLabAppLoader returns a loader for every registered app', () => {
+  for (const app of labApps) {
+    assert.equal(typeof getLabAppLoader(app.slug), 'function', `Missing loader for ${app.slug}`);
+  }
 
-test('getLabAppLoader returns a loader for the RPG Lab app', () => {
-  assert.equal(typeof getLabAppLoader('rpg'), 'function');
+  assert.equal(getLabAppLoader('missing-app'), undefined);
 });

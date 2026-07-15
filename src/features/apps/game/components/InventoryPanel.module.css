@@ -464,6 +464,16 @@
   color: white;
 }
 
+:global(html[data-theme='dark']) .openBtn {
+  background: rgba(245, 158, 11, 0.14);
+  color: #fbbf24;
+}
+
+:global(html[data-theme='dark']) .skillBtn {
+  background: rgba(139, 92, 246, 0.16);
+  color: #c4b5fd;
+}
+
 .sellBtn {
   background: transparent;
   border-color: var(--color-border);

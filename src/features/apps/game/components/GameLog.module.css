@@ -71,9 +71,14 @@
 }
 
 .clearBtn:hover {
-  background: #fef2f2;
+  background: var(--color-error-background);
   border-color: #ef4444;
   color: #ef4444;
+}
+
+:global(html[data-theme='dark']) .clearBtn:hover {
+  border-color: var(--color-error);
+  color: var(--color-error);
 }
 
 .logContainer {

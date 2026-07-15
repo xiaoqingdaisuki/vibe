@@ -99,16 +99,14 @@ Placement rules:
 To add `/lab/{slug}`, complete all of these steps:
 
 1. Create `src/features/apps/{slug}/page-client.tsx`.
-2. Create `src/features/apps/{slug}/page.tsx` as a thin wrapper.
-3. Register metadata in `src/features/lab/registry.ts`.
-4. Register the explicit loader in `src/features/apps/loaders.ts`.
+2. Register metadata in `src/features/lab/registry.ts`.
+3. Register the explicit loader in `src/features/apps/loaders.ts`.
 
 Recommended structure:
 
 ```text
 src/features/apps/{slug}/
   page-client.tsx
-  page.tsx
   types.ts
   data.ts
   components/
@@ -126,16 +124,6 @@ export function AppName() {
 }
 
 export default AppName;
-```
-
-Wrapper template:
-
-```tsx
-import AppName from './page-client';
-
-export default function Page() {
-  return <AppName />;
-}
 ```
 
 Never use a template-string dynamic import inside `src/app/lab/[slug]/page.tsx`:
@@ -383,9 +371,14 @@ Visual strategy:
 - Secondary text: `#555555`
 - Muted text: `#888888`
 - Border: `#e5e5e5` (base), `#cccccc` (strong)
-- Accent (theme color): `#7c3aed` (vivid purple)
-- Accent hover: `#6d28d9`
-- Accent wash: `#f5f3ff` (very light purple background)
+- Light theme accent: `#7c3aed` (vivid purple)
+- Light theme accent hover: `#6d28d9`
+- Light theme accent wash: `#f5f3ff` (very light purple background)
+- Dark theme accent: `#a78bfa` (the current Vibe brand purple adapted for dark-background contrast)
+- Dark theme accent hover: `#c4b5fd`
+- Dark theme accent soft: `#5b4a78`
+- Dark theme accent wash: `#282033`
+- Dark theme accent faint: `#1a181f`
 - Background: `#ffffff`
 - All hex values must be lowercase.
 
@@ -542,8 +535,12 @@ Current test entrypoint:
 
 Test file lifecycle:
 
-- If Codex creates a task-specific test file during development, Codex must remove that test file before delivery after the corresponding feature or fix is complete, unless the user explicitly asks to keep it as permanent regression coverage.
-- Do not leave redundant test files in the project.
+- After every task, audit all new and changed tests before delivery.
+- Delete temporary, task-specific, duplicated, and superseded tests after the requirement has been verified.
+- Keep a test only when it provides distinct, permanent regression coverage for behavior that remains part of the product.
+- Consolidate overlapping cases into the nearest existing test file instead of creating one-off test files.
+- Remove empty test directories and test-only fixtures when their final consumer is deleted.
+- In the final response, explicitly confirm that the test cleanup audit was completed.
 
 Lint:
 

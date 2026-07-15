@@ -92,6 +92,22 @@
   background: var(--color-accent-wash);
 }
 
+:global(html[data-theme='dark']) .diff1 {
+  color: #4ade80;
+}
+
+:global(html[data-theme='dark']) .diff2 {
+  color: #facc15;
+}
+
+:global(html[data-theme='dark']) .diff3 {
+  color: #fb923c;
+}
+
+:global(html[data-theme='dark']) .diff4 {
+  color: #f87171;
+}
+
 .sectionTitle {
   font-size: var(--text-sm);
   font-weight: 600;

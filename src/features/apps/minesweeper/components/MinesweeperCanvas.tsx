@@ -143,10 +143,10 @@ export function MinesweeperCanvas({
   }, [board, config, focusedIndex, hasCanvasFocus]);
 
   useEffect(() => {
-    const colorScheme = window.matchMedia('(prefers-color-scheme: dark)');
     const redraw = () => void renderLatestBoard();
-    colorScheme.addEventListener('change', redraw);
-    return () => colorScheme.removeEventListener('change', redraw);
+    const observer = new MutationObserver(redraw);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => observer.disconnect();
   }, []);
 
   const activateCell = (index: number, selectedMode: InteractionMode = mode) => {

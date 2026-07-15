@@ -73,10 +73,8 @@
   line-height: 1.4;
 }
 
-@media (prefers-color-scheme: dark) {
-  .formError {
-    color: #f87171;
-  }
+:global(html[data-theme='dark']) .formError {
+  color: var(--color-error);
 }
 
 /* ---- feeds section ---- */
@@ -241,11 +239,9 @@
   background: var(--color-accent-wash);
 }
 
-@media (prefers-color-scheme: dark) {
-  .removeBtn:hover,
-  .removeBtn:active {
-    color: #f87171;
-  }
+:global(html[data-theme='dark']) .removeBtn:hover,
+:global(html[data-theme='dark']) .removeBtn:active {
+  color: var(--color-error);
 }
 
 .feedItems {

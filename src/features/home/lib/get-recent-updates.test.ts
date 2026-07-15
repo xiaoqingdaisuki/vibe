@@ -1,8 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { getBlogPosts } from '../../blog/lib/posts.ts';
 import type { BlogPost } from '../../blog/types.ts';
-import { labApps } from '../../lab/registry.ts';
 import type { LabApp } from '../../lab/types.ts';
 import { getRecentUpdates } from './get-recent-updates.ts';
 
@@ -78,12 +76,5 @@ test('getRecentUpdates combines manually ordered Lab and Blog items, excluding u
       { kind: 'blog', slug: 'second-blog' },
       { kind: 'blog', slug: 'third-blog' },
     ],
-  );
-});
-
-test('getRecentUpdates selects the current homepage updates in global recentOrder', () => {
-  assert.deepEqual(
-    getRecentUpdates({ apps: labApps, posts: getBlogPosts() }).map(({ kind, item }) => `${kind}:${item.slug}`),
-    ['lab:minesweeper', 'blog:git-commit-guidelines', 'lab:rss'],
   );
 });

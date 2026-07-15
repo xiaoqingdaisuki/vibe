@@ -365,9 +365,7 @@ export default function GamePageClient() {
           用户名
         </label>
         {loginError && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-600 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
-            {loginError}
-          </div>
+          <div className="border-error bg-error text-error rounded-lg border p-3 text-sm">{loginError}</div>
         )}
         <input
           type="text"

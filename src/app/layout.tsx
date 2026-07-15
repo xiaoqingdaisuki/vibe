@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from 'next';
+import Script from 'next/script';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { SiteFooter } from '@/components/layout/SiteFooter';
+import { DEFAULT_THEME, getThemeInitializationScript } from '@/lib/theme';
 import './globals.css';
+
+const themeInitializationScript = getThemeInitializationScript();
 
 export const metadata: Metadata = {
   title: {
@@ -33,8 +37,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" data-theme={DEFAULT_THEME} suppressHydrationWarning>
       <body>
+        <Script id="theme-initialization" strategy="beforeInteractive">
+          {themeInitializationScript}
+        </Script>
         <div className="flex min-h-screen flex-col">
           <SiteHeader />
           <main className="flex-1">{children}</main>

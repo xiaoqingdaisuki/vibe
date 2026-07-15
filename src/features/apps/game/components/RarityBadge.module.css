@@ -59,3 +59,34 @@
   border-color: #fbbf24;
   background: rgba(251, 191, 36, 0.18);
 }
+
+:global(html[data-theme='dark']) .common {
+  color: var(--color-foreground-secondary);
+  border-color: var(--color-border-strong);
+  background: var(--color-panel-background);
+}
+
+:global(html[data-theme='dark']) .uncommon {
+  color: #4ade80;
+}
+
+:global(html[data-theme='dark']) .rare {
+  color: #60a5fa;
+}
+
+:global(html[data-theme='dark']) .epic {
+  color: #c4b5fd;
+  background: rgba(124, 58, 237, 0.16);
+}
+
+:global(html[data-theme='dark']) .legendary {
+  color: #fb923c;
+}
+
+:global(html[data-theme='dark']) .mythic {
+  color: #f87171;
+}
+
+:global(html[data-theme='dark']) .transcendent {
+  color: #facc15;
+}
