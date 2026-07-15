@@ -5,6 +5,8 @@ import { Button } from '@/components/base/Button';
 import { Input } from '@/components/base/Input';
 import { cn } from '@/lib/utils';
 import { getStorageItem, setStorageItem } from '@/lib/storage';
+import { FeedErrorState } from './feed-error-state';
+import { loadFeedOnce } from './load-feed';
 import type { RssFeed, RssFeedItem } from './types';
 import { STORAGE_KEY, DEFAULT_FEEDS } from './types';
 import styles from './styles/RSSReader.module.css';
@@ -401,6 +403,7 @@ export default function RSSReader() {
 
   const feedsRef = useRef(feeds);
   const subsRef = useRef(subscriptions);
+  const loadingFeedsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     subsRef.current = subscriptions;
@@ -427,6 +430,48 @@ export default function RSSReader() {
     setExpandedUrl((prev) => (prev === url ? null : url));
   }, []);
 
+  const loadFeed = useCallback(async (url: string) => {
+    await loadFeedOnce({
+      url,
+      inFlight: loadingFeedsRef.current,
+      fetchFeed: fetchRSS,
+      onStart: () => {
+        setLoadingFeeds((prev) => new Set(prev).add(url));
+        setErrors((prev) => {
+          const next = new Map(prev);
+          next.delete(url);
+          return next;
+        });
+      },
+      onSuccess: (feed) => {
+        if (!subsRef.current.includes(url)) return;
+
+        setFeeds((prev) => {
+          const next = new Map(prev);
+          next.set(url, feed);
+          feedsRef.current = next;
+          return next;
+        });
+      },
+      onError: (message) => {
+        if (!subsRef.current.includes(url)) return;
+
+        setErrors((prev) => {
+          const next = new Map(prev);
+          next.set(url, message);
+          return next;
+        });
+      },
+      onSettled: () => {
+        setLoadingFeeds((prev) => {
+          const next = new Set(prev);
+          next.delete(url);
+          return next;
+        });
+      },
+    });
+  }, []);
+
   // Load saved subscriptions and auto-subscribe defaults
   useEffect(() => {
     const saved = getStorageItem<string[]>(STORAGE_KEY, []);
@@ -450,33 +495,9 @@ export default function RSSReader() {
       const existing = feedsRef.current.get(url);
       if (existing) return;
 
-      setLoadingFeeds((prev) => new Set(prev).add(url));
-
-      fetchRSS(url)
-        .then((feed) => {
-          setFeeds((prev) => {
-            const next = new Map(prev);
-            next.set(url, feed);
-            return next;
-          });
-        })
-        .catch((err) => {
-          const message = err instanceof Error ? err.message : '获取失败';
-          setErrors((prev) => {
-            const next = new Map(prev);
-            next.set(url, message);
-            return next;
-          });
-        })
-        .finally(() => {
-          setLoadingFeeds((prev) => {
-            const next = new Set(prev);
-            next.delete(url);
-            return next;
-          });
-        });
+      void loadFeed(url);
     });
-  }, [subscriptions]);
+  }, [loadFeed, subscriptions]);
 
   const addSubscription = useCallback((url: string, feed: RssFeed) => {
     setFeeds((prev) => {
@@ -554,15 +575,13 @@ export default function RSSReader() {
 
             if (error && !feed) {
               return (
-                <div key={url} className={styles.feedError}>
-                  <div className={styles.feedErrorHeader}>
-                    <span>{new URL(url).hostname}</span>
-                    <button onClick={() => removeSubscription(url)} className={styles.removeBtn}>
-                      移除
-                    </button>
-                  </div>
-                  <p className={styles.feedErrorMsg}>{error}</p>
-                </div>
+                <FeedErrorState
+                  key={url}
+                  hostname={new URL(url).hostname}
+                  message={error}
+                  onRetry={() => void loadFeed(url)}
+                  onRemove={() => removeSubscription(url)}
+                />
               );
             }
 

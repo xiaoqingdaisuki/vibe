@@ -14,7 +14,7 @@ const registeredLabApps: LabApp[] = [
   },
   {
     slug: 'rpg',
-    title: 'adventure',
+    title: 'Adventure',
     description: '文字挂机冒险RPG游戏，选择职业，自动战斗，收集装备！',
     category: 'game',
     tags: ['game', 'rpg', 'idle'],

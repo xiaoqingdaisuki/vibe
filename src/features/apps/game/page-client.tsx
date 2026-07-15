@@ -359,7 +359,7 @@ export default function GamePageClient() {
   if (phase === 'login') {
     return centerWrapper(
       <div className="w-full max-w-md space-y-4 p-6">
-        <h1 className="text-3xl font-bold text-center">adventure 😜</h1>
+        <h1 className="text-3xl font-bold text-center">Adventure 😜</h1>
         <p className="text-center text-muted">用户名是登录的唯一凭证</p>
         <label htmlFor="game-username" className="sr-only">
           用户名

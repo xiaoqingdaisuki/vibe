@@ -99,7 +99,54 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--space-12);
   margin-bottom: var(--space-8);
+}
+
+.feedErrorActions {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-8);
+}
+
+.feedErrorButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--touch-target);
+  padding: var(--space-12) var(--space-20);
+  border-radius: var(--radius-xl);
+  border: none;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--dur-150) var(--ease-smooth),
+    border-color var(--dur-150) var(--ease-smooth),
+    color var(--dur-150) var(--ease-smooth);
+}
+
+.retryButton {
+  border: 1px solid var(--color-border-strong);
+  background: transparent;
+  color: var(--color-accent);
+}
+
+.retryButton:hover,
+.retryButton:active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-wash);
+}
+
+.removeErrorButton {
+  background: transparent;
+  color: var(--color-accent);
+}
+
+.removeErrorButton:hover,
+.removeErrorButton:active {
+  background: var(--color-accent-wash);
 }
 
 .feedErrorMsg {
