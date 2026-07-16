@@ -2,6 +2,17 @@ import type { LabApp } from './types';
 
 const registeredLabApps: LabApp[] = [
   {
+    slug: 'sudoku',
+    title: '数独',
+    description: '数独游戏，支持五级难度与键盘操作。',
+    category: 'game',
+    tags: ['game', 'sudoku', 'logic'],
+    href: '/lab/sudoku',
+    featured: true,
+    recentOrder: 1,
+    dataSource: 'local',
+  },
+  {
     slug: 'minesweeper',
     title: '扫雷',
     description: '经典扫雷游戏，支持预设与自定义难度。',
@@ -9,7 +20,7 @@ const registeredLabApps: LabApp[] = [
     tags: ['game', 'minesweeper'],
     href: '/lab/minesweeper',
     featured: true,
-    recentOrder: 1,
+    recentOrder: 2,
     dataSource: 'local',
   },
   {
@@ -20,7 +31,7 @@ const registeredLabApps: LabApp[] = [
     tags: ['skills', 'knowledge', 'collection'],
     href: '/lab/skills',
     featured: true,
-    recentOrder: 5,
+    recentOrder: 6,
     dataSource: 'local',
   },
   {
@@ -31,7 +42,7 @@ const registeredLabApps: LabApp[] = [
     tags: ['game', 'rpg', 'idle'],
     href: '/game',
     featured: true,
-    recentOrder: 4,
+    recentOrder: 5,
     dataSource: 'local',
   },
   {
@@ -42,7 +53,7 @@ const registeredLabApps: LabApp[] = [
     tags: ['rss', 'reader', 'feed'],
     href: '/lab/rss',
     featured: true,
-    recentOrder: 3,
+    recentOrder: 4,
     dataSource: 'local',
   },
 ];
