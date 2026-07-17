@@ -209,6 +209,17 @@
   background: var(--color-accent-wash);
 }
 
+.reviewNotice {
+  margin: 0;
+  padding: var(--space-12) var(--space-16);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-foreground-secondary);
+  background: var(--color-background);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
 .successTitle {
   color: var(--color-accent);
   font-size: var(--text-2xl);

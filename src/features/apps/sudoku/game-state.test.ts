@@ -11,14 +11,16 @@ import {
 } from './game-state.ts';
 import type { SudokuGame } from './types.ts';
 
-function createNearlyCompleteGame(): SudokuGame {
+function createNearlyCompleteGame(emptyIndexes: number[] = [0]): SudokuGame {
   const solution = Array.from({ length: 81 }, (_, index) => (index % 9) + 1);
   const puzzle = [...solution];
-  puzzle[0] = 0;
+  emptyIndexes.forEach((index) => {
+    puzzle[index] = 0;
+  });
   return { puzzle, solution };
 }
 
-test('digit entry tracks mistakes, toggles repeated entries, and completes the puzzle', () => {
+test('a full incorrect board records one mistake without revealing its incorrect cells', () => {
   const game = createNearlyCompleteGame();
   const initial = createSudokuSession(game, 'starter');
   const wrong = enterDigitInSession(initial, 2);
@@ -27,9 +29,23 @@ test('digit entry tracks mistakes, toggles repeated entries, and completes the p
 
   assert.equal(wrong.values[0], 2);
   assert.equal(wrong.mistakes, 1);
+  assert.equal(wrong.hasIncorrectCompletion, true);
+  assert.equal(wrong.status, 'playing');
   assert.equal(cleared.values[0], 0);
   assert.equal(cleared.mistakes, 1);
+  assert.equal(cleared.hasIncorrectCompletion, false);
   assert.equal(completed.status, 'won');
+});
+
+test('an incorrect digit does not count as a mistake until the board is full', () => {
+  const initial = createSudokuSession(createNearlyCompleteGame([0, 1]), 'starter');
+  const firstEntry = enterDigitInSession(initial, 2);
+  const finalEntry = enterDigitInSession(selectCellInSession(firstEntry, 1), 2);
+
+  assert.equal(firstEntry.mistakes, 0);
+  assert.equal(firstEntry.hasIncorrectCompletion, false);
+  assert.equal(finalEntry.mistakes, 1);
+  assert.equal(finalEntry.hasIncorrectCompletion, true);
 });
 
 test('given cells cannot be changed and editable cells can be erased', () => {
@@ -42,6 +58,7 @@ test('given cells cannot be changed and editable cells can be erased', () => {
   assert.equal(unchanged, selectedGiven);
   assert.equal(erased.values[0], 0);
   assert.equal(erased.mistakes, 1);
+  assert.equal(erased.hasIncorrectCompletion, false);
 });
 
 test('elapsed time is derived from timestamps instead of timer callback counts', () => {

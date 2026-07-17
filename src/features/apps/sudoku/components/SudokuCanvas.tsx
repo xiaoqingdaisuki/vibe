@@ -16,13 +16,11 @@ interface CanvasColors {
   accent: string;
   accentWash: string;
   accentFaint: string;
-  error: string;
 }
 
 interface SudokuCanvasProps {
   puzzle: number[];
   values: number[];
-  solution: number[];
   selectedIndex: number;
   onSelect: (index: number) => void;
   onDigit: (digit: number) => void;
@@ -43,7 +41,6 @@ function readCanvasColors(): CanvasColors {
     accent: read('--color-accent'),
     accentWash: read('--color-accent-wash'),
     accentFaint: read('--color-accent-faint'),
-    error: read('--color-error'),
   };
 }
 
@@ -63,13 +60,12 @@ interface DrawBoardOptions {
   canvas: HTMLCanvasElement;
   puzzle: number[];
   values: number[];
-  solution: number[];
   selectedIndex: number;
   hasFocus: boolean;
   colors: CanvasColors;
 }
 
-function drawBoard({ canvas, puzzle, values, solution, selectedIndex, hasFocus, colors }: DrawBoardOptions) {
+function drawBoard({ canvas, puzzle, values, selectedIndex, hasFocus, colors }: DrawBoardOptions) {
   const context = canvas.getContext('2d');
   if (!context) return;
 
@@ -106,8 +102,7 @@ function drawBoard({ canvas, puzzle, values, solution, selectedIndex, hasFocus, 
     if (value === 0) return;
 
     const isGiven = puzzle[index] !== 0;
-    const isIncorrect = !isGiven && value !== solution[index];
-    context.fillStyle = isIncorrect ? colors.error : isGiven ? colors.foreground : colors.accent;
+    context.fillStyle = isGiven ? colors.foreground : colors.accent;
     context.font = `${isGiven ? 700 : 600} 28px Inter, sans-serif`;
     context.textAlign = 'center';
     context.textBaseline = 'middle';
@@ -156,27 +151,19 @@ function describeCell(puzzle: number[], values: number[], selectedIndex: number)
   return `第 ${row} 行第 ${column} 列，${kind}，${value === 0 ? '空白' : `数字 ${value}`}。`;
 }
 
-export function SudokuCanvas({
-  puzzle,
-  values,
-  solution,
-  selectedIndex,
-  onSelect,
-  onDigit,
-  onErase,
-}: SudokuCanvasProps) {
+export function SudokuCanvas({ puzzle, values, selectedIndex, onSelect, onDigit, onErase }: SudokuCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasFocus, setHasFocus] = useState(false);
 
   const drawLatestBoard = useEffectEvent(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    drawBoard({ canvas, puzzle, values, solution, selectedIndex, hasFocus, colors: readCanvasColors() });
+    drawBoard({ canvas, puzzle, values, selectedIndex, hasFocus, colors: readCanvasColors() });
   });
 
   useEffect(() => {
     drawLatestBoard();
-  }, [puzzle, values, solution, selectedIndex, hasFocus]);
+  }, [puzzle, values, selectedIndex, hasFocus]);
 
   useEffect(() => {
     const observer = new MutationObserver(drawLatestBoard);

@@ -56,6 +56,12 @@ export default function Sudoku() {
           onRestart={() => startGame(session.difficultyId)}
         />
 
+        {session.hasIncorrectCompletion ? (
+          <p className={styles.reviewNotice} role="status">
+            填写有误，请自行检查。
+          </p>
+        ) : null}
+
         {session.status === 'won' ? (
           <CompletionPanel
             difficultyLabel={currentDifficulty.label}
@@ -71,7 +77,6 @@ export default function Sudoku() {
             <SudokuCanvas
               puzzle={session.game.puzzle}
               values={session.values}
-              solution={session.game.solution}
               selectedIndex={session.selectedIndex}
               onSelect={selectCell}
               onDigit={enterDigit}

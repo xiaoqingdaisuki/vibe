@@ -17,7 +17,7 @@ export function NumberPanel({ completedDigits, selectedIndex, status, onDigit, o
       <div className={styles.numberPanelHeading}>
         <div>
           <h2 className={styles.numberPanelTitle}>填入数字</h2>
-          <p className={styles.numberPanelHint}>紫色为你的答案，红色表示需要修正。</p>
+          <p className={styles.numberPanelHint}>紫色为你填写的数字。</p>
         </div>
         <span className={styles.selectedPosition}>
           R{Math.floor(selectedIndex / 9) + 1} · C{(selectedIndex % 9) + 1}

@@ -26,6 +26,7 @@ export interface SudokuSessionState {
   selectedIndex: number;
   status: SudokuStatus;
   mistakes: number;
+  hasIncorrectCompletion: boolean;
 }
 
 export type SudokuKeyboardCommand =
@@ -39,6 +40,7 @@ export function createSudokuSession(game: SudokuGame, difficultyId: SudokuDiffic
     selectedIndex: game.puzzle.findIndex((value) => value === 0),
     status: 'playing',
     mistakes: 0,
+    hasIncorrectCompletion: false,
   };
 }
 
@@ -65,13 +67,16 @@ export function enterDigitInSession(state: SudokuSessionState, digit: number): S
   const previousValue = state.values[selectedIndex];
   const nextValues = [...state.values];
   nextValues[selectedIndex] = previousValue === digit ? 0 : digit;
-  const isNewMistake = previousValue !== digit && digit !== state.game.solution[selectedIndex];
+  const isComplete = nextValues.every((value) => value !== 0);
+  const isSolved = nextValues.every((value, index) => value === state.game.solution[index]);
+  const hasIncorrectCompletion = isComplete && !isSolved;
 
   return {
     ...state,
     values: nextValues,
-    mistakes: state.mistakes + (isNewMistake ? 1 : 0),
-    status: nextValues.every((value, index) => value === state.game.solution[index]) ? 'won' : 'playing',
+    mistakes: state.mistakes + (hasIncorrectCompletion ? 1 : 0),
+    status: isSolved ? 'won' : 'playing',
+    hasIncorrectCompletion,
   };
 }
 
@@ -83,7 +88,7 @@ export function eraseSelectedInSession(state: SudokuSessionState): SudokuSession
 
   const nextValues = [...state.values];
   nextValues[selectedIndex] = 0;
-  return { ...state, values: nextValues };
+  return { ...state, values: nextValues, hasIncorrectCompletion: false };
 }
 
 export function getElapsedSeconds(startedAtMs: number, currentTimeMs: number): number {
