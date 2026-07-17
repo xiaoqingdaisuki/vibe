@@ -27,6 +27,7 @@ export interface SudokuSessionState {
   status: SudokuStatus;
   mistakes: number;
   hasIncorrectCompletion: boolean;
+  incorrectBoxIndexes: number[];
 }
 
 export type SudokuKeyboardCommand =
@@ -41,6 +42,7 @@ export function createSudokuSession(game: SudokuGame, difficultyId: SudokuDiffic
     status: 'playing',
     mistakes: 0,
     hasIncorrectCompletion: false,
+    incorrectBoxIndexes: [],
   };
 }
 
@@ -68,8 +70,9 @@ export function enterDigitInSession(state: SudokuSessionState, digit: number): S
   const nextValues = [...state.values];
   nextValues[selectedIndex] = previousValue === digit ? 0 : digit;
   const isComplete = nextValues.every((value) => value !== 0);
-  const isSolved = nextValues.every((value, index) => value === state.game.solution[index]);
-  const hasIncorrectCompletion = isComplete && !isSolved;
+  const incorrectBoxIndexes = isComplete ? getIncorrectBoxIndexes(nextValues, state.game.solution) : [];
+  const isSolved = isComplete && incorrectBoxIndexes.length === 0;
+  const hasIncorrectCompletion = incorrectBoxIndexes.length > 0;
 
   return {
     ...state,
@@ -77,6 +80,7 @@ export function enterDigitInSession(state: SudokuSessionState, digit: number): S
     mistakes: state.mistakes + (hasIncorrectCompletion ? 1 : 0),
     status: isSolved ? 'won' : 'playing',
     hasIncorrectCompletion,
+    incorrectBoxIndexes,
   };
 }
 
@@ -88,7 +92,21 @@ export function eraseSelectedInSession(state: SudokuSessionState): SudokuSession
 
   const nextValues = [...state.values];
   nextValues[selectedIndex] = 0;
-  return { ...state, values: nextValues, hasIncorrectCompletion: false };
+  return { ...state, values: nextValues, hasIncorrectCompletion: false, incorrectBoxIndexes: [] };
+}
+
+export function getIncorrectBoxIndexes(values: number[], solution: number[]): number[] {
+  const incorrectBoxes = new Set<number>();
+
+  values.forEach((value, index) => {
+    if (value === solution[index]) return;
+
+    const row = Math.floor(index / GRID_SIZE);
+    const column = index % GRID_SIZE;
+    incorrectBoxes.add(Math.floor(row / 3) * 3 + Math.floor(column / 3));
+  });
+
+  return [...incorrectBoxes];
 }
 
 export function getElapsedSeconds(startedAtMs: number, currentTimeMs: number): number {

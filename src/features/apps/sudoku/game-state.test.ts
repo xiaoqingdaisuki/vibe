@@ -20,7 +20,7 @@ function createNearlyCompleteGame(emptyIndexes: number[] = [0]): SudokuGame {
   return { puzzle, solution };
 }
 
-test('a full incorrect board records one mistake without revealing its incorrect cells', () => {
+test('a full incorrect board records one mistake and identifies its incorrect box', () => {
   const game = createNearlyCompleteGame();
   const initial = createSudokuSession(game, 'starter');
   const wrong = enterDigitInSession(initial, 2);
@@ -30,11 +30,14 @@ test('a full incorrect board records one mistake without revealing its incorrect
   assert.equal(wrong.values[0], 2);
   assert.equal(wrong.mistakes, 1);
   assert.equal(wrong.hasIncorrectCompletion, true);
+  assert.deepEqual(wrong.incorrectBoxIndexes, [0]);
   assert.equal(wrong.status, 'playing');
   assert.equal(cleared.values[0], 0);
   assert.equal(cleared.mistakes, 1);
   assert.equal(cleared.hasIncorrectCompletion, false);
+  assert.deepEqual(cleared.incorrectBoxIndexes, []);
   assert.equal(completed.status, 'won');
+  assert.deepEqual(completed.incorrectBoxIndexes, []);
 });
 
 test('an incorrect digit does not count as a mistake until the board is full', () => {
@@ -46,6 +49,7 @@ test('an incorrect digit does not count as a mistake until the board is full', (
   assert.equal(firstEntry.hasIncorrectCompletion, false);
   assert.equal(finalEntry.mistakes, 1);
   assert.equal(finalEntry.hasIncorrectCompletion, true);
+  assert.deepEqual(finalEntry.incorrectBoxIndexes, [0]);
 });
 
 test('given cells cannot be changed and editable cells can be erased', () => {

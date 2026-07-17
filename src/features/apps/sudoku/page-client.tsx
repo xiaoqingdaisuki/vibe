@@ -58,7 +58,7 @@ export default function Sudoku() {
 
         {session.hasIncorrectCompletion ? (
           <p className={styles.reviewNotice} role="status">
-            填写有误，请自行检查。
+            填写有误，红色边框标出了包含错误数字的九宫格，请修改后再次核对。
           </p>
         ) : null}
 
@@ -78,6 +78,7 @@ export default function Sudoku() {
               puzzle={session.game.puzzle}
               values={session.values}
               selectedIndex={session.selectedIndex}
+              incorrectBoxIndexes={session.incorrectBoxIndexes}
               onSelect={selectCell}
               onDigit={enterDigit}
               onErase={eraseSelected}

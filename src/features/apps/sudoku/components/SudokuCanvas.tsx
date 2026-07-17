@@ -16,12 +16,14 @@ interface CanvasColors {
   accent: string;
   accentWash: string;
   accentFaint: string;
+  error: string;
 }
 
 interface SudokuCanvasProps {
   puzzle: number[];
   values: number[];
   selectedIndex: number;
+  incorrectBoxIndexes: number[];
   onSelect: (index: number) => void;
   onDigit: (digit: number) => void;
   onErase: () => void;
@@ -41,6 +43,7 @@ function readCanvasColors(): CanvasColors {
     accent: read('--color-accent'),
     accentWash: read('--color-accent-wash'),
     accentFaint: read('--color-accent-faint'),
+    error: read('--color-error'),
   };
 }
 
@@ -61,11 +64,12 @@ interface DrawBoardOptions {
   puzzle: number[];
   values: number[];
   selectedIndex: number;
+  incorrectBoxIndexes: number[];
   hasFocus: boolean;
   colors: CanvasColors;
 }
 
-function drawBoard({ canvas, puzzle, values, selectedIndex, hasFocus, colors }: DrawBoardOptions) {
+function drawBoard({ canvas, puzzle, values, selectedIndex, incorrectBoxIndexes, hasFocus, colors }: DrawBoardOptions) {
   const context = canvas.getContext('2d');
   if (!context) return;
 
@@ -124,6 +128,14 @@ function drawBoard({ canvas, puzzle, values, selectedIndex, hasFocus, colors }: 
     context.stroke();
   }
 
+  incorrectBoxIndexes.forEach((boxIndex) => {
+    const boxRow = Math.floor(boxIndex / 3);
+    const boxColumn = boxIndex % 3;
+    context.strokeStyle = colors.error;
+    context.lineWidth = 4;
+    context.strokeRect(boxColumn * CELL_SIZE * 3 + 2, boxRow * CELL_SIZE * 3 + 2, CELL_SIZE * 3 - 4, CELL_SIZE * 3 - 4);
+  });
+
   if (hasFocus) {
     const row = Math.floor(selectedIndex / GRID_SIZE);
     const column = selectedIndex % GRID_SIZE;
@@ -143,27 +155,42 @@ function getCellIndex(canvas: HTMLCanvasElement, clientX: number, clientY: numbe
   return row * GRID_SIZE + column;
 }
 
-function describeCell(puzzle: number[], values: number[], selectedIndex: number): string {
+function describeCell(
+  puzzle: number[],
+  values: number[],
+  selectedIndex: number,
+  incorrectBoxIndexes: number[],
+): string {
   const row = Math.floor(selectedIndex / GRID_SIZE) + 1;
   const column = (selectedIndex % GRID_SIZE) + 1;
   const value = values[selectedIndex];
   const kind = puzzle[selectedIndex] === 0 ? '可填写格' : '题目数字';
-  return `第 ${row} 行第 ${column} 列，${kind}，${value === 0 ? '空白' : `数字 ${value}`}。`;
+  const reviewMessage =
+    incorrectBoxIndexes.length > 0 ? `当前答案有误，${incorrectBoxIndexes.length} 个错误九宫格已用红框标出。` : '';
+  return `第 ${row} 行第 ${column} 列，${kind}，${value === 0 ? '空白' : `数字 ${value}`}。${reviewMessage}`;
 }
 
-export function SudokuCanvas({ puzzle, values, selectedIndex, onSelect, onDigit, onErase }: SudokuCanvasProps) {
+export function SudokuCanvas({
+  puzzle,
+  values,
+  selectedIndex,
+  incorrectBoxIndexes,
+  onSelect,
+  onDigit,
+  onErase,
+}: SudokuCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasFocus, setHasFocus] = useState(false);
 
   const drawLatestBoard = useEffectEvent(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    drawBoard({ canvas, puzzle, values, selectedIndex, hasFocus, colors: readCanvasColors() });
+    drawBoard({ canvas, puzzle, values, selectedIndex, incorrectBoxIndexes, hasFocus, colors: readCanvasColors() });
   });
 
   useEffect(() => {
     drawLatestBoard();
-  }, [puzzle, values, selectedIndex, hasFocus]);
+  }, [puzzle, values, selectedIndex, incorrectBoxIndexes, hasFocus]);
 
   useEffect(() => {
     const observer = new MutationObserver(drawLatestBoard);
@@ -186,7 +213,7 @@ export function SudokuCanvas({ puzzle, values, selectedIndex, onSelect, onDigit,
     if (command.type === 'erase') onErase();
   };
 
-  const description = describeCell(puzzle, values, selectedIndex);
+  const description = describeCell(puzzle, values, selectedIndex, incorrectBoxIndexes);
 
   return (
     <>
