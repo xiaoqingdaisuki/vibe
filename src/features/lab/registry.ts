@@ -9,7 +9,6 @@ const registeredLabApps: LabApp[] = [
     tags: ['game', 'sudoku', 'logic'],
     href: '/lab/sudoku',
     featured: true,
-    recentOrder: 1,
     dataSource: 'local',
   },
   {
@@ -20,7 +19,6 @@ const registeredLabApps: LabApp[] = [
     tags: ['game', 'minesweeper'],
     href: '/lab/minesweeper',
     featured: true,
-    recentOrder: 2,
     dataSource: 'local',
   },
   {
@@ -31,7 +29,6 @@ const registeredLabApps: LabApp[] = [
     tags: ['skills', 'knowledge', 'collection'],
     href: '/lab/skills',
     featured: true,
-    recentOrder: 6,
     dataSource: 'local',
   },
   {
@@ -42,7 +39,6 @@ const registeredLabApps: LabApp[] = [
     tags: ['game', 'rpg', 'idle'],
     href: '/game',
     featured: true,
-    recentOrder: 5,
     dataSource: 'local',
   },
   {
@@ -53,11 +49,8 @@ const registeredLabApps: LabApp[] = [
     tags: ['rss', 'reader', 'feed'],
     href: '/lab/rss',
     featured: true,
-    recentOrder: 4,
     dataSource: 'local',
   },
 ];
 
-export const labApps: LabApp[] = [...registeredLabApps].sort(
-  (firstApp, secondApp) => (firstApp.recentOrder ?? Infinity) - (secondApp.recentOrder ?? Infinity),
-);
+export const labApps: LabApp[] = registeredLabApps;

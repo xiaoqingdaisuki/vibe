@@ -1,27 +1,43 @@
 import type { BlogPost } from '../../blog/types.ts';
 import type { LabApp } from '../../lab/types.ts';
 
-const RECENT_UPDATE_LIMIT = 3;
+export type RecentUpdateReference = { kind: 'lab'; slug: string } | { kind: 'blog'; slug: string };
 
-type RecentLabApp = LabApp & { recentOrder: number };
-type RecentBlogPost = BlogPost & { recentOrder: number };
+type RecentUpdateReferences = readonly [RecentUpdateReference, RecentUpdateReference, RecentUpdateReference];
 
-export type RecentUpdate = { kind: 'lab'; item: RecentLabApp } | { kind: 'blog'; item: RecentBlogPost };
+export const RECENT_UPDATE_REFERENCES = [
+  { kind: 'blog', slug: 'agent-engineering-complete-guide' },
+  { kind: 'lab', slug: 'sudoku' },
+  { kind: 'lab', slug: 'rss' },
+] as const satisfies RecentUpdateReferences;
+
+export type RecentUpdate = { kind: 'lab'; item: LabApp } | { kind: 'blog'; item: BlogPost };
 
 export interface RecentUpdatesOptions {
   apps: LabApp[];
   posts: BlogPost[];
+  references?: RecentUpdateReferences;
 }
 
-export function getRecentUpdates({ apps, posts }: RecentUpdatesOptions): RecentUpdate[] {
-  const recentApps = apps
-    .filter((app): app is RecentLabApp => typeof app.recentOrder === 'number' && Number.isFinite(app.recentOrder))
-    .map((item) => ({ kind: 'lab' as const, item }));
-  const recentPosts = posts
-    .filter((post): post is RecentBlogPost => typeof post.recentOrder === 'number' && Number.isFinite(post.recentOrder))
-    .map((item) => ({ kind: 'blog' as const, item }));
+export function getRecentUpdates({
+  apps,
+  posts,
+  references = RECENT_UPDATE_REFERENCES,
+}: RecentUpdatesOptions): RecentUpdate[] {
+  const appsBySlug = new Map(apps.map((app) => [app.slug, app]));
+  const postsBySlug = new Map(posts.map((post) => [post.slug, post]));
+  const updates: RecentUpdate[] = [];
 
-  return [...recentApps, ...recentPosts]
-    .sort((firstUpdate, secondUpdate) => firstUpdate.item.recentOrder - secondUpdate.item.recentOrder)
-    .slice(0, RECENT_UPDATE_LIMIT);
+  for (const reference of references) {
+    if (reference.kind === 'lab') {
+      const item = appsBySlug.get(reference.slug);
+      if (item) updates.push({ kind: 'lab', item });
+      continue;
+    }
+
+    const item = postsBySlug.get(reference.slug);
+    if (item) updates.push({ kind: 'blog', item });
+  }
+
+  return updates;
 }

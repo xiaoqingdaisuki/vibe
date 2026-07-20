@@ -43,13 +43,6 @@ function parseBlogMetadata(data: unknown): BlogPostMetadata | null {
     return null;
   }
 
-  if (
-    metadata.recentOrder !== undefined &&
-    (typeof metadata.recentOrder !== 'number' || !Number.isFinite(metadata.recentOrder))
-  ) {
-    return null;
-  }
-
   return {
     title: metadata.title,
     description: metadata.description,
@@ -59,7 +52,6 @@ function parseBlogMetadata(data: unknown): BlogPostMetadata | null {
     category: metadata.category,
     published: metadata.published ?? true,
     pinned: metadata.pinned,
-    recentOrder: metadata.recentOrder,
     cover: metadata.cover,
   };
 }
@@ -84,7 +76,6 @@ function readBlogFile(filePath: string): BlogPost | null {
     category: metadata.category,
     published: metadata.published ?? true,
     pinned: metadata.pinned,
-    recentOrder: metadata.recentOrder,
     cover: metadata.cover,
     content,
   };

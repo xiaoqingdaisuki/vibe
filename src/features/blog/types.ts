@@ -8,7 +8,6 @@ export interface BlogPost {
   category: string;
   published: boolean;
   pinned?: boolean;
-  recentOrder?: number;
   cover?: string;
   content: string;
 }
@@ -22,6 +21,5 @@ export interface BlogPostMetadata {
   category: string;
   published: boolean;
   pinned?: boolean;
-  recentOrder?: number;
   cover?: string;
 }

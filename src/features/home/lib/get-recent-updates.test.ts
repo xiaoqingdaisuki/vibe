@@ -6,59 +6,29 @@ import { getRecentUpdates } from './get-recent-updates.ts';
 
 const testApps: LabApp[] = [
   {
-    slug: 'fourth-lab',
-    title: 'Fourth Lab',
+    slug: 'lab-update',
+    title: 'Lab update',
     description: '',
     category: 'app',
     tags: [],
-    href: '/lab/fourth-lab',
-    recentOrder: 4,
-  },
-  {
-    slug: 'first-lab',
-    title: 'First Lab',
-    description: '',
-    category: 'app',
-    tags: [],
-    href: '/lab/first-lab',
-    recentOrder: 1,
-  },
-  {
-    slug: 'unmarked-lab',
-    title: 'Unmarked Lab',
-    description: '',
-    category: 'app',
-    tags: [],
-    href: '/lab/unmarked-lab',
+    href: '/lab/lab-update',
   },
 ];
 
 const testPosts: BlogPost[] = [
   {
-    slug: 'second-blog',
-    title: 'Second Blog',
+    slug: 'older-blog',
+    title: 'Older blog',
     description: '',
     date: '2026-07-14',
     tags: [],
     category: 'Test',
     published: true,
     content: '',
-    recentOrder: 2,
   },
   {
-    slug: 'third-blog',
-    title: 'Third Blog',
-    description: '',
-    date: '2026-07-14',
-    tags: [],
-    category: 'Test',
-    published: true,
-    content: '',
-    recentOrder: 3,
-  },
-  {
-    slug: 'unmarked-blog',
-    title: 'Unmarked Blog',
+    slug: 'latest-blog',
+    title: 'Latest blog',
     description: '',
     date: '2026-07-14',
     tags: [],
@@ -68,13 +38,21 @@ const testPosts: BlogPost[] = [
   },
 ];
 
-test('getRecentUpdates combines manually ordered Lab and Blog items, excluding unmarked items and limiting results to three', () => {
+test('getRecentUpdates preserves the three explicit homepage update references', () => {
   assert.deepEqual(
-    getRecentUpdates({ apps: testApps, posts: testPosts }).map(({ kind, item }) => ({ kind, slug: item.slug })),
+    getRecentUpdates({
+      apps: testApps,
+      posts: testPosts,
+      references: [
+        { kind: 'blog', slug: 'latest-blog' },
+        { kind: 'lab', slug: 'lab-update' },
+        { kind: 'blog', slug: 'older-blog' },
+      ],
+    }).map(({ kind, item }) => ({ kind, slug: item.slug })),
     [
-      { kind: 'lab', slug: 'first-lab' },
-      { kind: 'blog', slug: 'second-blog' },
-      { kind: 'blog', slug: 'third-blog' },
+      { kind: 'blog', slug: 'latest-blog' },
+      { kind: 'lab', slug: 'lab-update' },
+      { kind: 'blog', slug: 'older-blog' },
     ],
   );
 });

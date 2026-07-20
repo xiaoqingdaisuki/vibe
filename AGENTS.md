@@ -167,7 +167,7 @@ After every successful Git commit, update `src/content/blog/vibe-log.mdx` before
 
 ### 4.4 Maintain Homepage Recent Updates
 
-When adding or changing a Lab app or Blog post, update its `recentOrder` whenever it should appear in the homepage Recent updates module. Set the value in the Lab entry in `src/features/lab/registry.ts` for Lab apps, or in the post frontmatter for Blog posts. The homepage displays the three lowest finite `recentOrder` values across both types, so each value must be distinct globally and the ordering must remain intentional and current.
+When adding or changing a Lab app or Blog post that should appear in the homepage Recent updates module, update the three-item `RECENT_UPDATE_REFERENCES` array in `src/features/home/lib/get-recent-updates.ts`. Its array order is the homepage display order, and it must always contain exactly three valid references.
 
 ## 5. Next.js Standards
 
