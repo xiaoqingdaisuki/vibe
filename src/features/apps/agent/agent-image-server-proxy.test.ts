@@ -22,6 +22,6 @@ test('forwards an image prompt and adapts the generated data URL', async (t) => 
 
   assert.equal(response.status, 200);
   assert.deepEqual(response.body, { imageDataUrl: 'data:image/png;base64,aGVsbG8=' });
-  assert.equal(upstreamUrl, 'http://127.0.0.1:6001/images/generations');
+  assert.equal(upstreamUrl, 'https://agent-production-49c1.up.railway.app/images/generations');
   assert.deepEqual(JSON.parse(String(upstreamBody)), { prompt: '紫色的山谷' });
 });

@@ -28,7 +28,7 @@ test('forwards the complete conversation and adapts the Agent reply', async (t) 
 
   assert.equal(response.status, 200);
   assert.deepEqual(response.body, { content: '联调成功。' });
-  assert.equal(upstreamUrl, 'http://127.0.0.1:6001/chat');
+  assert.equal(upstreamUrl, 'https://agent-production-49c1.up.railway.app/chat');
   assert.deepEqual(JSON.parse(String(upstreamBody)), {
     message: 'user: 你好\n\nassistant: 你好，请问有什么可以帮你？\n\nuser: 请确认联调状态',
   });

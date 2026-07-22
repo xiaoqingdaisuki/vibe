@@ -10,7 +10,7 @@ interface ProxyResult {
   body: { content: string } | { error: { message: string } };
 }
 
-const DEFAULT_AGENT_API_BASE_URL = 'http://127.0.0.1:6001';
+const DEFAULT_AGENT_API_BASE_URL = 'https://agent-production-49c1.up.railway.app';
 const VALID_ROLES = new Set<AgentMessageRole>(['user', 'assistant', 'system']);
 
 function isAgentMessage(value: unknown): value is AgentMessage {

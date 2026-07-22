@@ -8,7 +8,7 @@ const LAB_APP_LOADERS: Record<string, LabAppLoader> = {
   skills: () => import('./skills/page-client'),
   rss: () => import('./rss/page-client'),
   rpg: () => import('./game/page-client'),
-  agent: () => import('./agent/page-client'),
+  ai: () => import('./agent/page-client'),
 };
 
 export function getLabAppLoader(slug: string): LabAppLoader | undefined {
