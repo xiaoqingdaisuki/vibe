@@ -7,6 +7,9 @@
 /* ---- Shell ---- */
 
 .shell {
+  --agent-status-connected: #15803d;
+  --agent-status-connected-dot: #22c55e;
+
   display: flex;
   flex-direction: column;
   height: calc(100vh - var(--space-32));
@@ -15,6 +18,11 @@
   border-radius: var(--radius-lg);
   background: var(--color-background);
   overflow: hidden;
+}
+
+:global(html[data-theme='dark']) .shell {
+  --agent-status-connected: #86efac;
+  --agent-status-connected-dot: #4ade80;
 }
 
 /* ---- Header ---- */
@@ -73,6 +81,10 @@
   color: var(--color-error);
 }
 
+.headerStatusConnected {
+  color: var(--agent-status-connected);
+}
+
 .statusDot {
   width: var(--space-6);
   height: var(--space-6);
@@ -83,6 +95,10 @@
 
 .statusDotError {
   background: var(--color-error);
+}
+
+.statusDotConnected {
+  background: var(--agent-status-connected-dot);
 }
 
 .headerActions {
@@ -119,6 +135,157 @@
   .headerBtn:hover {
     color: var(--color-accent);
   }
+}
+
+/* ---- Image generation ---- */
+
+.imageGenerator {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-background);
+}
+
+.imageGeneratorToggle {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: var(--space-48);
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-16);
+  border: none;
+  background: transparent;
+  color: var(--color-foreground);
+  cursor: pointer;
+  text-align: left;
+}
+
+.imageGeneratorToggle:hover,
+.imageGeneratorToggle:active {
+  background: var(--color-accent-faint);
+}
+
+.imageGeneratorIcon {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--color-accent);
+}
+
+.imageGeneratorTitle {
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.imageGeneratorHint {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--color-foreground-muted);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.imageGeneratorBody {
+  display: flex;
+  flex-direction: column;
+  max-height: 50vh;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-16) var(--space-16);
+  overflow-y: auto;
+  background: var(--color-accent-faint);
+}
+
+.imagePromptLabel {
+  color: var(--color-foreground-secondary);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.imagePrompt {
+  width: 100%;
+  min-height: 72px;
+  padding: var(--space-8) var(--space-12);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.imagePrompt:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.imageGeneratorActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.imagePromptCount {
+  color: var(--color-foreground-muted);
+  font-size: var(--text-xs);
+}
+
+.imageGenerateButton,
+.imageDownload {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--space-40);
+  padding: var(--space-8) var(--space-12);
+  border: 1px solid var(--color-accent);
+  border-radius: var(--radius-md);
+  background: var(--color-accent);
+  color: #ffffff;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.imageGenerateButton:hover:not(:disabled),
+.imageGenerateButton:active:not(:disabled),
+.imageDownload:hover,
+.imageDownload:active {
+  background: var(--color-accent-hover);
+}
+
+.imageGenerateButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.imageError {
+  padding: var(--space-8) var(--space-12);
+  border: 1px solid var(--color-error);
+  border-radius: var(--radius-md);
+  background: var(--color-error-background);
+  color: var(--color-error);
+  font-size: var(--text-sm);
+}
+
+.imageResult {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-8);
+}
+
+.generatedImage {
+  width: 100%;
+  max-width: 512px;
+  height: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
 }
 
 /* ---- Messages ---- */
@@ -660,7 +827,8 @@
 .hintKey {
   display: inline-flex;
   align-items: center;
-  padding: var(--space-2) var(--space-6);
+  flex-shrink: 0;
+  padding: var(--space-4) var(--space-8);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: var(--color-background);
@@ -668,6 +836,11 @@
   font-size: 10px;
   color: var(--color-foreground-muted);
   line-height: 1.6;
+  white-space: nowrap;
+}
+
+.inputDisclaimer {
+  display: none;
 }
 
 /* ---- Scroll-to-bottom button ---- */
@@ -744,5 +917,9 @@
   .shell {
     height: calc(100vh - var(--space-48));
     max-height: 820px;
+  }
+
+  .inputDisclaimer {
+    display: inline;
   }
 }

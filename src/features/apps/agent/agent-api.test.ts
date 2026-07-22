@@ -21,7 +21,7 @@ test('returns a successful JSON response from the HTTP API', async (t) => {
 test('surfaces a concise server error without using local fallback data', async (t) => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>
-    new Response(JSON.stringify({ error: { message: 'Agent 服务暂不可用' } }), {
+    new Response(JSON.stringify({ error: { message: 'AI小情服务暂不可用' } }), {
       status: 503,
       headers: { 'Content-Type': 'application/json' },
     });
@@ -29,10 +29,7 @@ test('surfaces a concise server error without using local fallback data', async 
     globalThis.fetch = originalFetch;
   });
 
-  await assert.rejects(
-    () => callAgentApi({ messages: [] }, () => undefined),
-    new Error('Agent 服务暂不可用'),
-  );
+  await assert.rejects(() => callAgentApi({ messages: [] }, () => undefined), new Error('AI小情服务暂不可用'));
 });
 
 test('does not expose an HTML error page to the user', async (t) => {
@@ -42,7 +39,7 @@ test('does not expose an HTML error page to the user', async (t) => {
     globalThis.fetch = originalFetch;
   });
 
-  await assert.rejects(() => callAgentApi({ messages: [] }, () => undefined), /Agent 请求失败（HTTP 500）/);
+  await assert.rejects(() => callAgentApi({ messages: [] }, () => undefined), /AI小情请求失败（HTTP 500）/);
 });
 
 test('streams SSE chunks split across network boundaries', async (t) => {

@@ -6,6 +6,7 @@ import { getAgentConnectionStatusLabel } from './chat-status';
 import type { AgentConnectionStatus } from './chat-status';
 import { copyText } from './clipboard';
 import { renderBlockMarkdown } from './render-markdown';
+import { ImageGenerator } from './image-generator';
 import styles from './styles/Agent.module.css';
 import { useAgentChat } from './use-agent-chat';
 import { useChatScroll } from './use-chat-scroll';
@@ -372,6 +373,7 @@ function AgentHeader({
   showClear: boolean;
   onClear: () => void;
 }) {
+  const isConnected = connectionStatus === 'connected';
   const hasConnectionError = connectionStatus === 'error';
 
   return (
@@ -381,10 +383,12 @@ function AgentHeader({
           <AgentIcon />
         </div>
         <div className={styles.headerInfo}>
-          <div className={styles.headerName}>Agent</div>
-          <div className={`${styles.headerStatus} ${hasConnectionError ? styles.headerStatusError : ''}`}>
+          <div className={styles.headerName}>AI小情</div>
+          <div
+            className={`${styles.headerStatus} ${isConnected ? styles.headerStatusConnected : ''} ${hasConnectionError ? styles.headerStatusError : ''}`}
+          >
             <span
-              className={`${styles.statusDot} ${hasConnectionError ? styles.statusDotError : ''}`}
+              className={`${styles.statusDot} ${isConnected ? styles.statusDotConnected : ''} ${hasConnectionError ? styles.statusDotError : ''}`}
               aria-hidden="true"
             />
             <span>{getAgentConnectionStatusLabel(connectionStatus)}</span>
@@ -477,7 +481,7 @@ function AgentComposer({
           <span className={styles.hintKey}>Enter</span> 发送
           <span className={styles.hintKey}>Shift + Enter</span> 换行
         </div>
-        <span>AI 生成内容可能不准确</span>
+        <span className={styles.inputDisclaimer}>AI 生成内容可能不准确</span>
       </div>
     </div>
   );
@@ -506,6 +510,7 @@ export default function AgentChat() {
   return (
     <div className={styles.shell}>
       <AgentHeader connectionStatus={connectionStatus} showClear={hasMessages} onClear={clearChat} />
+      <ImageGenerator />
 
       <div className={styles.messagesArea}>
         <div className={styles.messages} ref={scrollContainerRef} role="log" aria-live="polite" aria-label="对话消息">
