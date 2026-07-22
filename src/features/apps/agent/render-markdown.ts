@@ -21,9 +21,7 @@ function renderInlineMarkdown(text: string): string {
   html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label: string, href: string) =>
-    renderLink(label, href),
-  );
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, label: string, href: string) => renderLink(label, href));
 
   return html;
 }
@@ -71,7 +69,7 @@ export function renderBlockMarkdown(content: string): string {
         quoteLines.push(lines[index].slice(2));
         index += 1;
       }
-      result.push(`<blockquote><p>${renderInlineMarkdown(quoteLines.join('<br>'))}</p></blockquote>`);
+      result.push(`<blockquote><p>${quoteLines.map(renderInlineMarkdown).join('<br>')}</p></blockquote>`);
       continue;
     }
 
@@ -134,7 +132,7 @@ export function renderBlockMarkdown(content: string): string {
     }
 
     if (paragraphLines.length > 0) {
-      result.push(`<p>${renderInlineMarkdown(paragraphLines.join('<br>'))}</p>`);
+      result.push(`<p>${paragraphLines.map(renderInlineMarkdown).join('<br>')}</p>`);
       continue;
     }
 

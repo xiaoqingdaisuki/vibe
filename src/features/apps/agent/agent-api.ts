@@ -5,8 +5,10 @@ export interface AgentSuggestionCard {
   payload: string;
 }
 
+export type AgentMessageRole = 'user' | 'assistant' | 'system';
+
 export interface AgentApiRequest {
-  messages: { role: string; content: string }[];
+  messages: { role: AgentMessageRole; content: string }[];
 }
 
 export interface AgentApiResponse {

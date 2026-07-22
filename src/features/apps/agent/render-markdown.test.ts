@@ -37,3 +37,11 @@ test('escapes raw HTML from agent responses', () => {
 
   assert.equal(markup, '<p>&lt;img src=x onerror=alert(1)&gt;</p>');
 });
+
+test('renders multiline paragraphs and blockquotes with line breaks', () => {
+  const markup = renderBlockMarkdown('第一行\n第二行\n\n> 引用一\n> 引用二');
+
+  assert.match(markup, /<p>第一行<br>第二行<\/p>/);
+  assert.match(markup, /<blockquote><p>引用一<br>引用二<\/p><\/blockquote>/);
+  assert.doesNotMatch(markup, /&lt;br&gt;/);
+});

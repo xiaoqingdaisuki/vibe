@@ -69,12 +69,20 @@
   color: var(--color-foreground-muted);
 }
 
+.headerStatusError {
+  color: var(--color-error);
+}
+
 .statusDot {
-  width: 6px;
-  height: 6px;
+  width: var(--space-6);
+  height: var(--space-6);
   border-radius: var(--radius-full);
-  background: #22c55e;
+  background: var(--color-foreground-muted);
   flex-shrink: 0;
+}
+
+.statusDotError {
+  background: var(--color-error);
 }
 
 .headerActions {
@@ -86,8 +94,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: var(--space-40);
+  height: var(--space-40);
   border-radius: var(--radius-md);
   border: 1px solid transparent;
   background: transparent;
@@ -115,8 +123,14 @@
 
 /* ---- Messages ---- */
 
-.messages {
+.messagesArea {
+  position: relative;
   flex: 1;
+  min-height: 0;
+}
+
+.messages {
+  height: 100%;
   overflow-y: auto;
   padding: var(--space-16);
   display: flex;
@@ -247,7 +261,7 @@
 }
 
 .time {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--color-foreground-muted);
   white-space: nowrap;
 }
@@ -282,12 +296,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
+  width: var(--space-40);
+  height: var(--space-40);
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
   background: transparent;
-  color: #22c55e;
+  color: var(--color-accent);
   cursor: default;
   padding: 0;
 }
@@ -296,10 +310,10 @@
 
 .cursor {
   display: inline-block;
-  width: 2px;
+  width: var(--space-2);
   height: 1em;
   background: var(--color-accent);
-  margin-left: 1px;
+  margin-left: var(--space-2);
   vertical-align: text-bottom;
   animation: blink 1s step-end infinite;
 }
@@ -461,7 +475,7 @@
 
 .md :global(code) {
   display: inline;
-  padding: 2px var(--space-6);
+  padding: var(--space-2) var(--space-6);
   border-radius: var(--radius-sm);
   background: var(--color-accent-wash);
   font-family: ui-monospace, 'SF Mono', 'Fira Code', Consolas, monospace;
@@ -603,8 +617,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: var(--space-40);
+  height: var(--space-40);
   border-radius: var(--radius-md);
   border: none;
   background: var(--color-accent);
@@ -633,7 +647,7 @@
   justify-content: space-between;
   margin-top: var(--space-8);
   padding: 0 var(--space-4);
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: var(--color-foreground-muted);
 }
 
@@ -646,8 +660,8 @@
 .hintKey {
   display: inline-flex;
   align-items: center;
-  padding: 1px var(--space-6);
-  border-radius: 4px;
+  padding: var(--space-2) var(--space-6);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
   background: var(--color-background);
   font-family: ui-monospace, 'SF Mono', 'Fira Code', Consolas, monospace;
@@ -661,13 +675,15 @@
 .scrollBtn {
   position: absolute;
   bottom: var(--space-16);
-  left: 50%;
-  transform: translateX(-50%);
+  inset-inline: 0;
+  width: max-content;
+  min-height: var(--space-40);
+  margin-inline: auto;
   display: flex;
   align-items: center;
   gap: var(--space-6);
-  padding: var(--space-6) var(--space-12);
-  border-radius: var(--radius-full);
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background: var(--color-background);
   color: var(--color-foreground-secondary);
@@ -720,43 +736,6 @@
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-/* ---- Empty state ---- */
-
-.emptyState {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: var(--space-32) var(--space-16);
-  gap: var(--space-8);
-}
-
-.emptyIcon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-xl);
-  background: var(--color-accent-wash);
-  color: var(--color-accent);
-}
-
-.emptyTitle {
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: 700;
-  color: var(--color-foreground);
-}
-
-.emptyDesc {
-  font-size: var(--text-sm);
-  color: var(--color-foreground-muted);
-  max-width: 280px;
-  line-height: 1.6;
 }
 
 /* ---- Responsive: desktop height ---- */

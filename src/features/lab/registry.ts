@@ -59,7 +59,7 @@ const registeredLabApps: LabApp[] = [
     tags: ['ai', 'agent', 'chat', 'streaming'],
     href: '/lab/agent',
     featured: true,
-    dataSource: 'local',
+    dataSource: 'future-backend',
   },
 ];
 

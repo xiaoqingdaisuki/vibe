@@ -158,12 +158,11 @@ Blog rendering rules:
 
 ### 4.3 Update The Vibe Commit Log
 
-After every successful Git commit, update `src/content/blog/vibe-log.mdx` before delivering work:
+`src/content/blog/vibe-log.mdx` is maintained manually by the project owner.
 
-- Append the commit under its `YYYY年MM月DD日` heading with its original commit subject.
-- Add a new date heading when the commit date is not yet present.
-- Update the post's `updated` frontmatter date to the commit date.
-- Keep `pinned: true` so the commit log remains permanently pinned in the blog list.
+- Do not update the Vibe commit log automatically after commits or as part of unrelated code work.
+- Update it only when the user explicitly asks for a Vibe log change.
+- When requested, preserve the original commit subject, group entries under the correct `YYYY年MM月DD日` heading, update the `updated` frontmatter date, and keep `pinned: true`.
 
 ### 4.4 Maintain Homepage Recent Updates
 
