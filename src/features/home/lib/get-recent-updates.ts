@@ -6,7 +6,7 @@ export type RecentUpdateReference = { kind: 'lab'; slug: string } | { kind: 'blo
 type RecentUpdateReferences = readonly [RecentUpdateReference, RecentUpdateReference, RecentUpdateReference];
 
 export const RECENT_UPDATE_REFERENCES = [
-  { kind: 'blog', slug: 'agent-engineering-complete-guide' },
+  { kind: 'lab', slug: 'agent' },
   { kind: 'lab', slug: 'sudoku' },
   { kind: 'lab', slug: 'rss' },
 ] as const satisfies RecentUpdateReferences;

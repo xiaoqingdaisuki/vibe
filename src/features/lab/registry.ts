@@ -51,6 +51,16 @@ const registeredLabApps: LabApp[] = [
     featured: true,
     dataSource: 'local',
   },
+  {
+    slug: 'agent',
+    title: 'Agent',
+    description: 'AI 对话助手，支持流式回复、Markdown 渲染与交互式引导卡片。',
+    category: 'app',
+    tags: ['ai', 'agent', 'chat', 'streaming'],
+    href: '/lab/agent',
+    featured: true,
+    dataSource: 'local',
+  },
 ];
 
 export const labApps: LabApp[] = registeredLabApps;
