@@ -1,28 +1,32 @@
 # Vibe
 
-A personal Web Lab for apps, experiments, demos, and technical writing.
+A personal Web Lab for apps, games, experiments, public API demos, and technical writing.
 
-**Live site:** [vibe-xiaoqingdaisuki.vercel.app](https://vibe-xiaoqingdaisuki.vercel.app)
+Live site: [vibe-xiaoqingdaisuki.vercel.app](https://vibe-xiaoqingdaisuki.vercel.app)
 
 ## Lab Apps
 
-| App               | Route              | Description                                                                     |
-| ----------------- | ------------------ | ------------------------------------------------------------------------------- |
-| **Minesweeper**   | `/lab/minesweeper` | The classic puzzle game with preset and custom difficulty levels.               |
-| **RSS Reader**    | `/lab/rss`         | An RSS feed reader for aggregating subscriptions in one place.                  |
-| **Adventure RPG** | `/game`            | A text-based idle RPG — choose a class, auto-battle, collect gear.              |
-| **Skills**        | `/lab/skills`      | A curated collection of AI coding agent skills, tools, and knowledge resources. |
+| App        | Route              | Description                                                             |
+| ---------- | ------------------ | ----------------------------------------------------------------------- |
+| AI小情     | `/lab/ai`          | 支持多轮对话、流式文本响应与文本生成图片的 AI 助手。                    |
+| 数独       | `/lab/sudoku`      | 支持五级难度和键盘操作的数独游戏。                                      |
+| RSS Reader | `/lab/rss`         | 聚合并阅读 RSS 订阅源。                                                 |
+| 扫雷       | `/lab/minesweeper` | 支持预设及自定义难度的经典扫雷游戏。                                    |
+| Adventure  | `/game`            | 选择职业、自动战斗并收集装备的文字挂机 RPG。                            |
+| Skills     | `/lab/skills`      | A collection of AI coding agent skills, tools, and knowledge resources. |
+| Blog       | `/blog`            | A local Markdown and MDX-powered space for technical notes.             |
 
-### Blog
-
-A lightweight space for thoughts, notes, and experiments, powered by local Markdown and MDX content via `next-mdx-remote`.
+The site also includes recent homepage updates, a Lab app index, an About page, and a light/dark theme toggle.
 
 ## Tech Stack
 
-- Next.js 16
-- React 19
-- TypeScript 5
-- Tailwind CSS v4
-- CSS Modules
-- MDX content via `next-mdx-remote`
-- pnpm
+- Next.js 16 (App Router, Turbopack)
+- React 19 and TypeScript (strict mode)
+- Tailwind CSS v4 and CSS Modules
+- `next-mdx-remote` and `gray-matter` for local Markdown and MDX content
+- pnpm, ESLint, Prettier, Husky, and Commitlint
+- Vercel deployment
+
+## License
+
+[MIT](LICENSE)
