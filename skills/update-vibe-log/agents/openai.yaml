@@ -1,0 +1,4 @@
+interface:
+  display_name: "Update Vibe Log"
+  short_description: "Reconcile daily Vibe commit log."
+  default_prompt: "Update src/content/blog/vibe-log.mdx from the repository Git history."
