@@ -14,7 +14,7 @@ ENV HUSKY=0
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN corepack prepare pnpm@11.1.1 --activate && pnpm install --frozen-lockfile
 
-FROM base AS builder
+FROM dependencies AS builder
 
 WORKDIR /app
 
@@ -24,10 +24,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
 ENV DOCKER_BUILD=1
 
-COPY --from=dependencies /app/node_modules ./node_modules
 COPY . .
 
-RUN corepack prepare pnpm@11.1.1 --activate && pnpm run build
+RUN pnpm run build
 
 FROM base AS runner
 
