@@ -3,7 +3,7 @@ interface ImageProxyResult {
   body: { imageDataUrl: string } | { error: { message: string } };
 }
 
-const DEFAULT_AGENT_API_BASE_URL = 'https://agent-production-49c1.up.railway.app';
+const DEFAULT_AGENT_API_BASE_URL = '';
 
 function errorResult(message: string, status: number): ImageProxyResult {
   return { status, body: { error: { message } } };
