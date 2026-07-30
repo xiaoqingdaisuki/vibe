@@ -69,7 +69,7 @@ export async function proxyAgentChat(payload: unknown): Promise<ProxyResult> {
       cache: 'no-store',
     });
   } catch {
-    return errorResult('无法连接 AI小情服务，请检查本地后端是否已启动。', 503);
+    return errorResult('无法连接 AI助手服务，请检查本地后端是否已启动。', 503);
   }
 
   const upstreamPayload: unknown = await upstream.json().catch(() => null);
@@ -78,7 +78,7 @@ export async function proxyAgentChat(payload: unknown): Promise<ProxyResult> {
       typeof upstreamPayload === 'object' && upstreamPayload !== null && !Array.isArray(upstreamPayload)
         ? (upstreamPayload as { error?: unknown }).error
         : undefined;
-    return errorResult(typeof message === 'string' ? message : 'AI小情服务暂时不可用。', upstream.status);
+    return errorResult(typeof message === 'string' ? message : 'AI助手服务暂时不可用。', upstream.status);
   }
 
   const reply =
@@ -86,7 +86,7 @@ export async function proxyAgentChat(payload: unknown): Promise<ProxyResult> {
       ? (upstreamPayload as { reply?: unknown }).reply
       : undefined;
   if (typeof reply !== 'string' || !reply.trim()) {
-    return errorResult('AI小情服务返回了无效响应。', 502);
+    return errorResult('AI助手服务返回了无效响应。', 502);
   }
 
   return { status: 200, body: { content: reply } };

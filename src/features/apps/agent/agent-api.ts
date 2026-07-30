@@ -17,8 +17,8 @@ export interface AgentApiResponse {
 }
 
 const AGENT_API_URL = '/api/agent/chat';
-const CONNECTION_ERROR_MESSAGE = '无法连接 AI小情服务，请检查接口地址或网络后重试';
-const EMPTY_RESPONSE_MESSAGE = 'AI小情接口未返回有效内容，请稍后重试';
+const CONNECTION_ERROR_MESSAGE = '无法连接 AI助手服务，请检查接口地址或网络后重试';
+const EMPTY_RESPONSE_MESSAGE = 'AI助手接口未返回有效内容，请稍后重试';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -81,7 +81,7 @@ function getJsonErrorMessage(payload: unknown): string | undefined {
 }
 
 async function readHttpError(response: Response): Promise<string> {
-  const fallback = `AI小情请求失败（HTTP ${response.status}）`;
+  const fallback = `AI助手请求失败（HTTP ${response.status}）`;
   const contentType = response.headers.get('content-type') ?? '';
 
   if (contentType.includes('application/json')) {

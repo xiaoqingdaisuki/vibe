@@ -8,7 +8,7 @@ Live site: [vibe-xiaoqingdaisuki.vercel.app](https://vibe-xiaoqingdaisuki.vercel
 
 | App        | Route              | Description                                                             |
 | ---------- | ------------------ | ----------------------------------------------------------------------- |
-| AI小情     | `/lab/ai`          | 支持多轮对话、流式文本响应与文本生成图片的 AI 助手。                    |
+| AI助手     | `/lab/ai`          | 支持多轮对话、流式文本响应与文本生成图片的 AI 助手。                    |
 | 数独       | `/lab/sudoku`      | 支持五级难度和键盘操作的数独游戏。                                      |
 | RSS Reader | `/lab/rss`         | 聚合并阅读 RSS 订阅源。                                                 |
 | 扫雷       | `/lab/minesweeper` | 支持预设及自定义难度的经典扫雷游戏。                                    |

@@ -3,7 +3,7 @@ import type { LabApp } from './types';
 const registeredLabApps: LabApp[] = [
   {
     slug: 'ai',
-    title: 'AI小情',
+    title: 'AI助手',
     description: 'AI 对话助手，支持api模型调用、流式回复与文本生成图片。',
     category: 'app',
     tags: ['ai', 'chat', 'streaming'],

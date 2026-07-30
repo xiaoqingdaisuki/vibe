@@ -383,7 +383,7 @@ function AgentHeader({
           <AgentIcon />
         </div>
         <div className={styles.headerInfo}>
-          <div className={styles.headerName}>AI小情</div>
+          <div className={styles.headerName}>AI助手</div>
           <div
             className={`${styles.headerStatus} ${isConnected ? styles.headerStatusConnected : ''} ${hasConnectionError ? styles.headerStatusError : ''}`}
           >
