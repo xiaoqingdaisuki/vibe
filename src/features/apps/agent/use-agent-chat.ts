@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { callAgentApi, createAgentConversation, deleteAgentConversation } from './agent-api';
+import { callAgentApi, createAgentConversation, getAgentConversationMessages } from './agent-api';
 import type { AgentApiResponse, AgentMessageRole, AgentSuggestionCard } from './agent-api';
 import type { AgentConnectionStatus } from './chat-status';
+import { clearStoredConversationId, readStoredConversationId, writeStoredConversationId } from './conversation-storage';
 
 export interface ChatMessage {
   id: string;
@@ -22,11 +23,13 @@ interface AgentChatState {
   isStreaming: boolean;
   error: string | null;
   connectionStatus: AgentConnectionStatus;
+  hasConversation: boolean;
+  isRestoring: boolean;
   setInput: (value: string) => void;
   sendMessage: (text: string, options?: SendMessageOptions) => Promise<void>;
   retryLast: () => void;
   stopStreaming: () => void;
-  clearChat: () => void;
+  startNewConversation: () => void;
 }
 
 function generateId(): string {
@@ -37,15 +40,41 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';
 }
 
+function getBrowserStorage(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function toChatMessage(message: {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  createdAt: string;
+}): ChatMessage {
+  const timestamp = Date.parse(message.createdAt);
+  return {
+    id: message.id,
+    role: message.role,
+    content: message.content,
+    timestamp: Number.isNaN(timestamp) ? Date.now() : timestamp,
+  };
+}
+
 export function useAgentChat(): AgentChatState {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<AgentConnectionStatus>('idle');
+  const [hasConversation, setHasConversation] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(true);
   const abortRef = useRef<AbortController | null>(null);
   const conversationIdRef = useRef<string | null>(null);
   const messagesRef = useRef(messages);
+  const isRestoringRef = useRef(true);
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -55,9 +84,50 @@ export function useAgentChat(): AgentChatState {
     return () => abortRef.current?.abort();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const storage = getBrowserStorage();
+    const conversationId = storage ? readStoredConversationId(storage) : null;
+
+    const completeRestore = () => {
+      if (cancelled) return;
+      isRestoringRef.current = false;
+      setIsRestoring(false);
+    };
+
+    if (!conversationId) {
+      completeRestore();
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    conversationIdRef.current = conversationId;
+    void getAgentConversationMessages(conversationId)
+      .then((restoredMessages) => {
+        if (cancelled) return;
+        const messages = restoredMessages.map(toChatMessage);
+        messagesRef.current = messages;
+        setMessages(messages);
+        setHasConversation(true);
+        setConnectionStatus('connected');
+      })
+      .catch((restoreError: unknown) => {
+        if (cancelled || isAbortError(restoreError)) return;
+        setError('当前会话记录恢复失败，请稍后重试。');
+        setHasConversation(true);
+        setConnectionStatus('error');
+      })
+      .finally(completeRestore);
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const sendMessage = useCallback(async (text: string, { appendUser = true }: SendMessageOptions = {}) => {
     const trimmed = text.trim();
-    if (!trimmed || abortRef.current) return;
+    if (!trimmed || abortRef.current || isRestoringRef.current) return;
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -104,6 +174,9 @@ export function useAgentChat(): AgentChatState {
       if (!conversationId) {
         conversationId = await createAgentConversation(trimmed, controller.signal);
         conversationIdRef.current = conversationId;
+        const storage = getBrowserStorage();
+        if (storage) writeStoredConversationId(storage, conversationId);
+        setHasConversation(true);
       }
       const response: AgentApiResponse = await callAgentApi(
         {
@@ -163,14 +236,17 @@ export function useAgentChat(): AgentChatState {
     );
   }, []);
 
-  const clearChat = useCallback(() => {
-    abortRef.current?.abort();
-    const conversationId = conversationIdRef.current;
+  const startNewConversation = useCallback(() => {
+    if (abortRef.current) return;
     conversationIdRef.current = null;
-    if (conversationId) void deleteAgentConversation(conversationId);
+    const storage = getBrowserStorage();
+    if (storage) clearStoredConversationId(storage);
+    messagesRef.current = [];
     setMessages([]);
+    setInput('');
     setError(null);
-    setIsStreaming(false);
+    setConnectionStatus('idle');
+    setHasConversation(false);
   }, []);
 
   return {
@@ -179,10 +255,12 @@ export function useAgentChat(): AgentChatState {
     isStreaming,
     error,
     connectionStatus,
+    hasConversation,
+    isRestoring,
     setInput,
     sendMessage,
     retryLast,
     stopStreaming,
-    clearChat,
+    startNewConversation,
   };
 }

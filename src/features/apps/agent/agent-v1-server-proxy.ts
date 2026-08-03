@@ -173,3 +173,18 @@ export async function proxyDeleteAgentConversation(conversationId: string): Prom
   if (!upstream.ok) return adaptUpstreamError(upstream);
   return { status: 200, body: { success: true } };
 }
+
+export async function proxyGetAgentConversationMessages(conversationId: string): Promise<JsonProxyResult> {
+  if (!CONVERSATION_ID_PATTERN.test(conversationId)) {
+    return errorResult('会话 ID 格式不正确。', 400, 'INVALID_REQUEST');
+  }
+  const upstream = await fetchUpstream(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`, {
+    method: 'GET',
+  });
+  if (!(upstream instanceof Response)) return upstream;
+  if (!upstream.ok) return adaptUpstreamError(upstream);
+
+  const payload: unknown = await upstream.json().catch(() => null);
+  if (!Array.isArray(payload)) return errorResult('AI助手服务返回了无效消息记录。', 502, 'INVALID_UPSTREAM_RESPONSE');
+  return { status: 200, body: { messages: payload } };
+}

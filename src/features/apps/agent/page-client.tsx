@@ -174,7 +174,7 @@ function RetryIcon() {
   );
 }
 
-function TrashIcon() {
+function NewConversationIcon() {
   return (
     <svg
       width="16"
@@ -186,8 +186,9 @@ function TrashIcon() {
       strokeLinecap="round"
       strokeLinejoin="round"
     >
-      <polyline points="3 6 5 6 21 6" />
-      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <path d="M12 5v14" />
+      <path d="M5 12h14" />
+      <circle cx="12" cy="12" r="9" />
     </svg>
   );
 }
@@ -366,12 +367,14 @@ function ErrorMessage({ error, onRetry }: { error: string; onRetry: () => void }
 
 function AgentHeader({
   connectionStatus,
-  showClear,
-  onClear,
+  showNewConversation,
+  newConversationDisabled,
+  onStartNewConversation,
 }: {
   connectionStatus: AgentConnectionStatus;
-  showClear: boolean;
-  onClear: () => void;
+  showNewConversation: boolean;
+  newConversationDisabled: boolean;
+  onStartNewConversation: () => void;
 }) {
   const isConnected = connectionStatus === 'connected';
   const hasConnectionError = connectionStatus === 'error';
@@ -396,9 +399,16 @@ function AgentHeader({
         </div>
       </div>
       <div className={styles.headerActions}>
-        {showClear ? (
-          <button type="button" onClick={onClear} className={styles.headerBtn} title="清空对话" aria-label="清空对话">
-            <TrashIcon />
+        {showNewConversation ? (
+          <button
+            type="button"
+            onClick={onStartNewConversation}
+            className={styles.headerBtn}
+            title="开启新会话"
+            aria-label="开启新会话"
+            disabled={newConversationDisabled}
+          >
+            <NewConversationIcon />
           </button>
         ) : null}
       </div>
@@ -409,12 +419,14 @@ function AgentHeader({
 function AgentComposer({
   input,
   isStreaming,
+  isRestoring,
   onInputChange,
   onSend,
   onStop,
 }: {
   input: string;
   isStreaming: boolean;
+  isRestoring: boolean;
   onInputChange: (value: string) => void;
   onSend: (value: string) => void;
   onStop: () => void;
@@ -435,7 +447,7 @@ function AgentComposer({
   }, []);
 
   const submit = () => {
-    if (!isStreaming) void onSend(input);
+    if (!isStreaming && !isRestoring) void onSend(input);
   };
 
   return (
@@ -462,7 +474,7 @@ function AgentComposer({
           onBlur={() => setFocused(false)}
           placeholder="输入消息..."
           rows={1}
-          disabled={isStreaming}
+          disabled={isStreaming || isRestoring}
           className={styles.input}
           aria-label="消息输入"
         />
@@ -471,7 +483,13 @@ function AgentComposer({
             <StopIcon />
           </button>
         ) : (
-          <button type="submit" disabled={!input.trim()} className={styles.sendBtn} title="发送" aria-label="发送消息">
+          <button
+            type="submit"
+            disabled={!input.trim() || isRestoring}
+            className={styles.sendBtn}
+            title="发送"
+            aria-label="发送消息"
+          >
             <SendIcon />
           </button>
         )}
@@ -487,29 +505,76 @@ function AgentComposer({
   );
 }
 
+function NewConversationDialog({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onCancel();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel]);
+
+  return (
+    <div className={styles.dialogOverlay} onMouseDown={onCancel}>
+      <section
+        className={styles.dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="new-conversation-title"
+        onMouseDown={(event) => event.stopPropagation()}
+      >
+        <h2 id="new-conversation-title" className={styles.dialogTitle}>
+          开启新会话
+        </h2>
+        <p className={styles.dialogText}>开启新会话后会忘记当前所有对话记录</p>
+        <div className={styles.dialogActions}>
+          <button type="button" className={styles.dialogButton} onClick={onCancel}>
+            取消
+          </button>
+          <button type="button" className={`${styles.dialogButton} ${styles.dialogButtonConfirm}`} onClick={onConfirm}>
+            确认
+          </button>
+        </div>
+      </section>
+    </div>
+  );
+}
+
 /* ============================================
    AgentChat — Main component
    ============================================ */
 
 export default function AgentChat() {
+  const [isNewConversationDialogOpen, setIsNewConversationDialogOpen] = useState(false);
   const {
     messages,
     input,
     isStreaming,
     error,
     connectionStatus,
+    hasConversation,
+    isRestoring,
     setInput,
     sendMessage,
     retryLast,
     stopStreaming,
-    clearChat,
+    startNewConversation,
   } = useAgentChat();
   const { messagesEndRef, scrollContainerRef, showScrollButton, scrollToBottom } = useChatScroll(messages, isStreaming);
   const hasMessages = messages.length > 0;
+  const confirmNewConversation = () => {
+    startNewConversation();
+    setIsNewConversationDialogOpen(false);
+  };
 
   return (
     <div className={styles.shell}>
-      <AgentHeader connectionStatus={connectionStatus} showClear={hasMessages} onClear={clearChat} />
+      <AgentHeader
+        connectionStatus={connectionStatus}
+        showNewConversation={hasConversation}
+        newConversationDisabled={isStreaming || isRestoring}
+        onStartNewConversation={() => setIsNewConversationDialogOpen(true)}
+      />
       <ImageGenerator />
 
       <div className={styles.messagesArea}>
@@ -566,10 +631,17 @@ export default function AgentChat() {
       <AgentComposer
         input={input}
         isStreaming={isStreaming}
+        isRestoring={isRestoring}
         onInputChange={setInput}
         onSend={sendMessage}
         onStop={stopStreaming}
       />
+      {isNewConversationDialogOpen ? (
+        <NewConversationDialog
+          onCancel={() => setIsNewConversationDialogOpen(false)}
+          onConfirm={confirmNewConversation}
+        />
+      ) : null}
     </div>
   );
 }

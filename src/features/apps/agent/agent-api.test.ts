@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { callAgentApi } from './agent-api.ts';
+import { callAgentApi, getAgentConversationMessages } from './agent-api.ts';
 
 test('returns a successful JSON response from the HTTP API', async (t) => {
   const originalFetch = globalThis.fetch;
@@ -87,4 +87,32 @@ test('surfaces a structured error received after an SSE stream starts', async (t
     () => callAgentApi({ conversationId: 'conv_1', content: '测试' }, () => undefined),
     new Error('AI助手响应超时，请稍后重试。'),
   );
+});
+
+test('loads persisted messages from the v1 conversation API', async (t) => {
+  const originalFetch = globalThis.fetch;
+  let requestUrl = '';
+  globalThis.fetch = async (input) => {
+    requestUrl = String(input);
+    return new Response(
+      JSON.stringify({
+        messages: [
+          { id: 'msg_1', role: 'user', content: '你好', created_at: '2026-08-03T08:00:00.000Z' },
+          { id: 'msg_2', role: 'assistant', content: '你好！', created_at: '2026-08-03T08:00:01.000Z' },
+        ],
+      }),
+      { headers: { 'Content-Type': 'application/json' } },
+    );
+  };
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const messages = await getAgentConversationMessages('conv_1');
+
+  assert.equal(requestUrl, '/api/agent/v1/conversations/conv_1/messages');
+  assert.deepEqual(messages, [
+    { id: 'msg_1', role: 'user', content: '你好', createdAt: '2026-08-03T08:00:00.000Z' },
+    { id: 'msg_2', role: 'assistant', content: '你好！', createdAt: '2026-08-03T08:00:01.000Z' },
+  ]);
 });

@@ -131,6 +131,19 @@
   background: var(--color-accent-faint);
 }
 
+.headerBtn:disabled {
+  color: var(--color-foreground-muted);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.headerBtn:disabled:hover,
+.headerBtn:disabled:active {
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-foreground-muted);
+}
+
 @media (min-width: 768px) {
   .headerBtn:hover {
     color: var(--color-accent);
@@ -471,6 +484,92 @@
   color: var(--color-accent);
   cursor: default;
   padding: 0;
+}
+
+/* ---- New conversation dialog ---- */
+
+.dialogOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-16);
+  background: rgba(0, 0, 0, 0.5);
+  overscroll-behavior: contain;
+}
+
+.dialog {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 360px;
+  gap: var(--space-16);
+  padding: var(--space-20);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-background);
+}
+
+.dialogTitle {
+  margin: 0;
+  color: var(--color-foreground);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.dialogText {
+  margin: 0;
+  color: var(--color-foreground-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.6;
+}
+
+.dialogActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-8);
+}
+
+.dialogButton {
+  min-width: 72px;
+  min-height: var(--space-40);
+  padding: var(--space-8) var(--space-12);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color var(--dur-150) var(--ease-smooth),
+    background var(--dur-150) var(--ease-smooth),
+    color var(--dur-150) var(--ease-smooth);
+}
+
+.dialogButton:hover,
+.dialogButton:active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-faint);
+  color: var(--color-accent);
+}
+
+.dialogButtonConfirm {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+  color: var(--color-background);
+}
+
+.dialogButtonConfirm:hover,
+.dialogButtonConfirm:active {
+  border-color: var(--color-accent-hover);
+  background: var(--color-accent-hover);
+  color: var(--color-background);
 }
 
 /* ---- Streaming cursor ---- */

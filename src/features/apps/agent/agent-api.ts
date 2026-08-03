@@ -17,6 +17,13 @@ export interface AgentApiResponse {
   suggestionCards?: AgentSuggestionCard[];
 }
 
+export interface AgentConversationMessage {
+  id: string;
+  role: Extract<AgentMessageRole, 'user' | 'assistant'>;
+  content: string;
+  createdAt: string;
+}
+
 const AGENT_CONVERSATIONS_URL = '/api/agent/v1/conversations';
 const CONNECTION_ERROR_MESSAGE = '无法连接 AI助手服务，请检查接口地址或网络后重试';
 const EMPTY_RESPONSE_MESSAGE = 'AI助手接口未返回有效内容，请稍后重试';
@@ -121,6 +128,37 @@ export async function deleteAgentConversation(conversationId: string): Promise<v
   await fetch(`${AGENT_CONVERSATIONS_URL}/${encodeURIComponent(conversationId)}`, {
     method: 'DELETE',
   }).catch(() => undefined);
+}
+
+export async function getAgentConversationMessages(
+  conversationId: string,
+  signal?: AbortSignal,
+): Promise<AgentConversationMessage[]> {
+  const response = await fetch(`${AGENT_CONVERSATIONS_URL}/${encodeURIComponent(conversationId)}/messages`, {
+    signal,
+  }).catch((error: unknown) => {
+    if (isAbortError(error) || signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    throw new Error(CONNECTION_ERROR_MESSAGE);
+  });
+  if (!response.ok) throw new Error(await readHttpError(response));
+
+  const payload: unknown = await response.json().catch(() => null);
+  const messages = isRecord(payload) ? payload.messages : payload;
+  if (!Array.isArray(messages)) throw new Error(EMPTY_RESPONSE_MESSAGE);
+
+  return messages.flatMap((message) => {
+    if (!isRecord(message)) return [];
+    const { id, role, content, created_at: createdAt } = message;
+    if (
+      typeof id !== 'string' ||
+      (role !== 'user' && role !== 'assistant') ||
+      typeof content !== 'string' ||
+      typeof createdAt !== 'string'
+    ) {
+      return [];
+    }
+    return [{ id, role, content, createdAt }];
+  });
 }
 
 async function fetchAgent(request: AgentApiRequest, signal?: AbortSignal): Promise<Response> {
