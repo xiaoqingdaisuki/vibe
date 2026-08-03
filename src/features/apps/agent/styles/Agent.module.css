@@ -643,6 +643,13 @@
   gap: var(--space-4);
 }
 
+.typingLabel {
+  color: var(--color-foreground-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
 .typingDot {
   width: 6px;
   height: 6px;

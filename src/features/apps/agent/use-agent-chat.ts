@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { callAgentApi, createAgentConversation, getAgentConversationMessages } from './agent-api';
-import type { AgentApiResponse, AgentMessageRole, AgentSuggestionCard } from './agent-api';
+import type { AgentApiResponse, AgentMessageRole, AgentSuggestionCard, AgentToolProgress } from './agent-api';
 import type { AgentConnectionStatus } from './chat-status';
 import { clearStoredConversationId, readStoredConversationId, writeStoredConversationId } from './conversation-storage';
 
@@ -25,6 +25,7 @@ interface AgentChatState {
   connectionStatus: AgentConnectionStatus;
   hasConversation: boolean;
   isRestoring: boolean;
+  toolProgress: AgentToolProgress | null;
   setInput: (value: string) => void;
   sendMessage: (text: string, options?: SendMessageOptions) => Promise<void>;
   retryLast: () => void;
@@ -71,6 +72,7 @@ export function useAgentChat(): AgentChatState {
   const [connectionStatus, setConnectionStatus] = useState<AgentConnectionStatus>('idle');
   const [hasConversation, setHasConversation] = useState(false);
   const [isRestoring, setIsRestoring] = useState(true);
+  const [toolProgress, setToolProgress] = useState<AgentToolProgress | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const conversationIdRef = useRef<string | null>(null);
   const messagesRef = useRef(messages);
@@ -151,6 +153,7 @@ export function useAgentChat(): AgentChatState {
     );
     setInput('');
     setError(null);
+    setToolProgress(null);
     setIsStreaming(true);
     setConnectionStatus('connecting');
 
@@ -161,6 +164,7 @@ export function useAgentChat(): AgentChatState {
       streamed += chunk;
       setConnectionStatus('connected');
       const now = performance.now();
+      setToolProgress(null);
       if (now - lastSync < syncInterval) return;
 
       lastSync = now;
@@ -185,6 +189,7 @@ export function useAgentChat(): AgentChatState {
         },
         updateStreamed,
         controller.signal,
+        setToolProgress,
       );
 
       setMessages((current) =>
@@ -218,6 +223,7 @@ export function useAgentChat(): AgentChatState {
       if (abortRef.current === controller) {
         abortRef.current = null;
         setIsStreaming(false);
+        setToolProgress(null);
       }
     }
   }, []);
@@ -247,6 +253,7 @@ export function useAgentChat(): AgentChatState {
     setError(null);
     setConnectionStatus('idle');
     setHasConversation(false);
+    setToolProgress(null);
   }, []);
 
   return {
@@ -257,6 +264,7 @@ export function useAgentChat(): AgentChatState {
     connectionStatus,
     hasConversation,
     isRestoring,
+    toolProgress,
     setInput,
     sendMessage,
     retryLast,

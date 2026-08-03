@@ -73,6 +73,34 @@ test('streams SSE chunks split across network boundaries', async (t) => {
   assert.deepEqual(chunks, ['你好']);
 });
 
+test('forwards tool progress events without adding them to the assistant response', async (t) => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () =>
+    new Response(
+      [
+        'data: {"event":"tool","tool_name":"web_search","status":"started"}\n\n',
+        'data: {"event":"tool","tool_name":"web_search","status":"completed"}\n\n',
+        'data: {"delta":"搜索结果"}\n\n',
+        'data: [DONE]\n\n',
+      ].join(''),
+      { headers: { 'Content-Type': 'text/event-stream' } },
+    );
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const progress: string[] = [];
+  const response = await callAgentApi(
+    { conversationId: 'conv_1', content: '测试' },
+    () => undefined,
+    undefined,
+    (event) => progress.push(`${event.toolName}:${event.status}`),
+  );
+
+  assert.equal(response.content, '搜索结果');
+  assert.deepEqual(progress, ['web_search:started', 'web_search:completed']);
+});
+
 test('surfaces a structured error received after an SSE stream starts', async (t) => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>

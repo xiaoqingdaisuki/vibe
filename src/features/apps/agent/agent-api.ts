@@ -17,6 +17,12 @@ export interface AgentApiResponse {
   suggestionCards?: AgentSuggestionCard[];
 }
 
+export interface AgentToolProgress {
+  toolName: string;
+  status: 'started' | 'completed' | 'failed';
+  message: string;
+}
+
 export interface AgentConversationMessage {
   id: string;
   role: Extract<AgentMessageRole, 'user' | 'assistant'>;
@@ -86,6 +92,31 @@ function getJsonErrorMessage(payload: unknown): string | undefined {
   if (directMessage) return directMessage;
 
   return isRecord(payload.error) ? getTextField(payload.error, ['message']) : undefined;
+}
+
+function getToolProgressMessage(toolName: string, status: AgentToolProgress['status']): string {
+  const labels: Record<string, string> = {
+    web_search: '网络搜索',
+    'web.search': '网络搜索',
+    web_read: '网页读取',
+    'web.read': '网页读取',
+    get_weather: '天气查询',
+    'weather.get': '天气查询',
+    knowledge_search: '知识库检索',
+    'knowledge.search': '知识库检索',
+  };
+  const label = labels[toolName] ?? '信息查询';
+  if (status === 'started') return `正在${label}…`;
+  if (status === 'completed') return `${label}完成，正在整理结果…`;
+  return `${label}未完成，正在继续处理…`;
+}
+
+function parseToolProgress(payload: Record<string, unknown>): AgentToolProgress | undefined {
+  if (payload.event !== 'tool') return undefined;
+  const toolName = getTextField(payload, ['tool_name']);
+  const status = getTextField(payload, ['status']);
+  if (!toolName || (status !== 'started' && status !== 'completed' && status !== 'failed')) return undefined;
+  return { toolName, status, message: getToolProgressMessage(toolName, status) };
 }
 
 async function readHttpError(response: Response): Promise<string> {
@@ -181,6 +212,7 @@ async function readEventStream(
   response: Response,
   onChunk: (chunk: string) => void,
   signal?: AbortSignal,
+  onToolProgress?: (progress: AgentToolProgress) => void,
 ): Promise<AgentApiResponse> {
   const reader = response.body?.getReader();
   if (!reader) throw new Error(EMPTY_RESPONSE_MESSAGE);
@@ -213,6 +245,11 @@ async function readEventStream(
     if (isRecord(parsed)) {
       const streamError = getJsonErrorMessage(parsed);
       if (streamError) throw new Error(streamError);
+      const toolProgress = parseToolProgress(parsed);
+      if (toolProgress) {
+        onToolProgress?.(toolProgress);
+        return false;
+      }
       suggestionCards = parseSuggestionCards(parsed.suggestionCards) ?? suggestionCards;
     }
 
@@ -260,6 +297,7 @@ export async function callAgentApi(
   request: AgentApiRequest,
   onChunk: (chunk: string) => void,
   signal?: AbortSignal,
+  onToolProgress?: (progress: AgentToolProgress) => void,
 ): Promise<AgentApiResponse> {
   const response = await fetchAgent(request, signal);
   if (!response.ok) throw new Error(await readHttpError(response));
@@ -270,7 +308,7 @@ export async function callAgentApi(
     return parseJsonResponse(payload);
   }
   if (contentType.includes('text/event-stream')) {
-    return readEventStream(response, onChunk, signal);
+    return readEventStream(response, onChunk, signal, onToolProgress);
   }
 
   const content = await response.text();

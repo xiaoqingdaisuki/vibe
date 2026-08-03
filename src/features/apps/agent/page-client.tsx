@@ -253,14 +253,15 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
-function TypingIndicator() {
+function TypingIndicator({ message }: { message?: string }) {
   return (
-    <div className={styles.typingIndicator} role="status" aria-label="正在输入">
+    <div className={styles.typingIndicator} role="status" aria-label={message ?? '正在输入'}>
       <div className={styles.typingDots}>
         <span className={styles.typingDot} />
         <span className={styles.typingDot} />
         <span className={styles.typingDot} />
       </div>
+      {message ? <span className={styles.typingLabel}>{message}</span> : null}
     </div>
   );
 }
@@ -554,6 +555,7 @@ export default function AgentChat() {
     connectionStatus,
     hasConversation,
     isRestoring,
+    toolProgress,
     setInput,
     sendMessage,
     retryLast,
@@ -611,7 +613,7 @@ export default function AgentChat() {
               <div className={styles.msgAvatar} aria-hidden="true">
                 <AgentIcon />
               </div>
-              <TypingIndicator />
+              <TypingIndicator message={toolProgress?.message} />
             </div>
           ) : null}
 

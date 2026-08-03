@@ -12,9 +12,9 @@ interface StreamProxyResult {
 export type AgentV1ProxyResult = JsonProxyResult | StreamProxyResult;
 
 const CONVERSATION_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
-const DEFAULT_TIMEOUT_MS = 45_000;
-const MIN_TIMEOUT_MS = 35_000;
-const MAX_TIMEOUT_MS = 60_000;
+const DEFAULT_TIMEOUT_MS = 105_000;
+const MIN_TIMEOUT_MS = 95_000;
+const MAX_TIMEOUT_MS = 120_000;
 const MAX_TITLE_CHARS = 100;
 const MAX_MESSAGE_CHARS = 8_000;
 
