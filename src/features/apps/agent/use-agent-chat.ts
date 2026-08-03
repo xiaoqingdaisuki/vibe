@@ -116,9 +116,13 @@ export function useAgentChat(): AgentChatState {
       })
       .catch((restoreError: unknown) => {
         if (cancelled || isAbortError(restoreError)) return;
-        setError('当前会话记录恢复失败，请稍后重试。');
-        setHasConversation(true);
-        setConnectionStatus('error');
+        conversationIdRef.current = null;
+        const storage = getBrowserStorage();
+        if (storage) clearStoredConversationId(storage);
+        messagesRef.current = [];
+        setMessages([]);
+        setHasConversation(false);
+        setConnectionStatus('idle');
       })
       .finally(completeRestore);
 
