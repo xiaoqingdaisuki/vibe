@@ -8,7 +8,8 @@ export interface AgentSuggestionCard {
 export type AgentMessageRole = 'user' | 'assistant' | 'system';
 
 export interface AgentApiRequest {
-  messages: { role: AgentMessageRole; content: string }[];
+  conversationId: string;
+  content: string;
 }
 
 export interface AgentApiResponse {
@@ -16,7 +17,7 @@ export interface AgentApiResponse {
   suggestionCards?: AgentSuggestionCard[];
 }
 
-const AGENT_API_URL = '/api/agent/chat';
+const AGENT_CONVERSATIONS_URL = '/api/agent/v1/conversations';
 const CONNECTION_ERROR_MESSAGE = '无法连接 AI助手服务，请检查接口地址或网络后重试';
 const EMPTY_RESPONSE_MESSAGE = 'AI助手接口未返回有效内容，请稍后重试';
 
@@ -98,14 +99,38 @@ function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';
 }
 
+export async function createAgentConversation(title: string, signal?: AbortSignal): Promise<string> {
+  const response = await fetch(AGENT_CONVERSATIONS_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: title.slice(0, 100), mode: 'chat' }),
+    signal,
+  }).catch((error: unknown) => {
+    if (isAbortError(error) || signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    throw new Error(CONNECTION_ERROR_MESSAGE);
+  });
+  if (!response.ok) throw new Error(await readHttpError(response));
+
+  const payload: unknown = await response.json().catch(() => null);
+  const conversationId = isRecord(payload) ? getTextField(payload, ['id']) : undefined;
+  if (!conversationId) throw new Error(EMPTY_RESPONSE_MESSAGE);
+  return conversationId;
+}
+
+export async function deleteAgentConversation(conversationId: string): Promise<void> {
+  await fetch(`${AGENT_CONVERSATIONS_URL}/${encodeURIComponent(conversationId)}`, {
+    method: 'DELETE',
+  }).catch(() => undefined);
+}
+
 async function fetchAgent(request: AgentApiRequest, signal?: AbortSignal): Promise<Response> {
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
   try {
-    return await fetch(AGENT_API_URL, {
+    return await fetch(`${AGENT_CONVERSATIONS_URL}/${encodeURIComponent(request.conversationId)}/messages/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messages: request.messages }),
+      body: JSON.stringify({ content: request.content }),
       signal,
     });
   } catch (error) {
@@ -136,27 +161,32 @@ async function readEventStream(
     const payload = line.slice(5).trim();
     if (payload === '[DONE]') return true;
 
+    let parsed: unknown;
     try {
-      const parsed: unknown = JSON.parse(payload);
-      const delta =
-        typeof parsed === 'string'
-          ? parsed
-          : isRecord(parsed)
-            ? (getTextField(parsed, ['delta', 'content', 'text', 'chunk']) ?? '')
-            : '';
-
-      if (delta) {
-        fullContent += delta;
-        onChunk(delta);
-      }
-      if (isRecord(parsed)) {
-        suggestionCards = parseSuggestionCards(parsed.suggestionCards) ?? suggestionCards;
-      }
+      parsed = JSON.parse(payload);
     } catch {
       if (payload) {
         fullContent += payload;
         onChunk(payload);
       }
+      return false;
+    }
+
+    if (isRecord(parsed)) {
+      const streamError = getJsonErrorMessage(parsed);
+      if (streamError) throw new Error(streamError);
+      suggestionCards = parseSuggestionCards(parsed.suggestionCards) ?? suggestionCards;
+    }
+
+    const delta =
+      typeof parsed === 'string'
+        ? parsed
+        : isRecord(parsed)
+          ? (getTextField(parsed, ['delta', 'content', 'text', 'chunk']) ?? '')
+          : '';
+    if (delta) {
+      fullContent += delta;
+      onChunk(delta);
     }
 
     return false;

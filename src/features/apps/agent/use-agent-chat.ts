@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { callAgentApi } from './agent-api';
+import { callAgentApi, createAgentConversation, deleteAgentConversation } from './agent-api';
 import type { AgentApiResponse, AgentMessageRole, AgentSuggestionCard } from './agent-api';
 import type { AgentConnectionStatus } from './chat-status';
 
@@ -44,6 +44,7 @@ export function useAgentChat(): AgentChatState {
   const [error, setError] = useState<string | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<AgentConnectionStatus>('idle');
   const abortRef = useRef<AbortController | null>(null);
+  const conversationIdRef = useRef<string | null>(null);
   const messagesRef = useRef(messages);
 
   useEffect(() => {
@@ -75,9 +76,6 @@ export function useAgentChat(): AgentChatState {
       timestamp: Date.now(),
       isStreaming: true,
     };
-    const currentMessages = messagesRef.current;
-    const historyMessages = (appendUser ? [...currentMessages, userMessage] : currentMessages).slice(-10);
-
     setMessages((current) =>
       appendUser ? [...current, userMessage, assistantMessage] : [...current, assistantMessage],
     );
@@ -102,12 +100,15 @@ export function useAgentChat(): AgentChatState {
     };
 
     try {
+      let conversationId = conversationIdRef.current;
+      if (!conversationId) {
+        conversationId = await createAgentConversation(trimmed, controller.signal);
+        conversationIdRef.current = conversationId;
+      }
       const response: AgentApiResponse = await callAgentApi(
         {
-          messages: historyMessages.map((message) => ({
-            role: message.role,
-            content: message.content,
-          })),
+          conversationId,
+          content: trimmed,
         },
         updateStreamed,
         controller.signal,
@@ -164,6 +165,9 @@ export function useAgentChat(): AgentChatState {
 
   const clearChat = useCallback(() => {
     abortRef.current?.abort();
+    const conversationId = conversationIdRef.current;
+    conversationIdRef.current = null;
+    if (conversationId) void deleteAgentConversation(conversationId);
     setMessages([]);
     setError(null);
     setIsStreaming(false);
