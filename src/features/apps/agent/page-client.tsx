@@ -404,11 +404,11 @@ function AgentHeader({
             type="button"
             onClick={onStartNewConversation}
             className={styles.headerBtn}
-            title="开启新会话"
             aria-label="开启新会话"
             disabled={newConversationDisabled}
           >
             <NewConversationIcon />
+            <span>开启新会话</span>
           </button>
         ) : null}
       </div>
