@@ -467,7 +467,7 @@ Blog:
 
 - Content is local static files.
 - Loading logic belongs in `features/blog/lib`.
-- Rendering logic belongs in `features/blog/components`.
+- Rendering logic belongs to `features/blog/components`.
 - Route pages only compose these pieces.
 
 Lab:

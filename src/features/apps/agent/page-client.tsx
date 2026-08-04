@@ -699,7 +699,7 @@ export default function AgentChat() {
         {showScrollButton && !isStreaming ? (
           <button type="button" onClick={() => scrollToBottom()} className={styles.scrollBtn} aria-label="滚动到底部">
             <ChevronDownIcon />
-            新消息
+            最新消息
           </button>
         ) : null}
       </div>
