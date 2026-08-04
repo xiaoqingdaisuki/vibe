@@ -57,6 +57,12 @@ function TypewriterContent({ content, isStreaming, isStreamingComplete }: { cont
     return <MarkdownContent content={content} />;
   }
 
+  // 历史消息（isStreamingComplete=false）：直接显示完整内容，无动画
+  if (!isStreamingComplete) {
+    return <MarkdownContent content={content} />;
+  }
+
+  // isStreamingComplete && !isStreaming：打字机逐字动画
   if (content.length === 0) return null;
 
   if (visibleCount === 0) {
@@ -629,8 +635,7 @@ export default function AgentChat() {
     stopStreaming,
     startNewConversation,
   } = useAgentChat();
-  const hasStreamingComplete = streamingCompleteIds.size > 0;
-  const { messagesEndRef, scrollContainerRef, showScrollButton, scrollToBottom } = useChatScroll(messages, isStreaming, hasStreamingComplete);
+  const { messagesEndRef, scrollContainerRef, showScrollButton, scrollToBottom } = useChatScroll(messages, isStreaming);
   const hasMessages = messages.length > 0;
   const confirmNewConversation = () => {
     startNewConversation();

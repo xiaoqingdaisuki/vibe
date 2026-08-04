@@ -9,11 +9,11 @@ interface ChatScrollState {
   scrollToBottom: (behavior?: ScrollBehavior) => void;
 }
 
-export function useChatScroll(messages: ChatMessage[], isStreaming: boolean, hasStreamingComplete: boolean): ChatScrollState {
+export function useChatScroll(messages: ChatMessage[], isStreaming: boolean): ChatScrollState {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
-  const hasScrolledRef = useRef(false);
+  const prevCountRef = useRef(0);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
@@ -39,21 +39,15 @@ export function useChatScroll(messages: ChatMessage[], isStreaming: boolean, has
   useEffect(() => {
     if (messages.length === 0) return;
 
+    const justLoaded = prevCountRef.current === 0 && messages.length > 0;
+    prevCountRef.current = messages.length;
+
     if (isStreaming) {
       scrollToBottom('auto');
-    } else if (isNearBottom()) {
-      scrollToBottom('smooth');
-    } else if (hasStreamingComplete && !hasScrolledRef.current) {
-      // 有消息刚结束 streaming — 等打字机动画开始后再滚动
-      hasScrolledRef.current = true;
-      const raf = requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          scrollToBottom('smooth');
-        });
-      });
-      return () => cancelAnimationFrame(raf);
+    } else if (justLoaded || isNearBottom()) {
+      scrollToBottom(justLoaded ? 'smooth' : 'smooth');
     }
-  }, [messages, isStreaming, isNearBottom, scrollToBottom, hasStreamingComplete]);
+  }, [messages, isStreaming, isNearBottom, scrollToBottom]);
 
   return {
     messagesEndRef,
