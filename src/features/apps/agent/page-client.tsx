@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
 import type { AgentSuggestionCard as SuggestionCard } from './agent-api';
 import { getAgentConnectionStatusLabel } from './chat-status';
 import type { AgentConnectionStatus } from './chat-status';
@@ -23,35 +24,34 @@ function TypewriterContent({ content, isStreaming, ready }: { content: string; i
   const animatedRef = useRef(false);
 
   useEffect(() => {
-    // 仅在 ready 后触发一次动画；streaming 中不触发
     if (!ready || isStreaming || animatedRef.current) return;
     animatedRef.current = true;
 
-    // 延迟一帧，确保 DOM 已完成布局
+    // 双重 rAF：等待 React 完成 DOM 提交 + 浏览器完成 layout
     const raf = requestAnimationFrame(() => {
-      let current = 0;
-      const target = content.length;
+      requestAnimationFrame(() => {
+        let current = 0;
+        const target = content.length;
 
-      const tick = () => {
-        if (current >= target) return;
-        const diff = target - current;
-        const speed = Math.max(1, Math.ceil(diff * 0.12));
-        current = Math.min(current + speed, target);
-        setVisibleCount(current);
-        if (current < target) {
+        const tick = () => {
+          if (current >= target) return;
+          current += 1;
+          // flushSync 是关键：React 18 会批量 RAF 内的所有 setState，
+          // 导致只渲染最终状态。flushSync 强制每次更新立即提交到 DOM。
+          flushSync(() => setVisibleCount(current));
           rafRef.current = requestAnimationFrame(tick);
-        }
-      };
+        };
 
-      setVisibleCount(0);
-      rafRef.current = requestAnimationFrame(tick);
+        setVisibleCount(0);
+        rafRef.current = requestAnimationFrame(tick);
+      });
     });
 
     return () => {
       cancelAnimationFrame(raf);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [ready, isStreaming]);
+  }, [ready, isStreaming, content]);
 
   // Streaming 中：正常渲染 markdown，光标由父组件控制
   if (isStreaming) {

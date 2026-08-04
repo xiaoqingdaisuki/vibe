@@ -39,12 +39,19 @@ export function useChatScroll(messages: ChatMessage[], isStreaming: boolean, rea
   useEffect(() => {
     if (messages.length === 0) return;
 
-    // Stream 中直接滚动；ready 后（消息刚恢复）延迟一帧确保 DOM 已布局
-    if (isStreaming || isNearBottom()) {
-      scrollToBottom(isStreaming ? 'auto' : 'smooth');
+    if (isStreaming) {
+      scrollToBottom('auto');
+    } else if (isNearBottom()) {
+      scrollToBottom('smooth');
     } else if (ready && !hasScrolledRef.current) {
       hasScrolledRef.current = true;
-      requestAnimationFrame(() => scrollToBottom('smooth'));
+      // 双重 rAF：确保 React 完成 DOM 提交且浏览器完成 layout 后再滚动
+      // 单层 rAF 不够，因为 React 18 的 commit 可能跨帧，此时 scrollHeight 还不完整
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          scrollToBottom('smooth');
+        });
+      });
     }
   }, [messages, isStreaming, isNearBottom, scrollToBottom, ready]);
 
