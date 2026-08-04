@@ -17,24 +17,25 @@ function MarkdownContent({ content }: { content: string }) {
 
 /* ---- Typewriter effect for streaming responses ---- */
 
-function TypewriterContent({ content, isStreaming }: { content: string; isStreaming: boolean }) {
-  const [visibleCount, setVisibleCount] = useState(() => (isStreaming ? content.length : 0));
+function TypewriterContent({ content, isStreaming, ready }: { content: string; isStreaming: boolean; ready: boolean }) {
+  const [visibleCount, setVisibleCount] = useState(0);
   const rafRef = useRef<number | undefined>(undefined);
-  const prevStreamingRef = useRef(isStreaming);
+  const animatedRef = useRef(false);
 
   useEffect(() => {
-    const justFinished = prevStreamingRef.current && !isStreaming;
-    prevStreamingRef.current = isStreaming;
+    // 仅在 ready 后触发一次动画；streaming 中不触发
+    if (!ready || isStreaming || animatedRef.current) return;
+    animatedRef.current = true;
 
-    if (justFinished && content.length > 0) {
-      // Streaming 刚结束 — 从 0 开始打字机动画
+    // 延迟一帧，确保 DOM 已完成布局
+    const raf = requestAnimationFrame(() => {
       let current = 0;
       const target = content.length;
 
       const tick = () => {
         if (current >= target) return;
         const diff = target - current;
-        const speed = Math.max(1, Math.ceil(diff * 0.15));
+        const speed = Math.max(1, Math.ceil(diff * 0.12));
         current = Math.min(current + speed, target);
         setVisibleCount(current);
         if (current < target) {
@@ -44,32 +45,27 @@ function TypewriterContent({ content, isStreaming }: { content: string; isStream
 
       setVisibleCount(0);
       rafRef.current = requestAnimationFrame(tick);
-    } else if (!isStreaming && content.length > 0) {
-      // 静态状态（不在 streaming，也不是刚结束）— 显示全部内容
-      setVisibleCount(content.length);
-    }
-    // streaming 中：不做任何处理，由 MarkdownContent 正常渲染
+    });
 
     return () => {
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-      }
+      cancelAnimationFrame(raf);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [content, isStreaming]);
+  }, [ready, isStreaming]);
 
   // Streaming 中：正常渲染 markdown，光标由父组件控制
   if (isStreaming) {
     return <MarkdownContent content={content} />;
   }
 
-  // Streaming 结束后：打字机逐字动画
-  const visibleContent = content.slice(0, visibleCount);
-
   if (content.length === 0) return null;
+
+  // 动画尚未开始：只显示光标
   if (visibleCount === 0) {
-    // 动画尚未开始的瞬间，仅显示光标
     return <span className={styles.cursor} aria-hidden="true" />;
   }
+
+  const visibleContent = content.slice(0, visibleCount);
 
   return (
     <div className={styles.md}>
@@ -370,12 +366,14 @@ function AssistantMessageBubble({
   isStreaming,
   suggestionCards,
   onSuggestionSelect,
+  ready,
 }: {
   content: string;
   timestamp: number;
   isStreaming: boolean;
   suggestionCards?: SuggestionCard[];
   onSuggestionSelect: (payload: string) => void;
+  ready: boolean;
 }) {
   const hasContent = content && content.length > 0;
 
@@ -388,7 +386,7 @@ function AssistantMessageBubble({
         <div className={`${styles.bubble} ${styles.bubbleAssistant}`}>
           {hasContent ? (
             <>
-              <TypewriterContent content={content} isStreaming={isStreaming} />
+              <TypewriterContent content={content} isStreaming={isStreaming} ready={ready} />
               {isStreaming && <span className={styles.cursor} aria-hidden="true" />}
             </>
           ) : isStreaming ? (
@@ -632,7 +630,7 @@ export default function AgentChat() {
     stopStreaming,
     startNewConversation,
   } = useAgentChat();
-  const { messagesEndRef, scrollContainerRef, showScrollButton, scrollToBottom } = useChatScroll(messages, isStreaming);
+  const { messagesEndRef, scrollContainerRef, showScrollButton, scrollToBottom } = useChatScroll(messages, isStreaming, !isRestoring);
   const hasMessages = messages.length > 0;
   const confirmNewConversation = () => {
     startNewConversation();
@@ -672,6 +670,7 @@ export default function AgentChat() {
                 isStreaming={message.isStreaming ?? false}
                 suggestionCards={message.suggestionCards}
                 onSuggestionSelect={sendMessage}
+                ready={!isRestoring}
               />
             ) : null,
           )}
