@@ -34,14 +34,17 @@ interface AgentChatState {
   startNewConversation: () => void;
 }
 
+// 生成唯一消息ID
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+// 判断是否为请求中止错误
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';
 }
 
+// 安全获取浏览器localStorage
 function getBrowserStorage(): Storage | null {
   try {
     return window.localStorage;
@@ -50,6 +53,7 @@ function getBrowserStorage(): Storage | null {
   }
 }
 
+// 将API返回的消息转换为内部ChatMessage格式
 function toChatMessage(message: {
   id: string;
   role: 'user' | 'assistant';
@@ -65,6 +69,7 @@ function toChatMessage(message: {
   };
 }
 
+// 管理聊天核心状态：消息列表、发送、流式输出、重试、会话恢复
 export function useAgentChat(): AgentChatState {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -85,10 +90,12 @@ export function useAgentChat(): AgentChatState {
     messagesRef.current = messages;
   }, [messages]);
 
+  // 组件卸载时中止进行中的请求
   useEffect(() => {
     return () => abortRef.current?.abort();
   }, []);
 
+  // 页面加载时从localStorage恢复历史会话
   useEffect(() => {
     let cancelled = false;
     const storage = getBrowserStorage();
@@ -140,6 +147,7 @@ export function useAgentChat(): AgentChatState {
     };
   }, []);
 
+  // 发送消息并处理流式响应
   const sendMessage = useCallback(async (text: string, { appendUser = true }: SendMessageOptions = {}) => {
     const trimmed = text.trim();
     if (!trimmed || abortRef.current || isRestoringRef.current) return;
@@ -243,12 +251,14 @@ export function useAgentChat(): AgentChatState {
     }
   }, []);
 
+  // 重试最后一条用户消息
   const retryLast = useCallback(() => {
     setError(null);
     const lastUserMessage = messagesRef.current.findLast((message) => message.role === 'user');
     if (lastUserMessage) void sendMessage(lastUserMessage.content, { appendUser: false });
   }, [sendMessage]);
 
+  // 中止当前流式生成
   const stopStreaming = useCallback(() => {
     abortRef.current?.abort();
     setIsStreaming(false);
@@ -257,6 +267,7 @@ export function useAgentChat(): AgentChatState {
     );
   }, []);
 
+  // 开启新会话，清空所有状态
   const startNewConversation = useCallback(() => {
     if (abortRef.current) return;
     conversationIdRef.current = null;

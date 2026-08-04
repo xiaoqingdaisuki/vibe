@@ -18,6 +18,7 @@ interface LogEntryComponentProps {
   onToggleExpand?: () => void;
 }
 
+// 单条战斗日志条目，支持展开/收起详情
 export function LogEntryComponent({ entry, expanded, onToggleExpand }: LogEntryComponentProps) {
   const time = new Date(entry.timestamp).toLocaleTimeString('zh-CN', {
     hour: '2-digit',

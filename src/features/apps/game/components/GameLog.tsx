@@ -12,6 +12,7 @@ interface GameLogProps {
   onClearLogs?: () => void;
 }
 
+// 战斗日志面板，显示实时战斗信息和倒计时
 export function GameLog({ logs, character, combatCycleStartedAt, onClearLogs }: GameLogProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [expandedLogs, setExpandedLogs] = useState<Set<number>>(new Set());
@@ -30,6 +31,7 @@ export function GameLog({ logs, character, combatCycleStartedAt, onClearLogs }: 
   const nextCombatIn =
     combatCycleStartedAt === null ? null : Math.max(0, Math.ceil((combatCycleStartedAt + 10_000 - now) / 1_000));
 
+  // 切换日志条目的展开/收起状态
   const toggleExpand = useCallback((timestamp: number) => {
     setExpandedLogs((prev) => {
       const next = new Set(prev);
@@ -39,6 +41,7 @@ export function GameLog({ logs, character, combatCycleStartedAt, onClearLogs }: 
     });
   }, []);
 
+  // 检测滚动位置，判断是否在底部
   const handleScroll = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -46,6 +49,7 @@ export function GameLog({ logs, character, combatCycleStartedAt, onClearLogs }: 
     setIsAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < threshold);
   }, []);
 
+  // 自动滚动日志容器到最新内容
   const scrollToLatest = useCallback(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -60,6 +64,7 @@ export function GameLog({ logs, character, combatCycleStartedAt, onClearLogs }: 
     }
   }, [logs, isAtBottom, scrollToLatest]);
 
+  // 手动滚动日志到底部并标记在底部状态
   const scrollToBottom = useCallback(() => {
     setIsAtBottom(true);
     scrollToLatest();

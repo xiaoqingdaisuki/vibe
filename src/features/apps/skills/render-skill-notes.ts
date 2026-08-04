@@ -1,5 +1,6 @@
 import { createElement, type ReactNode } from 'react';
 
+// 判断 URL 是否为安全的外部链接（仅 http/https）
 function isSafeExternalUrl(value: string): boolean {
   try {
     const url = new URL(value);
@@ -9,6 +10,7 @@ function isSafeExternalUrl(value: string): boolean {
   }
 }
 
+// 将单行文本中的 inline 标记渲染为 React 节点
 function renderInline(text: string): ReactNode[] {
   const matches = text.matchAll(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g);
   const nodes: ReactNode[] = [];
@@ -61,6 +63,7 @@ function renderInline(text: string): ReactNode[] {
   return nodes;
 }
 
+// 将技能 notes 的 markdown 文本渲染为 React 节点列表
 export function renderSkillNotes(content: string): ReactNode[] {
   const lines = content.trim().split('\n');
   const blocks: ReactNode[] = [];

@@ -8,6 +8,7 @@ export const metadata = {
   description: 'Thoughts, notes and experiments.',
 };
 
+// 博客列表页面，展示所有已发布文章
 export default async function BlogPage() {
   const posts = getBlogPosts();
 

@@ -1,3 +1,4 @@
+// 页面骨架屏加载组件，展示占位脉冲动画
 export default function Loading() {
   return (
     <div className="page-enter">

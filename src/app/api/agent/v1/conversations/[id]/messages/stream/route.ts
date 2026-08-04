@@ -8,6 +8,7 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
+// 流式发送消息到指定会话，返回SSE事件流
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
   const { id } = await context.params;
   const payload: unknown = await request.json().catch(() => null);

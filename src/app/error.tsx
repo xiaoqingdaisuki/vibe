@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 
+// 全局错误边界组件，展示错误信息和重试按钮
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error(error);

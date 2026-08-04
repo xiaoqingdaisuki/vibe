@@ -11,10 +11,12 @@ interface BoardAssetColors {
 
 const imageCache = new Map<string, Promise<HTMLImageElement>>();
 
+// 将 SVG 字符串编码为 data URL
 function toSvgDataUrl(svg: string): string {
   return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
 }
 
+// 将 SVG 字符串加载为 Image 元素（带 Promise 缓存）
 function loadSvgImage(svg: string): Promise<HTMLImageElement> {
   const cachedImage = imageCache.get(svg);
   if (cachedImage) return cachedImage;
@@ -30,6 +32,7 @@ function loadSvgImage(svg: string): Promise<HTMLImageElement> {
   return imagePromise;
 }
 
+// 生成指定颜色的旗帜 SVG 字符串
 function createFlagSvg(color: string): string {
   return `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
@@ -40,6 +43,7 @@ function createFlagSvg(color: string): string {
   `;
 }
 
+// 生成指定颜色的地雷 SVG 字符串
 function createMineSvg(color: string): string {
   return `
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
@@ -53,6 +57,7 @@ function createMineSvg(color: string): string {
   `;
 }
 
+// 并行加载旗帜、地雷和爆炸地雷图片素材
 export async function loadBoardAssets(colors: BoardAssetColors): Promise<BoardAssets> {
   const [flag, mine, detonatedMine] = await Promise.all([
     loadSvgImage(createFlagSvg(colors.accent)),

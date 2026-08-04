@@ -8,6 +8,7 @@ export const metadata = {
   description: 'Interactive apps, tools and experiments.',
 };
 
+// Lab应用列表页面，展示所有可用的实验应用
 export default async function LabPage() {
   const apps = getLabApps();
 

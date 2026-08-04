@@ -20,18 +20,21 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const CATEGORY_ORDER = ['equipment', 'chests', 'skill_books'];
 
+// 根据商品ID判断所属类别（装备/宝箱/技能书）
 function categorizeShopItem(itemId: string): string {
   if (itemId.includes('chest')) return 'chests';
   if (itemId.includes('skill_book')) return 'skill_books';
   return 'equipment';
 }
 
+// 格式化价格显示（大数值缩写为K/M）
 function formatPrice(price: number): string {
   if (price >= 1_000_000) return `${(price / 1_000_000).toFixed(0)}M`;
   if (price >= 10_000) return `${(price / 1_000).toFixed(0)}K`;
   return price.toString();
 }
 
+// 商店面板，按类别展示可购买的商品列表
 export function ShopPanel({ character, onAction }: ShopPanelProps) {
   const groups = new Map<string, typeof SHOP_ITEMS>();
   for (const item of SHOP_ITEMS) {

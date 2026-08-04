@@ -12,20 +12,18 @@ import styles from './styles/Agent.module.css';
 import { useAgentChat } from './use-agent-chat';
 import { useChatScroll } from './use-chat-scroll';
 
+// 渲染markdown内容为HTML
 function MarkdownContent({ content }: { content: string }) {
   return <div className={styles.md} dangerouslySetInnerHTML={{ __html: renderBlockMarkdown(content) }} />;
 }
 
-/* ---- Typewriter effect for streaming responses ---- */
-
+// 流式回复的打字机逐字动画组件
 function TypewriterContent({ content, isStreaming, isStreamingComplete }: { content: string; isStreaming: boolean; isStreamingComplete: boolean }) {
   const [visibleCount, setVisibleCount] = useState(0);
   const rafRef = useRef<number | undefined>(undefined);
   const animatedRef = useRef(false);
 
   useEffect(() => {
-    // 仅对"刚结束 streaming"的消息触发打字机动画
-    // 刷新加载的历史消息 isStreamingComplete=false，直接显示
     if (!isStreamingComplete || animatedRef.current) return;
     animatedRef.current = true;
 
@@ -52,17 +50,16 @@ function TypewriterContent({ content, isStreaming, isStreamingComplete }: { cont
     };
   }, [isStreamingComplete, content]);
 
-  // Streaming 中：正常渲染 markdown，光标由父组件控制
+  // streaming中正常渲染markdown
   if (isStreaming) {
     return <MarkdownContent content={content} />;
   }
 
-  // 历史消息（isStreamingComplete=false）：直接显示完整内容，无动画
+  // 历史消息直接显示完整内容，无动画
   if (!isStreamingComplete) {
     return <MarkdownContent content={content} />;
   }
 
-  // isStreamingComplete && !isStreaming：打字机逐字动画
   if (content.length === 0) return null;
 
   if (visibleCount === 0) {
@@ -87,18 +84,10 @@ function TypewriterContent({ content, isStreaming, isStreamingComplete }: { cont
    Icon components (inline SVG, no dep)
    ============================================ */
 
+// 机器人头像图标
 function AgentIcon() {
   return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="8" width="18" height="12" rx="3" />
       <circle cx="12" cy="14" r="1.5" fill="currentColor" stroke="none" />
       <circle cx="17" cy="14" r="1.5" fill="currentColor" stroke="none" />
@@ -109,114 +98,63 @@ function AgentIcon() {
   );
 }
 
+// 用户头像图标
 function UserIcon() {
   return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
     </svg>
   );
 }
 
+// 复制按钮图标
 function CopyIcon() {
   return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
     </svg>
   );
 }
 
+// 复制成功勾选图标
 function CheckIcon() {
   return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="20 6 9 17 4 12" />
     </svg>
   );
 }
 
+// 发送按钮图标
 function SendIcon() {
   return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="22" y1="2" x2="11" y2="13" />
       <polygon points="22 2 15 22 11 13 2 9 22 2" />
     </svg>
   );
 }
 
+// 停止生成按钮图标
 function StopIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-      <rect x="6" y="6" width="12" height="12" rx="2" />
-    </svg>
-  );
+  return <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="2" /></svg>;
 }
 
+// 欢迎页面图标
 function WelcomeIcon() {
   return (
-    <svg
-      width="28"
-      height="28"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
     </svg>
   );
 }
 
+// 错误提示图标
 function ErrorIcon() {
   return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="12" r="10" />
       <line x1="12" y1="8" x2="12" y2="12" />
       <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -224,36 +162,20 @@ function ErrorIcon() {
   );
 }
 
+// 重试按钮图标
 function RetryIcon() {
   return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 11a8 8 0 1 0 2 5.3" />
       <polyline points="20 4 20 11 13 11" />
     </svg>
   );
 }
 
+// 新会话按钮图标
 function NewConversationIcon() {
   return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 5v14" />
       <path d="M5 12h14" />
       <circle cx="12" cy="12" r="9" />
@@ -261,18 +183,10 @@ function NewConversationIcon() {
   );
 }
 
+// 滚动到底部箭头图标
 function ChevronDownIcon() {
   return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <polyline points="6 9 12 15 18 9" />
     </svg>
   );
@@ -282,6 +196,7 @@ function ChevronDownIcon() {
    Helpers
    ============================================ */
 
+// 格式化时间戳为 HH:mm
 function formatTime(ts: number): string {
   const d = new Date(ts);
   return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
@@ -291,6 +206,7 @@ function formatTime(ts: number): string {
    Components
    ============================================ */
 
+// 带复制反馈的消息复制按钮
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -321,6 +237,7 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+// AI正在输入的跳动点提示
 function TypingIndicator({ message }: { message?: string }) {
   return (
     <div className={styles.typingIndicator} role="status" aria-label={message ?? '正在输入'}>
@@ -334,6 +251,7 @@ function TypingIndicator({ message }: { message?: string }) {
   );
 }
 
+// 渲染建议操作卡片列表
 function SuggestionCards({ cards, onSelect }: { cards: SuggestionCard[]; onSelect: (payload: string) => void }) {
   return (
     <div className={styles.cards}>
@@ -347,6 +265,7 @@ function SuggestionCards({ cards, onSelect }: { cards: SuggestionCard[]; onSelec
   );
 }
 
+// 渲染用户消息气泡，右对齐显示
 function UserMessageBubble({ content, timestamp }: { content: string; timestamp: number }) {
   return (
     <div className={`${styles.row} ${styles.rowUser}`}>
@@ -364,6 +283,7 @@ function UserMessageBubble({ content, timestamp }: { content: string; timestamp:
   );
 }
 
+// 渲染助手回复消息气泡，含打字机动画
 function AssistantMessageBubble({
   content,
   timestamp,
@@ -399,7 +319,7 @@ function AssistantMessageBubble({
         </div>
         {suggestionCards && !isStreaming && <SuggestionCards cards={suggestionCards} onSelect={onSuggestionSelect} />}
         {content && (
-          <div className={`${styles.meta}`}>
+          <div className={styles.meta}>
             <CopyButton text={content} />
             <span className={styles.time}>{formatTime(timestamp)}</span>
           </div>
@@ -409,6 +329,7 @@ function AssistantMessageBubble({
   );
 }
 
+// 渲染错误消息及重试按钮
 function ErrorMessage({ error, onRetry }: { error: string; onRetry: () => void }) {
   return (
     <div className={`${styles.row} ${styles.rowAssistant}`}>
@@ -423,13 +344,7 @@ function ErrorMessage({ error, onRetry }: { error: string; onRetry: () => void }
           <div>{error}</div>
         </div>
         <div className={styles.meta}>
-          <button
-            type="button"
-            onClick={onRetry}
-            className={styles.messageActionBtn}
-            title="重试"
-            aria-label="重试请求"
-          >
+          <button type="button" onClick={onRetry} className={styles.messageActionBtn} title="重试" aria-label="重试请求">
             <RetryIcon />
           </button>
         </div>
@@ -438,6 +353,7 @@ function ErrorMessage({ error, onRetry }: { error: string; onRetry: () => void }
   );
 }
 
+// 聊天窗口顶部栏，显示连接状态和新会话按钮
 function AgentHeader({
   connectionStatus,
   showNewConversation,
@@ -460,26 +376,15 @@ function AgentHeader({
         </div>
         <div className={styles.headerInfo}>
           <div className={styles.headerName}>AI助手</div>
-          <div
-            className={`${styles.headerStatus} ${isConnected ? styles.headerStatusConnected : ''} ${hasConnectionError ? styles.headerStatusError : ''}`}
-          >
-            <span
-              className={`${styles.statusDot} ${isConnected ? styles.statusDotConnected : ''} ${hasConnectionError ? styles.statusDotError : ''}`}
-              aria-hidden="true"
-            />
+          <div className={`${styles.headerStatus} ${isConnected ? styles.headerStatusConnected : ''} ${hasConnectionError ? styles.headerStatusError : ''}`}>
+            <span className={`${styles.statusDot} ${isConnected ? styles.statusDotConnected : ''} ${hasConnectionError ? styles.statusDotError : ''}`} aria-hidden="true" />
             <span>{getAgentConnectionStatusLabel(connectionStatus)}</span>
           </div>
         </div>
       </div>
       <div className={styles.headerActions}>
         {showNewConversation ? (
-          <button
-            type="button"
-            onClick={onStartNewConversation}
-            className={styles.headerBtn}
-            aria-label="开启新会话"
-            disabled={newConversationDisabled}
-          >
+          <button type="button" onClick={onStartNewConversation} className={styles.headerBtn} aria-label="开启新会话" disabled={newConversationDisabled}>
             <NewConversationIcon />
             <span>开启新会话</span>
           </button>
@@ -489,6 +394,7 @@ function AgentHeader({
   );
 }
 
+// 底部消息输入区域，支持发送和停止生成
 function AgentComposer({
   input,
   isStreaming,
@@ -525,13 +431,7 @@ function AgentComposer({
 
   return (
     <div className={styles.inputArea}>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          submit();
-        }}
-        className={`${styles.inputWrap} ${focused ? styles.inputWrapFocused : ''}`}
-      >
+      <form onSubmit={(event) => { event.preventDefault(); submit(); }} className={`${styles.inputWrap} ${focused ? styles.inputWrapFocused : ''}`}>
         <textarea
           ref={inputRef}
           id={fieldId}
@@ -556,13 +456,7 @@ function AgentComposer({
             <StopIcon />
           </button>
         ) : (
-          <button
-            type="submit"
-            disabled={!input.trim() || isRestoring}
-            className={styles.sendBtn}
-            title="发送"
-            aria-label="发送消息"
-          >
+          <button type="submit" disabled={!input.trim() || isRestoring} className={styles.sendBtn} title="发送" aria-label="发送消息">
             <SendIcon />
           </button>
         )}
@@ -578,6 +472,7 @@ function AgentComposer({
   );
 }
 
+// 开启新会话的确认弹窗，Esc关闭
 function NewConversationDialog({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -589,13 +484,7 @@ function NewConversationDialog({ onCancel, onConfirm }: { onCancel: () => void; 
 
   return (
     <div className={styles.dialogOverlay} onMouseDown={onCancel}>
-      <section
-        className={styles.dialog}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="new-conversation-title"
-        onMouseDown={(event) => event.stopPropagation()}
-      >
+      <section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="new-conversation-title" onMouseDown={(event) => event.stopPropagation()}>
         <h2 id="new-conversation-title" className={styles.dialogTitle}>
           开启新会话
         </h2>
@@ -617,6 +506,7 @@ function NewConversationDialog({ onCancel, onConfirm }: { onCancel: () => void; 
    AgentChat — Main component
    ============================================ */
 
+// Agent聊天主组件，组装所有子组件并管理聊天状态
 export default function AgentChat() {
   const [isNewConversationDialogOpen, setIsNewConversationDialogOpen] = useState(false);
   const {

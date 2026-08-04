@@ -22,11 +22,14 @@ const SLOT_NAMES = {
   accessory: '饰品',
 } as const;
 
+// 根据等级获取难度名称和 tier
+// 根据角色等级获取难度 tier 信息
 function getDifficultyInfo(level: number): { name: string; tier: number } {
   const tier = DIFFICULTY_TIERS.find((entry) => level >= entry.minLevel && level <= entry.maxLevel);
   return tier ? { name: tier.name, tier: tier.tier } : { name: '未知', tier: 1 };
 }
 
+// 角色信息面板，显示属性、装备和背包容量
 export function CharacterPanel({ character, onAction }: CharacterPanelProps) {
   const diff = getDifficultyInfo(character.level);
   const hpValue = Math.max(0, Math.min(character.hp, character.maxHp));

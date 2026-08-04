@@ -6,6 +6,7 @@ import { useId, useState } from 'react';
 import { generateAgentImage } from './image-api';
 import styles from './styles/Agent.module.css';
 
+// 图像生成面板图标
 function ImageIcon() {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
@@ -16,6 +17,7 @@ function ImageIcon() {
   );
 }
 
+// 可折叠的图像生成面板，调用StepFun API生成图片
 export function ImageGenerator() {
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState('');

@@ -586,3 +586,27 @@ This guide is the engineering entrypoint for Vibe. When implementation choices a
 - `CLAUDE.md` and `AGENTS.md` must always contain identical content.
 - Any modification to `CLAUDE.md` or `AGENTS.md` must be applied to **both** files simultaneously.
 - Before committing, verify that both files are byte-for-byte identical.
+
+## 18. Code Commenting Standards
+
+All functions, arrow-function components, and React hooks must have a brief Chinese comment on the line immediately above their definition (one line, `<=` 80 characters) explaining their purpose or core logic. New functions added to the codebase must follow this rule. Large module-level or file-header multi-line comments are not subject to this line-length limit; only the per-function annotation is constrained.
+
+Exemptions: tiny inline helpers (<= 3 lines) that are self-explanatory from their name alone do not need a one-line comment. Test files (`*.test.ts`, `*.test.tsx`) are also exempt from this rule.
+
+Examples:
+
+```tsx
+// 渲染用户消息气泡，右对齐显示
+function UserMessageBubble({ content, timestamp }: Props) { ... }
+
+// 管理聊天消息状态，处理发送、重试、停止流式输出
+const useAgentChat = () => { ... };
+```
+
+Counter-example (function too small to justify a comment):
+
+```tsx
+function isEven(n: number): boolean {
+  return n % 2 === 0;
+}
+```

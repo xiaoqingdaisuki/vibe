@@ -28,6 +28,7 @@ interface RarityBadgeProps {
   showLabel?: boolean;
 }
 
+// 物品稀有度徽章，根据稀有度显示对应颜色和标签
 export function RarityBadge({ rarity, showLabel = true }: RarityBadgeProps) {
   return (
     <span className={`${styles.badge} ${showLabel ? '' : styles.iconOnly} ${RARITY_CLASSES[rarity]}`}>

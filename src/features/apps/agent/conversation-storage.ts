@@ -13,6 +13,7 @@ interface StoredConversation {
   conversationId: string;
 }
 
+// 验证存储值是否为合法的会话记录格式
 function isStoredConversation(value: unknown): value is StoredConversation {
   return (
     typeof value === 'object' &&
@@ -24,6 +25,7 @@ function isStoredConversation(value: unknown): value is StoredConversation {
   );
 }
 
+// 从localStorage读取当前会话ID
 export function readStoredConversationId(storage: StorageLike): string | null {
   try {
     const raw = storage.getItem(STORAGE_KEY);
@@ -35,6 +37,7 @@ export function readStoredConversationId(storage: StorageLike): string | null {
   }
 }
 
+// 将会话ID写入localStorage
 export function writeStoredConversationId(storage: StorageLike, conversationId: string): void {
   if (!CONVERSATION_ID_PATTERN.test(conversationId)) return;
   try {
@@ -44,6 +47,7 @@ export function writeStoredConversationId(storage: StorageLike, conversationId: 
   }
 }
 
+// 从localStorage清除当前会话ID
 export function clearStoredConversationId(storage: StorageLike): void {
   try {
     storage.removeItem(STORAGE_KEY);

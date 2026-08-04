@@ -13,6 +13,7 @@ interface DifficultySelectorProps {
   onSelectPreset: (config: BoardConfig, difficulty: Exclude<DifficultyId, 'custom'>) => void;
 }
 
+// 难度选择器，提供预设和自定义棋盘参数
 export function DifficultySelector({
   customConfig,
   customError,

@@ -11,6 +11,7 @@ interface BlogPostPageProps {
   params: Promise<{ slug: string }>;
 }
 
+// 将ISO日期字符串格式化为英文可读格式
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00');
   return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).format(d);
@@ -35,6 +36,7 @@ export async function generateMetadata({ params }: BlogPostPageProps) {
   };
 }
 
+// 博客文章详情页，加载文章内容和目录导航
 export default async function BlogPostPage({ params }: BlogPostPageProps) {
   const { slug } = await params;
   const post = getPublishedBlogPostBySlug(slug);

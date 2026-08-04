@@ -1,3 +1,4 @@
+// 转义HTML特殊字符防止XSS注入
 function escapeHtml(text: string): string {
   return text
     .replace(/&/g, '&amp;')
@@ -7,6 +8,7 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#039;');
 }
 
+// 渲染安全的内联链接，仅允许http/https/mailto协议
 function renderLink(label: string, href: string): string {
   if (!/^(?:https?:\/\/|mailto:)/i.test(href)) {
     return label;
@@ -15,6 +17,7 @@ function renderLink(label: string, href: string): string {
   return `<a href="${href}" target="_blank" rel="noopener noreferrer">${label}</a>`;
 }
 
+// 解析行内Markdown语法（粗体、斜体、代码、链接）为HTML
 function renderInlineMarkdown(text: string): string {
   let html = escapeHtml(text);
 
@@ -26,6 +29,7 @@ function renderInlineMarkdown(text: string): string {
   return html;
 }
 
+// 判断当前行是否是段落边界
 function isParagraphBoundary(line: string): boolean {
   return (
     /^(?:#{1,3}|>)\s/.test(line) ||
@@ -36,6 +40,7 @@ function isParagraphBoundary(line: string): boolean {
   );
 }
 
+// 将完整Markdown文本解析为HTML块，支持流式增量渲染
 export function renderBlockMarkdown(content: string): string {
   const lines = content.split('\n');
   const result: string[] = [];
@@ -136,8 +141,7 @@ export function renderBlockMarkdown(content: string): string {
       continue;
     }
 
-    // Streaming can leave an incomplete Markdown marker (for example a lone
-    // "#" or ">"). Always consume it so rendering can never block the UI.
+    // Streaming can leave an incomplete Markdown marker — always consume it
     result.push(`<p>${renderInlineMarkdown(line)}</p>`);
     index += 1;
   }

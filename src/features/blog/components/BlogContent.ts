@@ -8,6 +8,7 @@ interface BlogContentProps {
   headings: BlogHeading[];
 }
 
+// 异步渲染博客文章正文内容
 export async function BlogContent({ source, headings }: BlogContentProps) {
   const content = await renderBlogMarkdown(source, headings);
 

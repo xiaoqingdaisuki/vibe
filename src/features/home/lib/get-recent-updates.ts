@@ -19,6 +19,7 @@ export interface RecentUpdatesOptions {
   references?: RecentUpdateReferences;
 }
 
+// 根据预设引用组装最近更新列表，优先展示置顶内容
 export function getRecentUpdates({
   apps,
   posts,

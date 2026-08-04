@@ -7,6 +7,7 @@ const STATUS_LABELS: Record<AgentConnectionStatus, string> = {
   error: '连接失败',
 };
 
+// 将连接状态映射为中文显示标签
 export function getAgentConnectionStatusLabel(status: AgentConnectionStatus): string {
   return STATUS_LABELS[status];
 }

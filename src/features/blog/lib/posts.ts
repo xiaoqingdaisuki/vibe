@@ -6,6 +6,7 @@ import type { BlogPost, BlogPostMetadata } from '../types';
 const BLOG_DIR = path.join(process.cwd(), 'src/content/blog');
 const BLOG_EXTENSIONS = ['.mdx', '.md'] as const;
 
+// 校验并提取 gray-matter frontmatter 中的元数据
 function parseBlogMetadata(data: unknown): BlogPostMetadata | null {
   if (typeof data !== 'object' || data === null) {
     return null;
@@ -56,6 +57,7 @@ function parseBlogMetadata(data: unknown): BlogPostMetadata | null {
   };
 }
 
+// 读取单个博客文件并解析为 BlogPost 对象
 function readBlogFile(filePath: string): BlogPost | null {
   const slug = path.basename(filePath, path.extname(filePath));
   const fileContent = fs.readFileSync(filePath, 'utf-8');
@@ -81,6 +83,7 @@ function readBlogFile(filePath: string): BlogPost | null {
   };
 }
 
+// 根据 slug 解析对应的博客文件完整路径
 function resolveBlogPostPath(slug: string): string | null {
   for (const extension of BLOG_EXTENSIONS) {
     const filePath = path.join(BLOG_DIR, `${slug}${extension}`);
@@ -92,6 +95,7 @@ function resolveBlogPostPath(slug: string): string | null {
   return null;
 }
 
+// 返回所有博客文章的 slug 列表
 export function getAllBlogSlugs(): string[] {
   if (!fs.existsSync(BLOG_DIR)) return [];
 
@@ -101,6 +105,7 @@ export function getAllBlogSlugs(): string[] {
     .map((file) => file.replace(/\.(mdx|md)$/, ''));
 }
 
+// 获取所有已发布的博客文章，置顶文章优先
 export function getBlogPosts(): BlogPost[] {
   return getAllBlogSlugs()
     .map((slug) => getBlogPostBySlug(slug))
@@ -117,6 +122,7 @@ export function getBlogPosts(): BlogPost[] {
     });
 }
 
+// 根据 slug 查找博客文章，返回 null 表示不存在
 export function getBlogPostBySlug(slug: string): BlogPost | null {
   const filePath = resolveBlogPostPath(slug);
 
@@ -127,11 +133,13 @@ export function getBlogPostBySlug(slug: string): BlogPost | null {
   return readBlogFile(filePath);
 }
 
+// 根据 slug 查找已发布的博客文章
 export function getPublishedBlogPostBySlug(slug: string): BlogPost | null {
   const post = getBlogPostBySlug(slug);
   return post?.published ? post : null;
 }
 
+// 返回所有已发布博客文章的 slug 列表
 export function getPublishedBlogSlugs(): string[] {
   return getBlogPosts().map((post) => post.slug);
 }

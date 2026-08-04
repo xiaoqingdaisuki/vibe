@@ -18,6 +18,7 @@ export const SUDOKU_DIFFICULTIES = [
   { id: 'master', label: '大师', description: '17 个提示 · 理论下限', clueCount: 17 },
 ] as const;
 
+// Fisher-Yates 洗牌算法
 function shuffle<T>(values: T[], random: () => number): T[] {
   const shuffled = [...values];
 
@@ -29,6 +30,7 @@ function shuffle<T>(values: T[], random: () => number): T[] {
   return shuffled;
 }
 
+// 生成一个随机的有效数独终盘
 function createSolvedBoard(random: () => number): number[] {
   const bands = shuffle([0, 1, 2], random);
   const stacks = shuffle([0, 1, 2], random);
@@ -40,12 +42,14 @@ function createSolvedBoard(random: () => number): number[] {
   return rows.flatMap((row) => columns.map((column) => digits[pattern(row, column)]));
 }
 
+// 生成行/列的随机排列顺序（保持 band/stack 结构）
 function createHouseOrder(random: () => number): number[] {
   return shuffle([0, 1, 2], random).flatMap((house) =>
     shuffle([0, 1, 2], random).map((position) => house * BOX_SIZE + position),
   );
 }
 
+// 对已知最少线索数独进行变换，生成等价题目
 function transformMinimumClueGame(random: () => number): SudokuGame {
   const rows = createHouseOrder(random);
   const columns = createHouseOrder(random);
@@ -68,10 +72,12 @@ function transformMinimumClueGame(random: () => number): SudokuGame {
   };
 }
 
+// 根据行、列计算所属九宫格索引
 function getBoxIndex(row: number, column: number): number {
   return Math.floor(row / BOX_SIZE) * BOX_SIZE + Math.floor(column / BOX_SIZE);
 }
 
+// 初始化求解器状态（行/列/宫的 bitmask）
 function prepareSolver(board: number[]) {
   const rowMasks = Array<number>(GRID_SIZE).fill(0);
   const columnMasks = Array<number>(GRID_SIZE).fill(0);
@@ -98,6 +104,7 @@ function prepareSolver(board: number[]) {
   return { rowMasks, columnMasks, boxMasks };
 }
 
+// 统计解的候选数，用于验证唯一解
 export function countSolutions(board: number[], limit = 2): number {
   if (board.length !== GRID_SIZE * GRID_SIZE || limit < 1) return 0;
 
@@ -163,6 +170,7 @@ export function countSolutions(board: number[], limit = 2): number {
   return solutionCount;
 }
 
+// 从完整终盘中挖洞生成谜题，确保唯一解
 function createPuzzle(solution: number[], targetClues: number, random: () => number): number[] {
   const puzzle = [...solution];
   const removalOrder = shuffle(
@@ -187,6 +195,7 @@ function createPuzzle(solution: number[], targetClues: number, random: () => num
   return puzzle;
 }
 
+// 生成随机数独题目
 export function createSudokuGame(difficultyId: SudokuDifficultyId, random: () => number = Math.random): SudokuGame {
   const difficulty = SUDOKU_DIFFICULTIES.find(({ id }) => id === difficultyId) ?? SUDOKU_DIFFICULTIES[0];
   if (difficulty.id === 'master') return transformMinimumClueGame(random);
@@ -211,6 +220,7 @@ export function createSudokuGame(difficultyId: SudokuDifficultyId, random: () =>
   return bestGame;
 }
 
+// 获取难度进阶关系（当前难度和下一难度）
 export function getDifficultyProgression(difficultyId: SudokuDifficultyId) {
   const currentIndex = SUDOKU_DIFFICULTIES.findIndex(({ id }) => id === difficultyId);
   const safeIndex = currentIndex < 0 ? 0 : currentIndex;
@@ -220,6 +230,7 @@ export function getDifficultyProgression(difficultyId: SudokuDifficultyId) {
   };
 }
 
+// 检查当前填写是否与解决方案完全一致
 export function isComplete(values: number[], solution: number[]): boolean {
   return values.length === solution.length && values.every((value, index) => value === solution[index]);
 }

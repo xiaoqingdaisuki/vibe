@@ -31,6 +31,7 @@ import {
   getTierLootTable,
 } from './static-data.ts';
 
+// 游戏核心引擎，处理战斗、物品、商店和技能逻辑
 export class GameEngine {
   public character: Character;
   public skillLevelUpLogs: { skillName: string; newLevel: number }[] = [];
@@ -55,6 +56,7 @@ export class GameEngine {
     }
   }
 
+  // 自动重试战斗，最多尝试 30 次找更弱的对手
   autoRetryCombat(): CombatResult {
     let monsterLevel = this.character.level;
     let result!: CombatResult;
@@ -77,6 +79,7 @@ export class GameEngine {
     return result;
   }
 
+  // 执行单场战斗，返回战斗结果
   runCombat(monsterLevel: number): CombatResult {
     const monster = this.getMonster(monsterLevel);
     const difficulty = this.getDifficultyTier(monsterLevel);
@@ -260,6 +263,7 @@ export class GameEngine {
     return result;
   }
 
+  // 处理玩家交互动作（装备、使用、购买等）
   performAction(action: GameInteraction): { logs: LogEntry[]; character: Character } {
     const logs: LogEntry[] = [];
 
@@ -310,12 +314,14 @@ export class GameEngine {
     };
   }
   /** Recalculate and attach combat stats to the character for UI display */
+  // 重新计算并更新角色的战斗属性
   refreshCombatStats(): void {
     this.character._combatAtk = this.getCombatAtk();
     this.character._combatDef = this.getCombatDef();
     this.character._combatSpell = this.getCombatSpellPower();
   }
 
+  // 计算离线收益（最多 8 小时的自动战斗）
   calculateOfflineProgress(): OfflineResult {
     const now = Date.now();
     const offlineMs = now - this.character.lastActive;
@@ -392,6 +398,7 @@ export class GameEngine {
     return result;
   }
 
+  // 将战斗结果格式化为可读文本
   formatCombatResult(result: CombatResult): string {
     const lines: string[] = [];
     const diffNames: Record<number, string> = { 1: '简单', 2: '中等', 3: '困难', 4: '极难', 5: '不可能' };
@@ -417,6 +424,7 @@ export class GameEngine {
     return lines.join('\n');
   }
 
+  // 将战斗详情格式化为逐回合文本
   formatCombatDetail(result: CombatResult): string {
     const lines: string[] = [];
     const diffNames = ['', '简单', '中等', '困难', '极难', '不可能'];
@@ -441,12 +449,13 @@ export class GameEngine {
     );
     return lines.join('\n');
   }
+  // 根据等级获取难度 tier
   getDifficultyTier(level: number): number {
     const tier = DIFFICULTY_TIERS.find((t) => level >= t.minLevel && level <= t.maxLevel);
     return tier ? tier.tier : 1;
   }
 
-  /** Try to add item to inventory. If full, drop lowest-rarity items to make space. */
+  // 尝试将物品加入背包，满时自动丢弃低稀有度物品
   private tryAddToInventory(item: Item): boolean {
     if (this.character.inventory.length < this.character.inventoryMax) {
       this.character.inventory.push(item);
@@ -473,6 +482,7 @@ export class GameEngine {
     return false;
   }
 
+  // 计算玩家基础攻击力（主属性 + 武器 + 饰品）
   private calculatePlayerAtk(): number {
     const classId = this.character.class;
     const mainStat = this.character.stats[classId === 'warrior' ? 'str' : classId === 'mage' ? 'int' : 'dex'];
@@ -507,6 +517,8 @@ export class GameEngine {
     return Math.max(1, str + weaponStr);
   }
 
+  // 计算玩家基础防御力（体力 + 护甲 + 饰品）
+  // 计算玩家基础防御力（体力 + 护甲 + 饰品）
   private calculatePlayerDef(): number {
     let def = this.character.stats.vit;
     def += this.statBonus(this.character.equipment.armor, 'vit');
@@ -519,21 +531,22 @@ export class GameEngine {
   private _rogueDex = 0;
   private _rogueLuk = 0;
 
-  /** Combat ATK (main stat + weapon + accessory) */
+  // 获取战斗攻击力（含职业加成）
   getCombatAtk(): number {
     return this.calculatePlayerAtk();
   }
 
-  /** Combat DEF (vit + armor vit + accessory vit) */
+  // 获取战斗防御力
   getCombatDef(): number {
     return this.calculatePlayerDef();
   }
 
-  /** Spell power (int + weapon int + accessory int) */
+  // 获取法术强度（智力 + 武器 + 饰品）
   getCombatSpellPower(): number {
     return this.getSpellPower();
   }
 
+  // 获取技能升级进度
   getSkillProgress(skillId: string): { current: number; required: number; percent: number } {
     const current = this.character.skillUsage?.[skillId] ?? 0;
     const required = SKILL_USES_PER_LEVEL;
@@ -544,7 +557,7 @@ export class GameEngine {
     };
   }
 
-  /** Returns remaining rest cooldown in seconds, 0 if ready */
+  // 获取法术强度（智力 + 武器 + 饰品）
   getSpellPower(): number {
     const int = this.character.stats.int;
     const weaponInt = this.character.equipment.weapon
@@ -554,6 +567,7 @@ export class GameEngine {
     return int + weaponInt + accInt;
   }
 
+  // 获取暴击率加成（盗贼敏捷+幸运）
   getCritChanceBonus(): number {
     const dex = this._rogueDex;
     const lukBonus = this._rogueLuk;
@@ -561,11 +575,13 @@ export class GameEngine {
     return Math.min(0.15, Math.floor(dex / 8) * 0.01 + Math.floor(lukBonus / 5) * 0.01);
   }
 
+  // 获取装备的属性加成
   private statBonus(item: Item | null, stat: keyof Character['stats']): number {
     const stats = item?.stats ? resolveStatsForClass(item.stats, this.character.class) : undefined;
     return stats?.[stat] ?? 0;
   }
 
+  // 获取已激活的增益技能效果值
   private getActiveBuffValue(
     appliedBuffs: Set<string>,
     skills: { skillId: string; level: number }[],
@@ -577,10 +593,12 @@ export class GameEngine {
     return definition && instance ? getSkillEffectValue(definition, instance.level) : 0;
   }
 
+  // 检查值是否为正整数
   private isPositiveWholeNumber(value: number): boolean {
     return Number.isInteger(value) && value > 0;
   }
 
+  // 根据物品名称查找物品定义
   private findItemDefByName(itemName: string): ItemDef | undefined {
     const normalized = itemName.trim().toLowerCase();
     return ITEMS.find(
@@ -591,12 +609,14 @@ export class GameEngine {
     );
   }
 
+  // 计算伤害（攻击 - 防御，带随机波动）
   private calculateDamage(atk: number, def: number): number {
     const baseDamage = Math.max(1, atk - def * 1.0);
     const variance = 0.9 + Math.random() * 0.2;
     return Math.floor(baseDamage * variance);
   }
 
+  // 投掷暴击判定
   private rollCritical(): boolean {
     const baseLuk = this.character.stats.luk;
     const accLuk = this.statBonus(this.character.equipment.accessory, 'luk');
@@ -606,6 +626,7 @@ export class GameEngine {
     return Math.random() < baseCrit + rogueBonus;
   }
 
+  // 投掷闪避判定
   private rollDodge(): boolean {
     const baseDex = this.character.stats.dex;
     const accDex = this.statBonus(this.character.equipment.accessory, 'dex');
@@ -614,19 +635,7 @@ export class GameEngine {
     return Math.random() < dodgeChance;
   }
 
-  /**
-   * Context-aware skill activation with cooldown support.
-   *
-   * Category logic:
-   *   damage: tries to activate if off cooldown
-   *   heal:   only when HP < 35% and off cooldown
-   *   buff:   only once per combat (or per cooldown), 50% activation chance
-   *
-   * @param appliedBuffs - Set of buff skillIds already used this combat
-   * @param skillCooldowns - Map of skillId -> remaining cooldown rounds (modified in-place)
-   * @param currentHp - current player HP
-   * @param maxHp - max player HP
-   */
+  // 根据职业、技能类型和冷却状态决定是否激活技能
   private tryActivateSkill(
     learnedSkills: { skillId: string; level: number }[],
     appliedBuffs: Set<string>,
@@ -709,6 +718,7 @@ export class GameEngine {
     return { skillDef, skillInst: { ...skillInst, level: levelUp ? newLevel : skillInst.level }, levelUp, newLevel };
   }
 
+  // 获取指定等级的怪物定义（含难度缩放）
   private getMonster(level: number): MonsterDef {
     const index = Math.max(0, Math.min(level - 1, MONSTERS.length - 1));
     const baseMonster = MONSTERS[index];
@@ -729,6 +739,7 @@ export class GameEngine {
     };
   }
 
+  // 根据掉落表随机生成掉落物品
   private rollLoot(
     lootTable: { itemId: string; chance: number; minCount: number; maxCount: number }[],
     level: number,
@@ -752,6 +763,7 @@ export class GameEngine {
     return items;
   }
 
+  // 检查并执行升级，返回是否升级成功
   private checkLevelUp(): boolean {
     const MAX_LEVEL = 30;
     let leveled = false;
@@ -789,6 +801,7 @@ export class GameEngine {
     return leveled;
   }
 
+  // 生成背包物品列表日志
   private showInventory(): LogEntry[] {
     const logs: LogEntry[] = [
       {
@@ -830,6 +843,7 @@ export class GameEngine {
 
     return logs;
   }
+  // 装备物品到指定部位
   private equipItem(slot: EquipSlot, itemName: string): LogEntry[] {
     const logs: LogEntry[] = [];
     const itemIndex = this.character.inventory.findIndex((i) => i.name === itemName);
@@ -899,6 +913,7 @@ export class GameEngine {
     return logs;
   }
 
+  // 卸下指定部位装备
   private unequipItem(slot: string): LogEntry[] {
     const logs: LogEntry[] = [];
     const current = this.character.equipment[slot];
@@ -924,6 +939,7 @@ export class GameEngine {
     return logs;
   }
 
+  // 使用物品（技能书或其他可消耗品）
   private useItem(itemName: string): LogEntry[] {
     const logs: LogEntry[] = [];
     const itemIndex = this.character.inventory.findIndex((i) => i.name === itemName);
@@ -954,6 +970,7 @@ export class GameEngine {
     return logs;
   }
 
+  // 打开宝箱，随机获得装备或技能书
   private openChest(chestName: string): LogEntry[] {
     const logs: LogEntry[] = [];
     const chestIndex = this.character.inventory.findIndex((i) => i.name === chestName);
@@ -1040,11 +1057,13 @@ export class GameEngine {
 
     return logs;
   }
+  // 获取当前职业的中文名称
   private getClassName(): string {
     const names: Record<string, string> = { warrior: '战士', mage: '法师', rogue: '盗贼' };
     return names[this.character.class] || '';
   }
 
+  // 使用技能书，随机学习或升级技能
   private useSkillBook(item: Item): LogEntry[] {
     const logs: LogEntry[] = [];
 
@@ -1124,6 +1143,7 @@ export class GameEngine {
 
     return logs;
   }
+  // 学习指定名称的技能（斜杠指令遗留）
   private learnSkill(skillName: string): LogEntry[] {
     const logs: LogEntry[] = [];
     const skill = SKILLS.find((s) => s.name === skillName);
@@ -1165,6 +1185,7 @@ export class GameEngine {
 
     return logs;
   }
+  // 生成已学技能列表日志
   private showSkills(): LogEntry[] {
     const logs: LogEntry[] = [
       {
@@ -1215,6 +1236,7 @@ export class GameEngine {
 
     return logs;
   }
+  // 生成商店商品列表日志
   private showShop(): LogEntry[] {
     const logs: LogEntry[] = [
       {
@@ -1248,6 +1270,7 @@ export class GameEngine {
     return logs;
   }
 
+  // 从商店购买物品
   private buyItem(itemName: string, count: number): LogEntry[] {
     const logs: LogEntry[] = [];
     if (!this.isPositiveWholeNumber(count)) {
@@ -1311,6 +1334,7 @@ export class GameEngine {
     return logs;
   }
 
+  // 出售物品换取金币
   private sellItem(itemName: string, count: number): LogEntry[] {
     const logs: LogEntry[] = [];
     if (!this.isPositiveWholeNumber(count)) {
@@ -1388,6 +1412,7 @@ export class GameEngine {
     return logs;
   }
 
+  // 计算背包扩充费用（每次递增 1.35 倍）
   private getExpandCost(): number {
     const current = this.character.inventoryMax;
     if (current >= 50) return Infinity;
@@ -1396,6 +1421,7 @@ export class GameEngine {
     return Math.floor(100 * Math.pow(1.35, stepsFrom20));
   }
 
+  // 扩充背包容量
   private expandBag(): LogEntry[] {
     const logs: LogEntry[] = [];
     const cost = this.getExpandCost();
@@ -1422,6 +1448,7 @@ export class GameEngine {
     return logs;
   }
 
+  // 整理背包（按品质排序并合并同类物品）
   private sortInventory(): LogEntry[] {
     const logs: LogEntry[] = [];
     if (this.character.inventory.length === 0) {
@@ -1469,6 +1496,7 @@ export class GameEngine {
     return logs;
   }
 
+  // 批量出售指定物品
   private bulkSell(itemNames: string[]): LogEntry[] {
     const logs: LogEntry[] = [];
     if (itemNames.length === 0) {
@@ -1589,6 +1617,7 @@ export class GameEngine {
     return logs;
   }
 
+  // 切换物品收藏状态
   private toggleFavorite(itemName: string): LogEntry[] {
     const logs: LogEntry[] = [];
     const idx = this.character.favorites.indexOf(itemName);
@@ -1604,6 +1633,7 @@ export class GameEngine {
     return logs;
   }
 
+  // 生成角色状态信息日志
   private showStatus(): LogEntry[] {
     const logs: LogEntry[] = [
       {

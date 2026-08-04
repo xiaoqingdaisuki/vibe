@@ -5,6 +5,7 @@ interface SectionTitleProps {
   subtitle?: string;
 }
 
+// 区块标题组件
 export function SectionTitle({ title, subtitle }: SectionTitleProps) {
   return (
     <div className={styles.wrapper}>

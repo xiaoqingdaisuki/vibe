@@ -11,6 +11,7 @@ export const metadata = {
   description: 'Vibe - A personal Web Lab for apps, experiments and demos.',
 };
 
+// 首页组件，展示站点介绍和最近更新
 export default function HomePage() {
   const recentUpdates = getRecentUpdates({ apps: labApps, posts: getBlogPosts() });
 

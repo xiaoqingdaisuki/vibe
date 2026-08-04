@@ -44,6 +44,7 @@ interface InventoryPanelProps {
   onAction: (action: GameInteraction | { type: 'clearLogs' }) => void;
 }
 
+// 生成装备属性预览文本
 function getItemStatsPreview(item: Item, charClass: Character['class']): string {
   if (!item.stats) return '';
   const resolved = resolveStatsForClass(item.stats, charClass);
@@ -58,6 +59,7 @@ function getItemStatsPreview(item: Item, charClass: Character['class']): string 
   return parts.join('  ');
 }
 
+// 比较装备与当前装备的属性差异
 function getEquipComparison(item: Item, character: Character): string | null {
   if (!item.slot || !item.stats) return null;
   const current = character.equipment[item.slot];
@@ -77,6 +79,7 @@ function getEquipComparison(item: Item, character: Character): string | null {
   return null;
 }
 
+// 根据物品稀有度计算出售价格
 function getSellPrice(item: Item): number {
   const rarity = item.rarity;
   if (rarity === 'common') return 10;
@@ -97,6 +100,7 @@ type TypeFilter = Set<string>;
 type RarityFilter = Set<ItemRarity>;
 type SortKey = 'rarity' | 'level' | 'name' | 'time';
 
+// 背包面板，支持筛选、排序、装备、出售和详情查看
 export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>(new Set());
   const [rarityFilter, setRarityFilter] = useState<RarityFilter>(new Set());

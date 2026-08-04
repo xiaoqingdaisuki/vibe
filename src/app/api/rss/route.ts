@@ -18,11 +18,13 @@ interface ValidatedTarget {
 
 class TargetValidationError extends Error {}
 
+// 将IPv4地址字符串拆分为数字数组
 function getIpv4Octets(address: string): number[] | null {
   if (isIP(address) !== 4) return null;
   return address.split('.').map(Number);
 }
 
+// 解析IPv6地址字符串为16位分组数字数组
 function parseIpv6(address: string): number[] | null {
   const segments = address.toLowerCase().split('::');
   if (segments.length > 2) return null;
@@ -50,6 +52,7 @@ function parseIpv6(address: string): number[] | null {
   ];
 }
 
+// 判断地址是否为私有网络地址（IPv4/IPv6）
 function isPrivateAddress(address: string): boolean {
   const octets = getIpv4Octets(address);
   if (octets) {
@@ -85,11 +88,13 @@ function isPrivateAddress(address: string): boolean {
   return isUnspecified || isLoopback || isLinkLocal || isUniqueLocal || isDeprecatedSiteLocal;
 }
 
+// 判断地址是否为受控的198.18.0.0/15出口中继地址
 function isControlledEgressRelay(address: string): boolean {
   const octets = getIpv4Octets(address);
   return octets?.[0] === 198 && (octets[1] === 18 || octets[1] === 19);
 }
 
+// 校验并解析RSS目标URL，确保仅允许HTTP/HTTPS且非私有地址
 async function validateTarget(value: string): Promise<ValidatedTarget> {
   let url: URL;
   try {
@@ -123,6 +128,7 @@ async function validateTarget(value: string): Promise<ValidatedTarget> {
   return { url, hostname, address: record.address, family: record.family };
 }
 
+// 向验证通过的RSS地址发起HTTP/HTTPS请求
 function requestTarget(target: ValidatedTarget): Promise<IncomingMessage> {
   const client = target.url.protocol === 'https:' ? https : http;
 
@@ -150,6 +156,7 @@ function requestTarget(target: ValidatedTarget): Promise<IncomingMessage> {
   });
 }
 
+// 读取HTTP响应体内容，限制最大字节数防止内存溢出
 async function readBody(response: IncomingMessage): Promise<string> {
   const contentLength = response.headers['content-length'];
   const length = Number(Array.isArray(contentLength) ? contentLength[0] : (contentLength ?? 0));
@@ -168,6 +175,7 @@ async function readBody(response: IncomingMessage): Promise<string> {
   return Buffer.concat(chunks, size).toString('utf-8');
 }
 
+// RSS代理GET端点，获取并转发RSS订阅内容
 export async function GET(request: NextRequest) {
   const target = request.nextUrl.searchParams.get('url');
   if (!target) return NextResponse.json({ error: '缺少 url 参数' }, { status: 400 });

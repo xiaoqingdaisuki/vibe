@@ -6,6 +6,7 @@ interface PageHeaderProps {
   eyebrow?: string;
 }
 
+// 页面头部标题组件
 export function PageHeader({ title, description, eyebrow }: PageHeaderProps) {
   return (
     <header className={styles.header}>

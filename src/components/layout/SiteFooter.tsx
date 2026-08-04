@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { siteConfig } from '@/lib/site';
 
+// GitHub 图标 SVG 组件
 function GitHubIcon() {
   return (
     <svg
@@ -16,6 +17,7 @@ function GitHubIcon() {
   );
 }
 
+// 站点底部页脚
 export function SiteFooter() {
   return (
     <footer className="mt-auto border-top-base">

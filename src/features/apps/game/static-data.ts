@@ -189,14 +189,20 @@ export const DIFFICULTY_TIERS: DifficultyTier[] = [
 // Combined with rarity bonus (×1 to ×64), this produces reasonable endgame numbers
 // without the old array-based system's inflated values.
 
+// 计算武器主属性成长值（随等级二次增长）
+// 计算武器主属性成长值（随等级二次增长）
 function wpnStat(lv: number): number {
   return Math.floor(2 + lv * lv * 0.02);
 }
 
+// 计算护甲主属性成长值
+// 计算护甲主属性成长值
 function armorStat(lv: number): number {
   return Math.floor(2 + lv * lv * 0.015);
 }
 
+// 计算饰品主属性成长值
+// 计算饰品主属性成长值
 function accStat(lv: number): number {
   return Math.floor(2 + lv * lv * 0.01);
 }
@@ -266,6 +272,7 @@ export const CHEST_RARITY_MULTIPLIER: Record<ItemRarity, number> = {
 
 // ── Rarity helpers ──────────────────────────────────────────────────────────
 
+// 根据宝箱品质随机roll出物品稀有度
 export function rollRarity(chestRarity: ItemRarity): ItemRarity {
   const mult = CHEST_RARITY_MULTIPLIER[chestRarity];
   const roll = Math.random();
@@ -282,17 +289,19 @@ export function rollRarity(chestRarity: ItemRarity): ItemRarity {
   return 'common';
 }
 
+// 获取稀有度在排序列表中的索引
 function rarityIndex(rarity: ItemRarity): number {
   return RARITY_ORDER.indexOf(rarity);
 }
 
+// 根据稀有度索引计算属性加成倍率（2^index）
 function rarityBonus(rarity: ItemRarity): number {
   const idx = rarityIndex(rarity);
   // Exponential: common=1x, uncommon=2x, rare=4x, epic=8x, legendary=16x, mythic=32x, transcendent=64x
   return Math.pow(2, idx);
 }
 
-// Recalculate equipment stats for a new rarity (used when chest rolls a higher rarity than the item's base)
+// 根据新稀有度重新计算装备属性（宝箱roll出更高稀有度时使用）
 export function recalcItemStats(
   baseItem: ItemDef,
   newRarity: ItemRarity,
@@ -313,6 +322,7 @@ export const SKILL_USES_PER_LEVEL = 1000;
  * Returns the scaled effect value for a skill at a given level.
  * Level 1 = base value, each additional level +20%.
  */
+// 获取技能在指定等级的缩放效果值
 export function getSkillEffectValue(skillDef: SkillDef, skillLevel: number): number {
   const base = skillDef.effect.value;
   return Math.floor(base * (1 + (skillLevel - 1) * 0.2) * 100) / 100;
@@ -329,6 +339,7 @@ export function getSkillEffectValue(skillDef: SkillDef, skillLevel: number): num
  * @param currentLevel - current skill level
  * @returns { leveledUp, newLevel, usage } where usage is the counter AFTER this attempt
  */
+// 尝试升级技能，每1000使用次数升级一次
 export function tryLevelUpSkill(
   skillUsage: Record<string, number>,
   skillId: string,
@@ -362,6 +373,7 @@ export function tryLevelUpSkill(
 // Returns stats for a given slot + class + level + rarity combo.
 // scaleWithClass=true → the per-class stats dict is stored; resolved at equip time.
 
+// 构建装备的属性数据（含职业缩放和稀有度加成）
 function buildItemStats(
   level: number,
   rarity: ItemRarity,
@@ -399,11 +411,13 @@ function buildItemStats(
 }
 
 // Resolve per-class stats dict to the actual class's stats
+// 判断属性数据是否为扁平格式（非职业缩放格式）
 function isFlatStats(stats: ItemStats): stats is Partial<Stats> {
   const flatStats = stats as Partial<Stats>;
   return ['str', 'dex', 'int', 'vit', 'luk'].some((key) => flatStats[key as keyof Stats] !== undefined);
 }
 
+// 将职业缩放属性解析为实际职业的属性值
 export function resolveStatsForClass(stats: ItemStats | undefined, classId: ClassType): Partial<Stats> | undefined {
   if (!stats) return undefined;
   return isFlatStats(stats) ? stats : stats[classId];
@@ -497,6 +511,7 @@ const ARMOR_LABEL: Record<string, string> = { warrior: '战甲', mage: '长袍',
  * Normal rarities: [max(1, charLevel-2), min(25, charLevel+3)] — biased near charLevel
  * Transcendent (最稀有): always at character level (special logic)
  */
+// 为宝箱奖励生成物品等级（接近角色等级）
 function getChestItemLevel(charLevel: number, rarity: ItemRarity): number {
   if (rarity === 'transcendent') {
     // 超越品质特殊逻辑：始终等于角色等级
@@ -514,6 +529,7 @@ function getChestItemLevel(charLevel: number, rarity: ItemRarity): number {
  * When a chest is opened, the engine picks from these pools and re-rolls rarity
  * according to chest tier via rollRarity().
  */
+// 生成所有装备定义（按职业、等级随机属性）
 function generateEquipment(): ItemDef[] {
   const items: ItemDef[] = [];
   const SLOTS: Array<'weapon' | 'armor' | 'accessory'> = ['weapon', 'armor', 'accessory'];
@@ -575,6 +591,7 @@ function generateEquipment(): ItemDef[] {
  * according to the opening chest's tier and level restricted to the
  * character's level range.
  */
+// 从装备池随机获取一件装备（按宝箱品质重roll稀有度）
 export function randomEquipItem(chestRarity: ItemRarity, charLevel: number): ItemDef | undefined {
   // Chests can drop ANY class's equipment — class restriction is enforced at equip time
   const allEquip = ITEMS.filter((it) => it.type === 'equipment');

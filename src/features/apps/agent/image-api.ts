@@ -4,6 +4,7 @@ export interface GeneratedImage {
 
 const IMAGE_API_URL = '/api/agent/images';
 
+// 从API错误响应中提取可读错误消息
 function getErrorMessage(payload: unknown, status: number): string {
   if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
     return `图像请求失败（HTTP ${status}）。`;
@@ -18,6 +19,7 @@ function getErrorMessage(payload: unknown, status: number): string {
   return `图像请求失败（HTTP ${status}）。`;
 }
 
+// 调用图像生成API，返回base64图片数据
 export async function generateAgentImage(prompt: string): Promise<GeneratedImage> {
   let response: Response;
   try {

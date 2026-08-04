@@ -32,6 +32,7 @@ export const CUSTOM_LIMITS = {
   columns: { min: 5, max: 30 },
 } as const;
 
+// 创建空白单元格
 function createCell(): Cell {
   return {
     mine: false,
@@ -41,10 +42,12 @@ function createCell(): Cell {
   };
 }
 
+// 根据配置创建空白棋盘
 export function createEmptyBoard(config: BoardConfig): Cell[] {
   return Array.from({ length: config.rows * config.columns }, createCell);
 }
 
+// 获取指定单元格的周围单元格索引列表
 export function getNeighborIndices(index: number, config: BoardConfig): number[] {
   const row = Math.floor(index / config.columns);
   const column = index % config.columns;
@@ -66,6 +69,7 @@ export function getNeighborIndices(index: number, config: BoardConfig): number[]
   return neighbors;
 }
 
+// 在棋盘上布雷，保证首次点击位置及其周围安全
 export function placeMines(
   board: Cell[],
   config: BoardConfig,
@@ -104,6 +108,7 @@ export interface RevealResult {
   hitMine: boolean;
 }
 
+// 揭开指定单元格，自动展开空白区域
 export function revealCell(board: Cell[], config: BoardConfig, startIndex: number): RevealResult {
   const startCell = board[startIndex];
   if (!startCell || startCell.state !== 'hidden') {
@@ -143,6 +148,7 @@ export function revealCell(board: Cell[], config: BoardConfig, startIndex: numbe
   return { board: nextBoard, changed: true, hitMine: false };
 }
 
+// 切换指定单元格的插旗状态
 export function toggleFlag(board: Cell[], index: number): Cell[] {
   const cell = board[index];
   if (!cell || cell.state === 'revealed') return board;
@@ -152,6 +158,7 @@ export function toggleFlag(board: Cell[], index: number): Cell[] {
   return nextBoard;
 }
 
+// 对已揭开的数字格执行和弦操作（周围旗数正确时揭开剩余）
 export function chordCell(board: Cell[], config: BoardConfig, index: number): RevealResult {
   const cell = board[index];
   if (!cell || cell.state !== 'revealed' || cell.adjacentMines === 0) {
@@ -182,6 +189,7 @@ export function chordCell(board: Cell[], config: BoardConfig, index: number): Re
   return { board: nextBoard, changed, hitMine: false };
 }
 
+// 揭开盘棋指定位置，首次点击时布雷
 export function revealBoardAt(
   board: Cell[],
   config: BoardConfig,
@@ -202,18 +210,22 @@ export function revealBoardAt(
     : revealCell(playableBoard, config, index);
 }
 
+// 揭开所有地雷（用于游戏结束时展示）
 export function revealAllMines(board: Cell[]): Cell[] {
   return board.map((cell) => (cell.mine ? { ...cell, state: 'revealed' } : { ...cell }));
 }
 
+// 检查是否已赢得游戏（所有非雷格已揭开）
 export function hasWon(board: Cell[]): boolean {
   return board.every((cell) => cell.mine || cell.state === 'revealed');
 }
 
+// 统计当前插旗数量
 export function countFlags(board: Cell[]): number {
   return board.reduce((total, cell) => total + (cell.state === 'flagged' ? 1 : 0), 0);
 }
 
+// 验证自定义棋盘配置是否合法，返回错误信息或 null
 export function validateCustomConfig(config: BoardConfig): string | null {
   if (!Number.isInteger(config.rows) || config.rows < CUSTOM_LIMITS.rows.min || config.rows > CUSTOM_LIMITS.rows.max) {
     return `行数需为 ${CUSTOM_LIMITS.rows.min}–${CUSTOM_LIMITS.rows.max} 之间的整数。`;

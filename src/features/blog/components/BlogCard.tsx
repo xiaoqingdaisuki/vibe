@@ -6,6 +6,7 @@ interface BlogCardProps {
   post: BlogPost;
 }
 
+// 渲染博客文章卡片，展示标题、描述、日期和标签
 export function BlogCard({ post }: BlogCardProps) {
   return (
     <article className={`${styles.card} group`}>

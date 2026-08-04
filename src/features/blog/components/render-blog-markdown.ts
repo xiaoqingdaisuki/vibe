@@ -2,6 +2,7 @@ import { createElement, type ComponentProps, type JSX } from 'react';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import type { BlogHeading, BlogHeadingLevel } from '../lib/headings';
 
+// 创建带有锚点 ID 的标题渲染组件
 function createHeadingComponent(level: BlogHeadingLevel, headings: BlogHeading[], position: { current: number }) {
   return function BlogHeadingComponent({ children, ...props }: ComponentProps<'h2'>) {
     const heading = headings[position.current];
@@ -12,6 +13,7 @@ function createHeadingComponent(level: BlogHeadingLevel, headings: BlogHeading[]
   };
 }
 
+// 将 markdown 源码渲染为带标题锚点的 React 元素
 export async function renderBlogMarkdown(source: string, headings: BlogHeading[]) {
   const position = { current: 0 };
 

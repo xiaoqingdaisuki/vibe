@@ -11,6 +11,7 @@ interface NumberPanelProps {
   onErase: () => void;
 }
 
+// 数字选择面板，提供 1-9 输入和清除按钮
 export function NumberPanel({ completedDigits, selectedIndex, status, onDigit, onErase }: NumberPanelProps) {
   return (
     <aside className={styles.numberPanel} aria-label="数字选择">

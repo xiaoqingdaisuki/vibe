@@ -21,15 +21,18 @@ const COMBAT_INTERVAL_MS = 10_000;
 // Module-level log ID counter — initialized from saved logs to avoid collisions
 let _logId = 0;
 
+// 确保日志ID递增，从已保存日志中恢复计数器
 function ensureLogId(id: number | undefined): number {
   if (id !== undefined && id > _logId) _logId = id;
   return id ?? ++_logId;
 }
 
+// 生成下一个日志ID
 function nextLogId(): number {
   return ++_logId;
 }
 
+// 生成默认角色数据
 function createDefaultCharacter(username: string, classId: ClassType): Character {
   const classDef = CLASSES.find((c) => c.id === classId) || CLASSES[0];
   const now = new Date().toISOString();
@@ -56,6 +59,7 @@ function createDefaultCharacter(username: string, classId: ClassType): Character
   };
 }
 
+// 游戏主页面客户端，管理登录、选职业和游戏循环
 export default function GamePageClient() {
   const [phase, setPhase] = useState<GamePhase>('login');
   const [username, setUsername] = useState('');

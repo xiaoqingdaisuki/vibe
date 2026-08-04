@@ -29,6 +29,7 @@ interface SudokuCanvasProps {
   onErase: () => void;
 }
 
+// 从 CSS 变量读取数独画布颜色
 function readCanvasColors(): CanvasColors {
   const computed = getComputedStyle(document.documentElement);
   const read = (name: string) => computed.getPropertyValue(name).trim();
@@ -47,6 +48,7 @@ function readCanvasColors(): CanvasColors {
   };
 }
 
+// 判断两个单元格是否在同一行、列或九宫格内
 function isRelatedCell(firstIndex: number, secondIndex: number): boolean {
   const firstRow = Math.floor(firstIndex / GRID_SIZE);
   const firstColumn = firstIndex % GRID_SIZE;
@@ -69,6 +71,7 @@ interface DrawBoardOptions {
   colors: CanvasColors;
 }
 
+// 在画布上绘制数独棋盘
 function drawBoard({ canvas, puzzle, values, selectedIndex, incorrectBoxIndexes, hasFocus, colors }: DrawBoardOptions) {
   const context = canvas.getContext('2d');
   if (!context) return;
@@ -145,6 +148,7 @@ function drawBoard({ canvas, puzzle, values, selectedIndex, incorrectBoxIndexes,
   }
 }
 
+// 根据指针在画布上的位置计算单元格索引
 function getCellIndex(canvas: HTMLCanvasElement, clientX: number, clientY: number): number | null {
   const bounds = canvas.getBoundingClientRect();
   if (bounds.width === 0 || bounds.height === 0) return null;
@@ -155,6 +159,7 @@ function getCellIndex(canvas: HTMLCanvasElement, clientX: number, clientY: numbe
   return row * GRID_SIZE + column;
 }
 
+// 生成当前选中单元格的无障碍描述文本
 function describeCell(
   puzzle: number[],
   values: number[],
@@ -170,6 +175,7 @@ function describeCell(
   return `第 ${row} 行第 ${column} 列，${kind}，${value === 0 ? '空白' : `数字 ${value}`}。${reviewMessage}`;
 }
 
+// 数独画布组件，渲染棋盘并处理键盘/鼠标交互
 export function SudokuCanvas({
   puzzle,
   values,

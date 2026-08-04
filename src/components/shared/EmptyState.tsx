@@ -6,6 +6,7 @@ interface EmptyStateProps {
   action?: React.ReactNode;
 }
 
+// 空状态占位组件
 export function EmptyState({ title, description, action }: EmptyStateProps) {
   return (
     <div className={styles.container}>

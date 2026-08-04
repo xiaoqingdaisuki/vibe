@@ -8,6 +8,7 @@ interface GameDashboardProps {
   onRestart: () => void;
 }
 
+// 数独游戏仪表盘，显示难度、用时、错误数和换题按钮
 export function GameDashboard({ difficultyLabel, elapsedSeconds, mistakes, onRestart }: GameDashboardProps) {
   return (
     <div className={styles.dashboard}>

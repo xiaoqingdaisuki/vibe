@@ -10,6 +10,7 @@ interface LoadFeedOptions {
   onSettled: () => void;
 }
 
+// 加载单个 RSS feed，防止同一 URL 并发请求
 export async function loadFeedOnce({
   url,
   inFlight,

@@ -4,6 +4,7 @@ import { proxyCreateAgentConversation } from '@/features/apps/agent/agent-v1-ser
 
 export const maxDuration = 60;
 
+// 创建新的AI对话会话
 export async function POST(request: Request): Promise<NextResponse> {
   const payload: unknown = await request.json().catch(() => null);
   const result = await proxyCreateAgentConversation(payload);

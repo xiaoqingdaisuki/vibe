@@ -9,6 +9,7 @@ interface ChatScrollState {
   scrollToBottom: (behavior?: ScrollBehavior) => void;
 }
 
+// 管理消息列表滚动行为，消息变化时自动滚动到底部
 export function useChatScroll(messages: ChatMessage[], isStreaming: boolean): ChatScrollState {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -45,7 +46,7 @@ export function useChatScroll(messages: ChatMessage[], isStreaming: boolean): Ch
     if (isStreaming) {
       scrollToBottom('auto');
     } else if (justLoaded || isNearBottom()) {
-      scrollToBottom(justLoaded ? 'smooth' : 'smooth');
+      scrollToBottom('smooth');
     }
   }, [messages, isStreaming, isNearBottom, scrollToBottom]);
 

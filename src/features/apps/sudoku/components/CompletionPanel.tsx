@@ -10,6 +10,7 @@ interface CompletionPanelProps {
   replayDifficultyId: SudokuDifficultyId;
 }
 
+// 通关面板，展示用时并支持挑战下一难度
 export function CompletionPanel({
   difficultyLabel,
   elapsedSeconds,

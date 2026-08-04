@@ -5,10 +5,12 @@ const SESSION_KEY = 'game_session';
 const LOGS_KEY_SUFFIX = '_logs';
 const MAX_STORED_LOGS = 200;
 
+// 判断值是否为普通对象
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
+// 校验值是否符合角色快照结构
 function isCharacterSnapshot(value: unknown): value is Character {
   if (!isRecord(value) || !isRecord(value.stats) || !isRecord(value.equipment)) return false;
   const strings = ['username', 'name', 'class', 'createdAt'];
@@ -43,6 +45,7 @@ function isCharacterSnapshot(value: unknown): value is Character {
   );
 }
 
+// 校验值是否符合日志条目结构
 function isLogEntry(value: unknown): value is LogEntry {
   return (
     isRecord(value) &&
@@ -52,18 +55,22 @@ function isLogEntry(value: unknown): value is LogEntry {
   );
 }
 
+// 获取浏览器 localStorage，不可用时返回 null
 function getBrowserStorage(): Storage | null {
   return typeof localStorage === 'undefined' ? null : localStorage;
 }
 
+// 根据用户名生成角色 localStorage 键名
 export function getCharacterStorageKey(username: string): string {
   return `${STORAGE_KEY_PREFIX}${username}`;
 }
 
+// 根据用户名生成日志 localStorage 键名
 export function getLogsStorageKey(username: string): string {
   return `${STORAGE_KEY_PREFIX}${username}${LOGS_KEY_SUFFIX}`;
 }
 
+// 从 localStorage 加载角色快照，无数据则返回 null
 export function loadCharacterSnapshot(username: string, storage = getBrowserStorage()): Character | null {
   if (!storage) return null;
 
@@ -76,6 +83,7 @@ export function loadCharacterSnapshot(username: string, storage = getBrowserStor
   }
 }
 
+// 保存角色快照到 localStorage，附带 lastActive 时间戳
 export function saveCharacterSnapshot(
   character: Character,
   storage = getBrowserStorage(),
@@ -94,6 +102,7 @@ export function saveCharacterSnapshot(
   return snapshot;
 }
 
+// 从 localStorage 加载持久化日志
 export function loadPersistedLogs(username: string, storage = getBrowserStorage()): LogEntry[] {
   if (!storage) return [];
 
@@ -106,6 +115,7 @@ export function loadPersistedLogs(username: string, storage = getBrowserStorage(
   }
 }
 
+// 将日志保存到 localStorage，最多保留 MAX_STORED_LOGS 条
 export function savePersistedLogs(username: string, logs: readonly LogEntry[], storage = getBrowserStorage()): void {
   if (!storage) return;
 
@@ -116,6 +126,7 @@ export function savePersistedLogs(username: string, logs: readonly LogEntry[], s
   }
 }
 
+// 清空指定用户的持久化日志
 export function clearPersistedLogs(username: string, storage = getBrowserStorage()): void {
   savePersistedLogs(username, [], storage);
 }

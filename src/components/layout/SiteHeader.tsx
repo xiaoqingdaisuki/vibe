@@ -13,6 +13,7 @@ const NAV_LINKS = [
   { href: '/about', label: 'About' },
 ];
 
+// 站点顶部导航栏
 export function SiteHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const pathname = usePathname();

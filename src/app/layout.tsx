@@ -31,6 +31,7 @@ export const viewport: Viewport = {
   viewportFit: 'cover',
 };
 
+// 全局布局：站点外壳，包含头部、主内容区和页脚
 export default function RootLayout({
   children,
 }: Readonly<{

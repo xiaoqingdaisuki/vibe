@@ -11,6 +11,7 @@ interface ComingSoonAppProps {
   title: string;
 }
 
+// 占位组件，显示应用尚未上线的提示信息
 function ComingSoonApp({ title }: ComingSoonAppProps) {
   return (
     <div className="flex flex-col items-center justify-center py-16 md:py-24 text-center">
@@ -55,6 +56,7 @@ export async function generateMetadata({ params }: LabAppPageProps) {
   };
 }
 
+// Lab应用详情页，根据slug动态加载并渲染对应应用
 export default async function LabAppPage({ params }: LabAppPageProps) {
   const { slug } = await params;
   const app = getLabAppBySlug(slug);

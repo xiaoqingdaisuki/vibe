@@ -7,6 +7,7 @@ export const metadata = {
   description: 'About the author of Vibe.',
 };
 
+// 关于页面，展示项目作者和开发理念
 export default function AboutPage() {
   return (
     <div className="page-enter">

@@ -8,6 +8,7 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
+// 获取指定会话的历史消息列表
 export async function GET(_request: Request, context: RouteContext): Promise<NextResponse> {
   const { id } = await context.params;
   const result = await proxyGetAgentConversationMessages(id);

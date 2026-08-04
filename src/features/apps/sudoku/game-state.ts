@@ -33,6 +33,7 @@ export interface SudokuSessionState {
 export type SudokuKeyboardCommand =
   { type: 'select'; index: number } | { type: 'digit'; digit: SudokuDigit } | { type: 'erase' };
 
+// 创建数独游戏会话初始状态
 export function createSudokuSession(game: SudokuGame, difficultyId: SudokuDifficultyId): SudokuSessionState {
   return {
     difficultyId,
@@ -46,6 +47,7 @@ export function createSudokuSession(game: SudokuGame, difficultyId: SudokuDiffic
   };
 }
 
+// 切换选中单元格，返回新状态
 export function selectCellInSession(state: SudokuSessionState, index: number): SudokuSessionState {
   if (!Number.isInteger(index) || index < 0 || index >= state.values.length || index === state.selectedIndex) {
     return state;
@@ -54,6 +56,7 @@ export function selectCellInSession(state: SudokuSessionState, index: number): S
   return { ...state, selectedIndex: index };
 }
 
+// 在选中格填入数字，检测完成或错误
 export function enterDigitInSession(state: SudokuSessionState, digit: number): SudokuSessionState {
   const { selectedIndex } = state;
   if (
@@ -84,6 +87,7 @@ export function enterDigitInSession(state: SudokuSessionState, digit: number): S
   };
 }
 
+// 清除选中格的数字
 export function eraseSelectedInSession(state: SudokuSessionState): SudokuSessionState {
   const { selectedIndex } = state;
   if (state.status === 'won' || state.game.puzzle[selectedIndex] !== 0 || state.values[selectedIndex] === 0) {
@@ -95,6 +99,7 @@ export function eraseSelectedInSession(state: SudokuSessionState): SudokuSession
   return { ...state, values: nextValues, hasIncorrectCompletion: false, incorrectBoxIndexes: [] };
 }
 
+// 找出填写错误的九宫格索引列表
 export function getIncorrectBoxIndexes(values: number[], solution: number[]): number[] {
   const incorrectBoxes = new Set<number>();
 
@@ -109,10 +114,12 @@ export function getIncorrectBoxIndexes(values: number[], solution: number[]): nu
   return [...incorrectBoxes];
 }
 
+// 计算从起始时间到当前的经过秒数
 export function getElapsedSeconds(startedAtMs: number, currentTimeMs: number): number {
   return Math.max(0, Math.floor((currentTimeMs - startedAtMs) / 1_000));
 }
 
+// 将秒数格式化为 HH:MM:SS 或 MM:SS
 export function formatElapsedTime(totalSeconds: number): string {
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
@@ -121,6 +128,7 @@ export function formatElapsedTime(totalSeconds: number): string {
   return hours > 0 ? `${String(hours).padStart(2, '0')}:${base}` : base;
 }
 
+// 将键盘按键映射为数独操作指令
 export function getSudokuKeyboardCommand(key: string, selectedIndex: number): SudokuKeyboardCommand | null {
   const movement = MOVEMENT_BY_KEY[key];
   if (movement) {

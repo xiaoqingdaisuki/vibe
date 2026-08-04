@@ -1,3 +1,4 @@
+// Lab app 懒加载器类型定义
 export type LabAppLoader = () => Promise<{
   default: React.ComponentType;
 }>;
@@ -11,6 +12,7 @@ const LAB_APP_LOADERS: Record<string, LabAppLoader> = {
   ai: () => import('./agent/page-client'),
 };
 
+// 根据 slug 获取对应的 app 懒加载器
 export function getLabAppLoader(slug: string): LabAppLoader | undefined {
   return LAB_APP_LOADERS[slug];
 }

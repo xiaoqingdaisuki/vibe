@@ -26,6 +26,7 @@ const STATUS_COPY: Record<GameStatus, string> = {
   lost: '踩雷了，再试一次',
 };
 
+// 扫雷主页面客户端，管理游戏状态和棋盘交互
 export default function Minesweeper() {
   const initialConfig = DIFFICULTY_PRESETS[0].config;
   const [config, setConfig] = useState<BoardConfig>(initialConfig);
@@ -44,6 +45,7 @@ export default function Minesweeper() {
     return () => window.clearInterval(timer);
   }, [status]);
 
+  // 初始化或重置棋盘，准备新一局游戏
   const startBoard = (nextConfig: BoardConfig, nextDifficulty: DifficultyId) => {
     setConfig(nextConfig);
     setBoard(createEmptyBoard(nextConfig));
@@ -54,6 +56,7 @@ export default function Minesweeper() {
     setGameSequence((current) => current + 1);
   };
 
+  // 根据揭棋结果判断胜负并更新游戏状态
   const finishReveal = (nextBoard: Cell[], hitMine: boolean) => {
     if (hitMine) {
       setBoard(revealAllMines(nextBoard));
@@ -71,6 +74,7 @@ export default function Minesweeper() {
     setStatus('playing');
   };
 
+  // 揭开指定位置的单元格，首次点击时触发布雷
   const revealAt = (index: number) => {
     if (status === 'won' || status === 'lost') return;
 
@@ -79,11 +83,13 @@ export default function Minesweeper() {
     finishReveal(result.board, result.hitMine);
   };
 
+  // 对指定单元格执行插旗或取消插旗
   const flagAt = (index: number) => {
     if (status === 'won' || status === 'lost') return;
     setBoard(toggleFlag(board, index));
   };
 
+  // 根据选中模式对单元格执行揭开或插旗
   const activateCell = (index: number, selectedMode: InteractionMode) => {
     if (selectedMode === 'flag') {
       flagAt(index);
@@ -92,6 +98,7 @@ export default function Minesweeper() {
     }
   };
 
+  // 应用自定义棋盘参数并开始新游戏
   const applyCustomConfig = () => {
     const error = validateCustomConfig(customConfig);
     setCustomError(error);
@@ -99,6 +106,7 @@ export default function Minesweeper() {
     startBoard(customConfig, 'custom');
   };
 
+  // 选择预设难度并开始新游戏
   const selectPreset = (presetConfig: BoardConfig, presetDifficulty: Exclude<DifficultyId, 'custom'>) => {
     setCustomError(null);
     startBoard(presetConfig, presetDifficulty);

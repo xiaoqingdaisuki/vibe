@@ -5,10 +5,12 @@ interface ImageProxyResult {
 
 const DEFAULT_AGENT_API_BASE_URL = '';
 
+// 构造错误响应结果
 function errorResult(message: string, status: number): ImageProxyResult {
   return { status, body: { error: { message } } };
 }
 
+// 根据环境变量构造图像生成API URL
 function getImageApiUrl(): string | null {
   const baseUrl = process.env.AGENT_API_BASE_URL ?? DEFAULT_AGENT_API_BASE_URL;
 
@@ -21,6 +23,7 @@ function getImageApiUrl(): string | null {
   }
 }
 
+// 代理图像生成请求到上游StepFun API
 export async function proxyAgentImage(payload: unknown): Promise<ImageProxyResult> {
   const prompt =
     typeof payload === 'object' && payload !== null && !Array.isArray(payload)

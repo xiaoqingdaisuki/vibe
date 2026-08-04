@@ -1,3 +1,4 @@
+// 从 localStorage 读取并解析 JSON 值
 export function getStorageItem<T>(key: string, defaultValue: T): T {
   if (typeof window === 'undefined') return defaultValue;
 
@@ -9,6 +10,7 @@ export function getStorageItem<T>(key: string, defaultValue: T): T {
   }
 }
 
+// 将值序列化后写入 localStorage
 export function setStorageItem<T>(key: string, value: T): void {
   if (typeof window === 'undefined') return;
 

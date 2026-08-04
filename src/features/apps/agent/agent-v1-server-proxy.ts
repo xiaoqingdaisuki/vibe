@@ -18,16 +18,19 @@ const MAX_TIMEOUT_MS = 120_000;
 const MAX_TITLE_CHARS = 100;
 const MAX_MESSAGE_CHARS = 8_000;
 
+// 类型守卫：判断值是否为普通对象
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+// 从环境变量读取请求超时时间，带范围限制
 function getRequestTimeoutMs(): number {
   const configured = Number(process.env.AGENT_REQUEST_TIMEOUT_MS);
   if (!Number.isFinite(configured)) return DEFAULT_TIMEOUT_MS;
   return Math.min(MAX_TIMEOUT_MS, Math.max(MIN_TIMEOUT_MS, Math.trunc(configured)));
 }
 
+// 构造上游API完整URL
 function getAgentApiUrl(pathname: string): URL | null {
   const baseUrl = process.env.AGENT_API_BASE_URL?.trim();
   if (!baseUrl) return null;
@@ -44,10 +47,12 @@ function getAgentApiUrl(pathname: string): URL | null {
   }
 }
 
+// 构造标准错误响应结果
 function errorResult(message: string, status: number, code = 'UPSTREAM_ERROR'): JsonProxyResult {
   return { status, body: { error: { code, message } } };
 }
 
+// 安全提取字符串值，限制长度并过滤HTML
 function getSafeText(value: unknown): string | undefined {
   if (typeof value !== 'string') return undefined;
   const text = value.trim();
@@ -55,12 +60,14 @@ function getSafeText(value: unknown): string | undefined {
   return text;
 }
 
+// 从请求体中提取并校验字符串字段
 function getInputText(value: unknown, maxLength: number): string | undefined {
   if (typeof value !== 'string') return undefined;
   const text = value.trim();
   return text && text.length <= maxLength ? text : undefined;
 }
 
+// 递归提取上游错误消息，最多3层深度
 function getUpstreamErrorMessage(payload: unknown, depth = 0): string | undefined {
   if (!isRecord(payload) || depth > 3) return undefined;
   const direct = getSafeText(payload.message) ?? getSafeText(payload.error) ?? getSafeText(payload.detail);
@@ -68,6 +75,7 @@ function getUpstreamErrorMessage(payload: unknown, depth = 0): string | undefine
   return getUpstreamErrorMessage(payload.error, depth + 1) ?? getUpstreamErrorMessage(payload.detail, depth + 1);
 }
 
+// 判断错误是否为超时类错误
 function isTimeoutError(error: unknown): boolean {
   if (!isRecord(error)) return false;
   const cause = isRecord(error.cause) ? error.cause : undefined;
@@ -79,6 +87,7 @@ function isTimeoutError(error: unknown): boolean {
   );
 }
 
+// 向上游API发起请求，带超时和错误处理
 async function fetchUpstream(pathname: string, init: Omit<RequestInit, 'signal'>): Promise<Response | JsonProxyResult> {
   const url = getAgentApiUrl(pathname);
   if (!url) return errorResult('AI助手服务配置异常，请联系管理员。', 500, 'CONFIG_ERROR');
@@ -109,12 +118,14 @@ async function fetchUpstream(pathname: string, init: Omit<RequestInit, 'signal'>
   }
 }
 
+// 将上游HTTP错误响应适配为统一格式
 async function adaptUpstreamError(upstream: Response): Promise<JsonProxyResult> {
   const payload: unknown = await upstream.json().catch(() => null);
   const message = getUpstreamErrorMessage(payload) ?? `AI助手服务请求失败（HTTP ${upstream.status}）。`;
   return errorResult(message, upstream.status);
 }
 
+// 代理创建新会话请求到上游API
 export async function proxyCreateAgentConversation(payload: unknown): Promise<JsonProxyResult> {
   if (!isRecord(payload)) return errorResult('请求体格式不正确。', 400, 'INVALID_REQUEST');
   const title = getInputText(payload.title, MAX_TITLE_CHARS);
@@ -137,6 +148,7 @@ export async function proxyCreateAgentConversation(payload: unknown): Promise<Js
   return { status: 201, body: { id } };
 }
 
+// 代理流式消息发送请求到上游API
 export async function proxyStreamAgentMessage(conversationId: string, payload: unknown): Promise<AgentV1ProxyResult> {
   if (!CONVERSATION_ID_PATTERN.test(conversationId)) {
     return errorResult('会话 ID 格式不正确。', 400, 'INVALID_REQUEST');
@@ -162,6 +174,7 @@ export async function proxyStreamAgentMessage(conversationId: string, payload: u
   return { status: 200, stream: upstream.body, contentType };
 }
 
+// 代理删除会话请求到上游API
 export async function proxyDeleteAgentConversation(conversationId: string): Promise<JsonProxyResult> {
   if (!CONVERSATION_ID_PATTERN.test(conversationId)) {
     return errorResult('会话 ID 格式不正确。', 400, 'INVALID_REQUEST');
@@ -174,6 +187,7 @@ export async function proxyDeleteAgentConversation(conversationId: string): Prom
   return { status: 200, body: { success: true } };
 }
 
+// 代理获取会话历史消息请求到上游API
 export async function proxyGetAgentConversationMessages(conversationId: string): Promise<JsonProxyResult> {
   if (!CONVERSATION_ID_PATTERN.test(conversationId)) {
     return errorResult('会话 ID 格式不正确。', 400, 'INVALID_REQUEST');

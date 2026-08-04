@@ -5,6 +5,7 @@ export const metadata = {
   title: '404 - Page Not Found',
 };
 
+// 404错误页面，展示错误信息和返回首页链接
 export default function NotFoundPage() {
   return (
     <div className="page-enter">

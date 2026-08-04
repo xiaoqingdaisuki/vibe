@@ -11,6 +11,7 @@ import type { RssFeed, RssFeedItem } from './types';
 import { STORAGE_KEY, DEFAULT_FEEDS } from './types';
 import styles from './styles/RSSReader.module.css';
 
+// 将相对链接解析为绝对 URL
 function resolveLink(baseUrl: string, linkText: string): string {
   const trimmed = linkText.trim();
   if (!trimmed || trimmed === '#') return '#';
@@ -22,6 +23,7 @@ function resolveLink(baseUrl: string, linkText: string): string {
   }
 }
 
+// 将 HTML 内容简化为纯文本摘要
 function stripHtml(html: string): string {
   return html
     .replace(/<!\[CDATA\[/g, '')
@@ -40,6 +42,7 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+// 从原始 author 字段提取作者名称
 function extractAuthor(raw: string | undefined): string | undefined {
   if (!raw) return undefined;
   const trimmed = raw.trim();
@@ -49,6 +52,7 @@ function extractAuthor(raw: string | undefined): string | undefined {
   return trimmed || undefined;
 }
 
+// 解析 RSS 2.0 XML 内容为结构化 feed 数据
 function parseRSSXml(xmlText: string, feedUrl: string): RssFeed {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlText, 'text/xml');
@@ -138,6 +142,7 @@ function parseRSSXml(xmlText: string, feedUrl: string): RssFeed {
   };
 }
 
+// 解析 Atom feed XML 内容为结构化 feed 数据
 function parseAtomFeed(feedEl: Element, feedUrl: string): RssFeed {
   const feedTitle = feedEl.querySelector('title')?.textContent?.trim() || new URL(feedUrl).hostname;
 
@@ -181,6 +186,7 @@ function parseAtomFeed(feedEl: Element, feedUrl: string): RssFeed {
   };
 }
 
+// 通过服务端代理获取 RSS feed
 async function fetchRSS(url: string): Promise<RssFeed> {
   const targetUrl = url.trim();
   if (!targetUrl) throw new Error('请输入有效的RSS地址');
@@ -212,6 +218,7 @@ async function fetchRSS(url: string): Promise<RssFeed> {
   }
 }
 
+// 将日期字符串格式化为简短本地时间
 function formatDate(dateStr?: string): string {
   if (!dateStr) return '';
   try {
@@ -228,6 +235,7 @@ function formatDate(dateStr?: string): string {
   }
 }
 
+// 单条 RSS 文章卡片组件
 function FeedItemCard({ item }: { item: RssFeedItem }) {
   return (
     <a href={item.link} target="_blank" rel="noopener noreferrer" className={styles.itemCard}>
@@ -264,6 +272,7 @@ function FeedItemCard({ item }: { item: RssFeedItem }) {
   );
 }
 
+// 单个订阅源区块，支持展开/收起和移除
 function FeedSection({
   feed,
   onRemove,
@@ -339,6 +348,7 @@ function FeedSection({
   );
 }
 
+// 添加订阅表单，验证 URL 后添加到订阅列表
 function AddFeedForm({ onAdd }: { onAdd: (url: string, feed: RssFeed) => void }) {
   const [url, setUrl] = useState('');
   const [error, setError] = useState('');
@@ -392,6 +402,7 @@ function AddFeedForm({ onAdd }: { onAdd: (url: string, feed: RssFeed) => void })
   );
 }
 
+// RSS 阅读器主组件，管理订阅、加载和展示
 export default function RSSReader() {
   const [subscriptions, setSubscriptions] = useState<string[]>([]);
   const [feeds, setFeeds] = useState<Map<string, RssFeed>>(new Map());

@@ -18,6 +18,7 @@ interface GameLayoutProps {
   onAction: (action: GameInteraction | { type: 'clearLogs' }) => void;
 }
 
+// 游戏主布局，左中右三栏+右侧标签切换
 export function GameLayout({
   character,
   logs,

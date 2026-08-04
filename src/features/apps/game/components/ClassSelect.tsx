@@ -9,6 +9,7 @@ interface ClassSelectProps {
   onSelect: (classType: ClassType) => void;
 }
 
+// 职业选择卡片组，点击切换选中职业
 export function ClassSelect({ selected, onSelect }: ClassSelectProps) {
   return (
     <div className={styles.grid}>

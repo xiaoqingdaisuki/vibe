@@ -1,5 +1,6 @@
 import type { Skill } from './types';
 
+// 技能参考数据列表
 export const skills: Skill[] = [
   {
     id: 'openai-skills-catalog',

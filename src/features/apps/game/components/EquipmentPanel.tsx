@@ -24,6 +24,7 @@ const STAT_LABELS: Record<keyof Stats, string> = {
   luk: 'LUK',
 };
 
+// 装备面板，显示各部位装备及卸下操作
 export function EquipmentPanel({ character, onAction }: EquipmentPanelProps) {
   return (
     <div className={styles.container}>

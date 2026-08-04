@@ -9,6 +9,7 @@ interface FeedErrorStateProps {
   onRemove: () => void;
 }
 
+// 订阅源加载失败的错误提示组件，支持重试和移除
 export function FeedErrorState({ hostname, message, onRetry, onRemove }: FeedErrorStateProps) {
   return createElement(
     'div',

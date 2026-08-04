@@ -6,10 +6,12 @@ import { skills } from './data';
 import { renderSkillNotes } from './render-skill-notes';
 import styles from './styles/Skills.module.css';
 
+// 将 markdown 内容渲染为 React 节点
 function MarkdownRenderer({ content }: { content: string }) {
   return <div className={styles.markdown}>{renderSkillNotes(content)}</div>;
 }
 
+// 技能卡片，点击进入详情页
 function SkillCard({ skill, onClick }: { skill: Skill; onClick: () => void }) {
   return (
     <button onClick={onClick} className={styles.card} type="button">
@@ -29,6 +31,7 @@ function SkillCard({ skill, onClick }: { skill: Skill; onClick: () => void }) {
   );
 }
 
+// 技能详情页，展示 notes markdown 内容
 function SkillDetail({ skill, onBack }: { skill: Skill; onBack: () => void }) {
   return (
     <div className={styles.detail}>
@@ -93,6 +96,7 @@ function SkillDetail({ skill, onBack }: { skill: Skill; onBack: () => void }) {
   );
 }
 
+// 技能列表主组件，支持选中查看详情
 export function Skills() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selectedSkill = selectedId ? skills.find((s) => s.id === selectedId) : null;

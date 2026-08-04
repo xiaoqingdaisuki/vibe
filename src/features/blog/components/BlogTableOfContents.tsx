@@ -8,6 +8,7 @@ interface BlogTableOfContentsProps {
   headings: BlogHeading[];
 }
 
+// 展示文章目录，跟踪当前滚动位置高亮对应标题
 export function BlogTableOfContents({ headings }: BlogTableOfContentsProps) {
   const navigableHeadings = headings.filter((heading) => heading.level === 2 || heading.level === 3);
   const [activeId, setActiveId] = useState(navigableHeadings[0]?.id ?? '');

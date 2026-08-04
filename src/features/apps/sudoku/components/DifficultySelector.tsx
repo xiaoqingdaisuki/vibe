@@ -8,6 +8,7 @@ interface DifficultySelectorProps {
   onSelect: (difficultyId: SudokuDifficultyId) => void;
 }
 
+// 数独难度选择器，提供预设和自定义难度
 export function DifficultySelector({ difficultyId, onSelect }: DifficultySelectorProps) {
   return (
     <section className={styles.difficultySection} aria-labelledby="sudoku-difficulty-title">

@@ -34,10 +34,17 @@ const AGENT_CONVERSATIONS_URL = '/api/agent/v1/conversations';
 const CONNECTION_ERROR_MESSAGE = '无法连接 AI助手服务，请检查接口地址或网络后重试';
 const EMPTY_RESPONSE_MESSAGE = 'AI助手接口未返回有效内容，请稍后重试';
 
+// 判断是否为请求中止错误
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError';
+}
+
+// 类型守卫：判断值是否为普通对象
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+// 从对象中查找第一个字符串类型的字段值
 function getTextField(record: Record<string, unknown>, fields: string[]): string | undefined {
   for (const field of fields) {
     const value = record[field];
@@ -47,6 +54,7 @@ function getTextField(record: Record<string, unknown>, fields: string[]): string
   return undefined;
 }
 
+// 解析AI返回的建议卡片数据
 function parseSuggestionCards(value: unknown): AgentSuggestionCard[] | undefined {
   if (!Array.isArray(value)) return undefined;
 
@@ -68,11 +76,13 @@ function parseSuggestionCards(value: unknown): AgentSuggestionCard[] | undefined
   return cards.length > 0 ? cards : undefined;
 }
 
+// 确保API响应包含有效内容
 function requireContent(response: AgentApiResponse): AgentApiResponse {
   if (!response.content.trim()) throw new Error(EMPTY_RESPONSE_MESSAGE);
   return response;
 }
 
+// 解析JSON格式的API响应
 function parseJsonResponse(payload: unknown): AgentApiResponse {
   if (!isRecord(payload)) throw new Error(EMPTY_RESPONSE_MESSAGE);
 
@@ -85,6 +95,7 @@ function parseJsonResponse(payload: unknown): AgentApiResponse {
   });
 }
 
+// 从JSON错误响应中提取错误信息
 function getJsonErrorMessage(payload: unknown): string | undefined {
   if (!isRecord(payload)) return undefined;
 
@@ -94,6 +105,7 @@ function getJsonErrorMessage(payload: unknown): string | undefined {
   return isRecord(payload.error) ? getTextField(payload.error, ['message']) : undefined;
 }
 
+// 将工具调用状态转换为中文用户提示
 function getToolProgressMessage(toolName: string, status: AgentToolProgress['status']): string {
   const labels: Record<string, string> = {
     web_search: '网络搜索',
@@ -111,6 +123,7 @@ function getToolProgressMessage(toolName: string, status: AgentToolProgress['sta
   return `${label}未完成，正在继续处理…`;
 }
 
+// 解析流式事件中的工具进度信息
 function parseToolProgress(payload: Record<string, unknown>): AgentToolProgress | undefined {
   if (payload.event !== 'tool') return undefined;
   const toolName = getTextField(payload, ['tool_name']);
@@ -119,6 +132,7 @@ function parseToolProgress(payload: Record<string, unknown>): AgentToolProgress 
   return { toolName, status, message: getToolProgressMessage(toolName, status) };
 }
 
+// 读取HTTP错误响应的可读错误信息
 async function readHttpError(response: Response): Promise<string> {
   const fallback = `AI助手请求失败（HTTP ${response.status}）`;
   const contentType = response.headers.get('content-type') ?? '';
@@ -133,10 +147,7 @@ async function readHttpError(response: Response): Promise<string> {
   return fallback;
 }
 
-function isAbortError(error: unknown): boolean {
-  return error instanceof DOMException && error.name === 'AbortError';
-}
-
+// 创建新的AI对话会话
 export async function createAgentConversation(title: string, signal?: AbortSignal): Promise<string> {
   const response = await fetch(AGENT_CONVERSATIONS_URL, {
     method: 'POST',
@@ -155,12 +166,14 @@ export async function createAgentConversation(title: string, signal?: AbortSigna
   return conversationId;
 }
 
+// 删除指定对话会话
 export async function deleteAgentConversation(conversationId: string): Promise<void> {
   await fetch(`${AGENT_CONVERSATIONS_URL}/${encodeURIComponent(conversationId)}`, {
     method: 'DELETE',
   }).catch(() => undefined);
 }
 
+// 获取指定会话的历史消息列表
 export async function getAgentConversationMessages(
   conversationId: string,
   signal?: AbortSignal,
@@ -192,6 +205,7 @@ export async function getAgentConversationMessages(
   });
 }
 
+// 发起AI流式消息请求
 async function fetchAgent(request: AgentApiRequest, signal?: AbortSignal): Promise<Response> {
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
@@ -208,6 +222,7 @@ async function fetchAgent(request: AgentApiRequest, signal?: AbortSignal): Promi
   }
 }
 
+// 读取SSE流式响应，实时处理内容块和工具进度事件
 async function readEventStream(
   response: Response,
   onChunk: (chunk: string) => void,
@@ -293,6 +308,7 @@ async function readEventStream(
   }
 }
 
+// 对外统一的AI API调用入口，自动处理JSON和SSE响应
 export async function callAgentApi(
   request: AgentApiRequest,
   onChunk: (chunk: string) => void,

@@ -2,6 +2,7 @@ interface IconProps {
   className?: string;
 }
 
+// 地雷图标 SVG
 export function MineIcon({ className }: IconProps) {
   return (
     <svg className={className} width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -17,6 +18,7 @@ export function MineIcon({ className }: IconProps) {
   );
 }
 
+// 旗帜图标 SVG
 export function FlagIcon({ className }: IconProps) {
   return (
     <svg className={className} width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -32,6 +34,7 @@ export function FlagIcon({ className }: IconProps) {
   );
 }
 
+// 时钟图标 SVG
 export function ClockIcon({ className }: IconProps) {
   return (
     <svg className={className} width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -41,6 +44,7 @@ export function ClockIcon({ className }: IconProps) {
   );
 }
 
+// 重新开始图标 SVG
 export function RestartIcon({ className }: IconProps) {
   return (
     <svg className={className} width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -55,6 +59,7 @@ export function RestartIcon({ className }: IconProps) {
   );
 }
 
+// 挖掘图标 SVG
 export function RevealIcon({ className }: IconProps) {
   return (
     <svg className={className} width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -70,6 +75,7 @@ export function RevealIcon({ className }: IconProps) {
   );
 }
 
+// 滑块设置图标 SVG
 export function SlidersIcon({ className }: IconProps) {
   return (
     <svg className={className} width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -80,6 +86,7 @@ export function SlidersIcon({ className }: IconProps) {
   );
 }
 
+// 奖杯图标 SVG
 export function TrophyIcon({ className }: IconProps) {
   return (
     <svg className={className} width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">

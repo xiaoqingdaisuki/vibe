@@ -12,6 +12,7 @@ import type { SudokuDifficultyId, SudokuDigit } from './types';
 
 const DIGITS: SudokuDigit[] = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
+// 创建初始数独会话，使用固定种子生成可复现的棋盘
 function createInitialSession(): SudokuSessionState {
   let seed = 20260716;
   const random = () => {
@@ -36,6 +37,7 @@ interface UseSudokuGameResult {
   eraseSelected: () => void;
 }
 
+// 数独游戏逻辑 Hook，管理棋盘状态、计时和交互
 export function useSudokuGame(): UseSudokuGameResult {
   const [session, setSession] = useState(createInitialSession);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);

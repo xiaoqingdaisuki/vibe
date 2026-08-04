@@ -8,6 +8,7 @@ import { SudokuCanvas } from './components/SudokuCanvas';
 import { useSudokuGame } from './use-sudoku-game';
 import styles from './styles/Sudoku.module.css';
 
+// 数独图标 SVG 组件
 function SudokuIcon() {
   return (
     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -18,6 +19,7 @@ function SudokuIcon() {
   );
 }
 
+// 数独主页面，组合画布、数字面板和状态仪表盘
 export default function Sudoku() {
   const {
     session,

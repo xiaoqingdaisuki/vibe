@@ -8,6 +8,7 @@ interface RouteContext {
   params: Promise<{ id: string }>;
 }
 
+// 删除指定对话会话
 export async function DELETE(_request: Request, context: RouteContext): Promise<NextResponse> {
   const { id } = await context.params;
   const result = await proxyDeleteAgentConversation(id);

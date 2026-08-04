@@ -26,6 +26,7 @@ interface MinesweeperCanvasProps {
   statusText: string;
 }
 
+// 从 CSS 变量读取画布当前主题颜色
 function readCanvasColors(): CanvasColors {
   const computed = getComputedStyle(document.documentElement);
   const read = (name: string) => computed.getPropertyValue(name).trim();
@@ -40,6 +41,7 @@ function readCanvasColors(): CanvasColors {
   };
 }
 
+// 在画布上绘制整个棋盘，包括隐藏格、旗帜、数字和聚焦高亮
 function drawBoard(
   canvas: HTMLCanvasElement,
   board: Cell[],
@@ -89,6 +91,7 @@ function drawBoard(
   });
 }
 
+// 根据指针在画布上的坐标计算对应单元格索引
 function getCellIndexFromPointer(canvas: HTMLCanvasElement, config: BoardConfig, clientX: number, clientY: number) {
   const bounds = canvas.getBoundingClientRect();
   if (bounds.width === 0 || bounds.height === 0) return null;
@@ -99,6 +102,7 @@ function getCellIndexFromPointer(canvas: HTMLCanvasElement, config: BoardConfig,
   return row * config.columns + column;
 }
 
+// 生成当前聚焦单元格的无障碍描述文本
 function describeFocusedCell(board: Cell[], config: BoardConfig, focusedIndex: number): string {
   const cell = board[focusedIndex];
   const row = Math.floor(focusedIndex / config.columns) + 1;
@@ -112,6 +116,7 @@ function describeFocusedCell(board: Cell[], config: BoardConfig, focusedIndex: n
   return `${position}，已揭开，周围有 ${cell.adjacentMines} 颗地雷。`;
 }
 
+// 扫雷画布组件，渲染棋盘并处理键盘/鼠标交互
 export function MinesweeperCanvas({
   board,
   config,
@@ -125,6 +130,7 @@ export function MinesweeperCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawRequestRef = useRef(0);
 
+  // 重新绘制棋盘，忽略过期的绘制请求
   const renderLatestBoard = useEffectEvent(async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -149,22 +155,26 @@ export function MinesweeperCanvas({
     return () => observer.disconnect();
   }, []);
 
+  // 激活指定单元格，根据模式执行揭开或插旗
   const activateCell = (index: number, selectedMode: InteractionMode = mode) => {
     setFocusedIndex(index);
     onActivate(index, selectedMode);
   };
 
+  // 处理画布鼠标点击事件
   const handleCanvasClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const index = getCellIndexFromPointer(event.currentTarget, config, event.clientX, event.clientY);
     if (index !== null) activateCell(index);
   };
 
+  // 阻止右键菜单并切换到插旗模式
   const handleContextMenu = (event: React.MouseEvent<HTMLCanvasElement>) => {
     event.preventDefault();
     const index = getCellIndexFromPointer(event.currentTarget, config, event.clientX, event.clientY);
     if (index !== null) activateCell(index, 'flag');
   };
 
+  // 处理键盘事件，实现方向键移动和快捷操作
   const handleKeyDown = (event: React.KeyboardEvent<HTMLCanvasElement>) => {
     const row = Math.floor(focusedIndex / config.columns);
     const column = focusedIndex % config.columns;

@@ -10,6 +10,7 @@ interface BreadcrumbProps {
   items: BreadcrumbItem[];
 }
 
+// 面包屑导航组件
 export function Breadcrumb({ items }: BreadcrumbProps) {
   if (items.length <= 1) return null;
 

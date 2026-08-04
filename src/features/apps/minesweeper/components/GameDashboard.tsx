@@ -11,12 +11,14 @@ interface GameDashboardProps {
   statusText: string;
 }
 
+// 将已逝秒数格式化为 MM:SS 字符串
 function formatTime(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   const remainder = seconds % 60;
   return `${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`;
 }
 
+// 游戏状态仪表盘，显示计时器、旗帜数和游戏结果
 export function GameDashboard({ elapsedSeconds, flagsRemaining, onRestart, status, statusText }: GameDashboardProps) {
   const statusClassName = `gameState${status[0].toUpperCase()}${status.slice(1)}`;
 

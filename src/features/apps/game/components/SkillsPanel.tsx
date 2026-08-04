@@ -10,6 +10,8 @@ interface SkillsPanelProps {
 
 const SKILL_MAP = new Map(SKILLS.map((skill) => [skill.id, skill]));
 
+// 技能进度条，显示技能升级使用次数进度
+// 技能升级进度条，显示使用次数百分比
 function SkillProgressBar({
   skillId,
   level,
@@ -34,6 +36,7 @@ function SkillProgressBar({
   );
 }
 
+// 技能面板，列出已学技能及升级进度
 export function SkillsPanel({ character }: SkillsPanelProps) {
   const availableSkills = SKILLS.filter((skill) => !skill.classRequired || skill.classRequired === character.class);
   const learnedIds = new Set(character.skills.map((skill) => skill.skillId));

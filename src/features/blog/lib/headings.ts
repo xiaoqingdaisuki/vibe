@@ -9,6 +9,7 @@ export interface BlogHeading {
 const MARKDOWN_HEADING = /^(#{1,6})\s+(.+?)\s*#*\s*$/;
 const FENCED_CODE_BLOCK = /^\s*(```|~~~)/;
 
+// 从标题文本中移除 markdown 链接和行内格式
 function getHeadingText(value: string): string {
   return value
     .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
@@ -17,6 +18,7 @@ function getHeadingText(value: string): string {
     .trim();
 }
 
+// 从 markdown 源码中提取所有标题及其层级
 export function getBlogHeadings(source: string): BlogHeading[] {
   const headings: BlogHeading[] = [];
   let inCodeBlock = false;
