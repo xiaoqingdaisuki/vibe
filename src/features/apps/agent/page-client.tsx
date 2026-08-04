@@ -15,6 +15,84 @@ function MarkdownContent({ content }: { content: string }) {
   return <div className={styles.md} dangerouslySetInnerHTML={{ __html: renderBlockMarkdown(content) }} />;
 }
 
+/* ---- Typewriter effect for streaming responses ---- */
+
+function TypewriterContent({ content, isStreaming }: { content: string; isStreaming: boolean }) {
+  const [visibleCount, setVisibleCount] = useState(() => content.length);
+  const rafRef = useRef<number | undefined>(undefined);
+  const targetRef = useRef(content.length);
+  const visibleRef = useRef(content.length);
+
+  useEffect(() => {
+    targetRef.current = content.length;
+
+    if (!isStreaming) {
+      visibleRef.current = content.length;
+      setVisibleCount(content.length);
+      return;
+    }
+
+    // Already fully visible — no animation needed
+    if (visibleRef.current >= content.length) return;
+
+    const tick = () => {
+      const target = targetRef.current;
+      const current = visibleRef.current;
+      if (current >= target) return;
+
+      const diff = target - current;
+      // Ease-out: reveal faster at the start, slow down as we catch up
+      const speed = Math.max(1, Math.ceil(diff * 0.15));
+      visibleRef.current = Math.min(current + speed, target);
+      setVisibleCount(visibleRef.current);
+
+      if (visibleRef.current < target) {
+        rafRef.current = requestAnimationFrame(tick);
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      if (rafRef.current) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
+  }, [content, isStreaming]);
+
+  // When streaming stops, render full markdown HTML immediately
+  if (!isStreaming) {
+    return <MarkdownContent content={content} />;
+  }
+
+  // During streaming, reveal characters one-by-one with per-char CSS animation
+  const visibleContent = content.slice(0, visibleCount);
+  const chars = visibleContent.split('');
+
+  return (
+    <div className={styles.md}>
+      {chars.map((char, i) => {
+        if (char === '\n') {
+          return <br key={i} />;
+        }
+        if (char === ' ') {
+          // Use non-breaking space to preserve spacing in inline spans
+          return (
+            <span key={i} className={styles.char}>
+              &nbsp;
+            </span>
+          );
+        }
+        return (
+          <span key={i} className={styles.char}>
+            {char}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ============================================
    Icon components (inline SVG, no dep)
    ============================================ */
@@ -309,6 +387,8 @@ function AssistantMessageBubble({
   suggestionCards?: SuggestionCard[];
   onSuggestionSelect: (payload: string) => void;
 }) {
+  const hasContent = content && content.length > 0;
+
   return (
     <div className={`${styles.row} ${styles.rowAssistant}`}>
       <div className={`${styles.msgAvatar}`} aria-hidden="true">
@@ -316,9 +396,9 @@ function AssistantMessageBubble({
       </div>
       <div className={styles.bubbleWrap}>
         <div className={`${styles.bubble} ${styles.bubbleAssistant}`}>
-          {content ? (
+          {hasContent ? (
             <>
-              <MarkdownContent content={content} />
+              <TypewriterContent content={content} isStreaming={isStreaming} />
               {isStreaming && <span className={styles.cursor} aria-hidden="true" />}
             </>
           ) : isStreaming ? (

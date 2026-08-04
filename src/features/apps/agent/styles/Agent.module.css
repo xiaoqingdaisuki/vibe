@@ -624,6 +624,25 @@
   }
 }
 
+/* ---- Typewriter character animation ---- */
+
+.char {
+  display: inline;
+  opacity: 0;
+  animation: charIn 0.06s ease forwards;
+}
+
+@keyframes charIn {
+  from {
+    opacity: 0;
+    filter: blur(1px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
 /* ---- Typing indicator ---- */
 
 .typingIndicator {
