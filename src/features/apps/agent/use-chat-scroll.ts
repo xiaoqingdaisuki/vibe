@@ -13,6 +13,7 @@ export function useChatScroll(messages: ChatMessage[], isStreaming: boolean): Ch
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
+  const hasLoadedMessagesRef = useRef(false);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
@@ -37,8 +38,12 @@ export function useChatScroll(messages: ChatMessage[], isStreaming: boolean): Ch
 
   useEffect(() => {
     if (messages.length === 0) return;
-    if (isStreaming || isNearBottom()) {
-      scrollToBottom(isStreaming ? 'auto' : 'smooth');
+
+    const isInitialLoad = !hasLoadedMessagesRef.current;
+    hasLoadedMessagesRef.current = true;
+
+    if (isStreaming || isNearBottom() || isInitialLoad) {
+      scrollToBottom(isStreaming || isInitialLoad ? 'auto' : 'smooth');
     }
   }, [messages, isStreaming, isNearBottom, scrollToBottom]);
 
