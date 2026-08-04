@@ -18,16 +18,17 @@ function MarkdownContent({ content }: { content: string }) {
 
 /* ---- Typewriter effect for streaming responses ---- */
 
-function TypewriterContent({ content, isStreaming, ready }: { content: string; isStreaming: boolean; ready: boolean }) {
+function TypewriterContent({ content, isStreaming, isStreamingComplete }: { content: string; isStreaming: boolean; isStreamingComplete: boolean }) {
   const [visibleCount, setVisibleCount] = useState(0);
   const rafRef = useRef<number | undefined>(undefined);
   const animatedRef = useRef(false);
 
   useEffect(() => {
-    if (!ready || isStreaming || animatedRef.current) return;
+    // 仅对"刚结束 streaming"的消息触发打字机动画
+    // 刷新加载的历史消息 isStreamingComplete=false，直接显示
+    if (!isStreamingComplete || animatedRef.current) return;
     animatedRef.current = true;
 
-    // 双重 rAF：等待 React 完成 DOM 提交 + 浏览器完成 layout
     const raf = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         let current = 0;
@@ -36,8 +37,6 @@ function TypewriterContent({ content, isStreaming, ready }: { content: string; i
         const tick = () => {
           if (current >= target) return;
           current += 1;
-          // flushSync 是关键：React 18 会批量 RAF 内的所有 setState，
-          // 导致只渲染最终状态。flushSync 强制每次更新立即提交到 DOM。
           flushSync(() => setVisibleCount(current));
           rafRef.current = requestAnimationFrame(tick);
         };
@@ -51,7 +50,7 @@ function TypewriterContent({ content, isStreaming, ready }: { content: string; i
       cancelAnimationFrame(raf);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [ready, isStreaming, content]);
+  }, [isStreamingComplete, content]);
 
   // Streaming 中：正常渲染 markdown，光标由父组件控制
   if (isStreaming) {
@@ -60,7 +59,6 @@ function TypewriterContent({ content, isStreaming, ready }: { content: string; i
 
   if (content.length === 0) return null;
 
-  // 动画尚未开始：只显示光标
   if (visibleCount === 0) {
     return <span className={styles.cursor} aria-hidden="true" />;
   }
@@ -366,14 +364,14 @@ function AssistantMessageBubble({
   isStreaming,
   suggestionCards,
   onSuggestionSelect,
-  ready,
+  isStreamingComplete,
 }: {
   content: string;
   timestamp: number;
   isStreaming: boolean;
   suggestionCards?: SuggestionCard[];
   onSuggestionSelect: (payload: string) => void;
-  ready: boolean;
+  isStreamingComplete: boolean;
 }) {
   const hasContent = content && content.length > 0;
 
@@ -386,7 +384,7 @@ function AssistantMessageBubble({
         <div className={`${styles.bubble} ${styles.bubbleAssistant}`}>
           {hasContent ? (
             <>
-              <TypewriterContent content={content} isStreaming={isStreaming} ready={ready} />
+              <TypewriterContent content={content} isStreaming={isStreaming} isStreamingComplete={isStreamingComplete} />
               {isStreaming && <span className={styles.cursor} aria-hidden="true" />}
             </>
           ) : isStreaming ? (
@@ -624,13 +622,15 @@ export default function AgentChat() {
     hasConversation,
     isRestoring,
     toolProgress,
+    streamingCompleteIds,
     setInput,
     sendMessage,
     retryLast,
     stopStreaming,
     startNewConversation,
   } = useAgentChat();
-  const { messagesEndRef, scrollContainerRef, showScrollButton, scrollToBottom } = useChatScroll(messages, isStreaming, !isRestoring);
+  const hasStreamingComplete = streamingCompleteIds.size > 0;
+  const { messagesEndRef, scrollContainerRef, showScrollButton, scrollToBottom } = useChatScroll(messages, isStreaming, hasStreamingComplete);
   const hasMessages = messages.length > 0;
   const confirmNewConversation = () => {
     startNewConversation();
@@ -670,7 +670,7 @@ export default function AgentChat() {
                 isStreaming={message.isStreaming ?? false}
                 suggestionCards={message.suggestionCards}
                 onSuggestionSelect={sendMessage}
-                ready={!isRestoring}
+                isStreamingComplete={streamingCompleteIds.has(message.id)}
               />
             ) : null,
           )}

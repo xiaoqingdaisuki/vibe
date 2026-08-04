@@ -26,6 +26,7 @@ interface AgentChatState {
   hasConversation: boolean;
   isRestoring: boolean;
   toolProgress: AgentToolProgress | null;
+  streamingCompleteIds: Set<string>;
   setInput: (value: string) => void;
   sendMessage: (text: string, options?: SendMessageOptions) => Promise<void>;
   retryLast: () => void;
@@ -73,10 +74,12 @@ export function useAgentChat(): AgentChatState {
   const [hasConversation, setHasConversation] = useState(false);
   const [isRestoring, setIsRestoring] = useState(true);
   const [toolProgress, setToolProgress] = useState<AgentToolProgress | null>(null);
+  const [streamingCompleteIds, setStreamingCompleteIds] = useState<Set<string>>(new Set());
   const abortRef = useRef<AbortController | null>(null);
   const conversationIdRef = useRef<string | null>(null);
   const messagesRef = useRef(messages);
   const isRestoringRef = useRef(true);
+  const streamingCompleteIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     messagesRef.current = messages;
@@ -121,7 +124,9 @@ export function useAgentChat(): AgentChatState {
         const storage = getBrowserStorage();
         if (storage) clearStoredConversationId(storage);
         messagesRef.current = [];
+        streamingCompleteIdsRef.current = new Set();
         setMessages([]);
+        setStreamingCompleteIds(new Set());
         setInput('');
         setError(null);
         setConnectionStatus('idle');
@@ -213,6 +218,8 @@ export function useAgentChat(): AgentChatState {
         ),
       );
       setConnectionStatus('connected');
+      streamingCompleteIdsRef.current.add(assistantId);
+      setStreamingCompleteIds((prev) => new Set([...prev, assistantId]));
     } catch (requestError) {
       if (isAbortError(requestError)) {
         setMessages((current) =>
@@ -256,7 +263,9 @@ export function useAgentChat(): AgentChatState {
     const storage = getBrowserStorage();
     if (storage) clearStoredConversationId(storage);
     messagesRef.current = [];
+    streamingCompleteIdsRef.current = new Set();
     setMessages([]);
+    setStreamingCompleteIds(new Set());
     setInput('');
     setError(null);
     setConnectionStatus('idle');
@@ -273,6 +282,7 @@ export function useAgentChat(): AgentChatState {
     hasConversation,
     isRestoring,
     toolProgress,
+    streamingCompleteIds,
     setInput,
     sendMessage,
     retryLast,

@@ -9,7 +9,7 @@ interface ChatScrollState {
   scrollToBottom: (behavior?: ScrollBehavior) => void;
 }
 
-export function useChatScroll(messages: ChatMessage[], isStreaming: boolean, ready: boolean): ChatScrollState {
+export function useChatScroll(messages: ChatMessage[], isStreaming: boolean, hasStreamingComplete: boolean): ChatScrollState {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -43,17 +43,17 @@ export function useChatScroll(messages: ChatMessage[], isStreaming: boolean, rea
       scrollToBottom('auto');
     } else if (isNearBottom()) {
       scrollToBottom('smooth');
-    } else if (ready && !hasScrolledRef.current) {
+    } else if (hasStreamingComplete && !hasScrolledRef.current) {
+      // 有消息刚结束 streaming — 等打字机动画开始后再滚动
       hasScrolledRef.current = true;
-      // 双重 rAF：确保 React 完成 DOM 提交且浏览器完成 layout 后再滚动
-      // 单层 rAF 不够，因为 React 18 的 commit 可能跨帧，此时 scrollHeight 还不完整
-      requestAnimationFrame(() => {
+      const raf = requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           scrollToBottom('smooth');
         });
       });
+      return () => cancelAnimationFrame(raf);
     }
-  }, [messages, isStreaming, isNearBottom, scrollToBottom, ready]);
+  }, [messages, isStreaming, isNearBottom, scrollToBottom, hasStreamingComplete]);
 
   return {
     messagesEndRef,
