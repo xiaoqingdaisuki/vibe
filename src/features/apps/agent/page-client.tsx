@@ -18,40 +18,37 @@ function MarkdownContent({ content }: { content: string }) {
 /* ---- Typewriter effect for streaming responses ---- */
 
 function TypewriterContent({ content, isStreaming }: { content: string; isStreaming: boolean }) {
-  const [visibleCount, setVisibleCount] = useState(() => content.length);
+  const [visibleCount, setVisibleCount] = useState(() => (isStreaming ? content.length : 0));
   const rafRef = useRef<number | undefined>(undefined);
-  const targetRef = useRef(content.length);
-  const visibleRef = useRef(content.length);
+  const prevStreamingRef = useRef(isStreaming);
 
   useEffect(() => {
-    targetRef.current = content.length;
+    const justFinished = prevStreamingRef.current && !isStreaming;
+    prevStreamingRef.current = isStreaming;
 
-    if (!isStreaming) {
-      visibleRef.current = content.length;
+    if (justFinished && content.length > 0) {
+      // Streaming 刚结束 — 从 0 开始打字机动画
+      let current = 0;
+      const target = content.length;
+
+      const tick = () => {
+        if (current >= target) return;
+        const diff = target - current;
+        const speed = Math.max(1, Math.ceil(diff * 0.15));
+        current = Math.min(current + speed, target);
+        setVisibleCount(current);
+        if (current < target) {
+          rafRef.current = requestAnimationFrame(tick);
+        }
+      };
+
+      setVisibleCount(0);
+      rafRef.current = requestAnimationFrame(tick);
+    } else if (!isStreaming && content.length > 0) {
+      // 静态状态（不在 streaming，也不是刚结束）— 显示全部内容
       setVisibleCount(content.length);
-      return;
     }
-
-    // Already fully visible — no animation needed
-    if (visibleRef.current >= content.length) return;
-
-    const tick = () => {
-      const target = targetRef.current;
-      const current = visibleRef.current;
-      if (current >= target) return;
-
-      const diff = target - current;
-      // Ease-out: reveal faster at the start, slow down as we catch up
-      const speed = Math.max(1, Math.ceil(diff * 0.15));
-      visibleRef.current = Math.min(current + speed, target);
-      setVisibleCount(visibleRef.current);
-
-      if (visibleRef.current < target) {
-        rafRef.current = requestAnimationFrame(tick);
-      }
-    };
-
-    rafRef.current = requestAnimationFrame(tick);
+    // streaming 中：不做任何处理，由 MarkdownContent 正常渲染
 
     return () => {
       if (rafRef.current) {
@@ -60,35 +57,28 @@ function TypewriterContent({ content, isStreaming }: { content: string; isStream
     };
   }, [content, isStreaming]);
 
-  // When streaming stops, render full markdown HTML immediately
-  if (!isStreaming) {
+  // Streaming 中：正常渲染 markdown，光标由父组件控制
+  if (isStreaming) {
     return <MarkdownContent content={content} />;
   }
 
-  // During streaming, reveal characters one-by-one with per-char CSS animation
+  // Streaming 结束后：打字机逐字动画
   const visibleContent = content.slice(0, visibleCount);
-  const chars = visibleContent.split('');
+
+  if (content.length === 0) return null;
+  if (visibleCount === 0) {
+    // 动画尚未开始的瞬间，仅显示光标
+    return <span className={styles.cursor} aria-hidden="true" />;
+  }
 
   return (
     <div className={styles.md}>
-      {chars.map((char, i) => {
-        if (char === '\n') {
-          return <br key={i} />;
-        }
-        if (char === ' ') {
-          // Use non-breaking space to preserve spacing in inline spans
-          return (
-            <span key={i} className={styles.char}>
-              &nbsp;
-            </span>
-          );
-        }
-        return (
-          <span key={i} className={styles.char}>
-            {char}
-          </span>
-        );
+      {visibleContent.split('').map((char, i) => {
+        if (char === '\n') return <br key={i} />;
+        if (char === ' ') return <span key={i} className={styles.char}>&nbsp;</span>;
+        return <span key={i} className={styles.char}>{char}</span>;
       })}
+      {visibleCount < content.length && <span className={styles.cursor} aria-hidden="true" />}
     </div>
   );
 }
