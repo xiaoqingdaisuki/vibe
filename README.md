@@ -8,13 +8,13 @@ Live site: [vibe-xiaoqingdaisuki.vercel.app](https://vibe-xiaoqingdaisuki.vercel
 
 | App        | Route              | Description                                                             |
 | ---------- | ------------------ | ----------------------------------------------------------------------- |
-| AI助手     | `/lab/ai`          | 支持多轮对话、流式文本响应与文本生成图片的 AI 助手。                    |
-| 数独       | `/lab/sudoku`      | 支持五级难度和键盘操作的数独游戏。                                      |
-| RSS Reader | `/lab/rss`         | 聚合并阅读 RSS 订阅源。                                                 |
-| 扫雷       | `/lab/minesweeper` | 支持预设及自定义难度的经典扫雷游戏。                                    |
-| Adventure  | `/game`            | 选择职业、自动战斗并收集装备的文字挂机 RPG。                            |
-| Skills     | `/lab/skills`      | A collection of AI coding agent skills, tools, and knowledge resources. |
-| Blog       | `/blog`            | A local Markdown and MDX-powered space for technical notes.             |
+| AI助手       | `/lab/ai`          | 支持多轮对话、流式文本响应与文本生成图片的 AI 助手。                                            |
+| 数独         | `/lab/sudoku`      | 数独游戏，支持五级难度与键盘操作。                                                       |
+| RSS Reader | `/lab/rss`         | 聚合你的 RSS 订阅。                                                            |
+| 扫雷         | `/lab/minesweeper` | 经典扫雷游戏，支持预设与自定义难度。                                                      |
+| Adventure  | `/game`            | 文字挂机冒险 RPG 游戏，选择职业，自动战斗，收集装备。                                           |
+| Skills     | `/lab/skills`      | AI 编程助手技能、工具与知识资源合集。                                                    |
+| Blog       | `/blog`            | 本地 Markdown 与 MDX 驱动的技术笔记空间。                                            |
 
 The site also includes recent homepage updates, a Lab app index, an About page, and a light/dark theme toggle.
 
