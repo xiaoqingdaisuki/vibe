@@ -483,7 +483,6 @@ export default function RSSReader() {
     });
   }, []);
 
-  // Load saved subscriptions and auto-subscribe defaults
   useEffect(() => {
     const saved = getStorageItem<string[]>(STORAGE_KEY, []);
     const validSaved = saved.filter((url): url is string => {
@@ -498,7 +497,6 @@ export default function RSSReader() {
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  // Fetch feeds whenever subscriptions change
   useEffect(() => {
     if (subscriptions.length === 0) return;
 

@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { callAgentApi, createAgentConversation, getAgentConversationMessages } from './agent-api';
+import {
+  callAgentApi,
+  createAgentConversation,
+  getAgentConversationMessages,
+  shouldDiscardStoredConversation,
+} from './agent-api';
 import type { AgentApiResponse, AgentMessageRole, AgentSuggestionCard, AgentToolProgress } from './agent-api';
 import type { AgentConnectionStatus } from './chat-status';
-import { clearStoredConversationId, readStoredConversationId, writeStoredConversationId } from './conversation-storage';
+import {
+  clearStoredConversationId,
+  getOrCreateStoredAgentUserId,
+  readStoredConversationId,
+  writeStoredConversationId,
+} from './conversation-storage';
 
 export interface ChatMessage {
   id: string;
@@ -82,6 +92,7 @@ export function useAgentChat(): AgentChatState {
   const [streamingCompleteIds, setStreamingCompleteIds] = useState<Set<string>>(new Set());
   const abortRef = useRef<AbortController | null>(null);
   const conversationIdRef = useRef<string | null>(null);
+  const userIdRef = useRef<string | null>(null);
   const messagesRef = useRef(messages);
   const isRestoringRef = useRef(true);
   const streamingCompleteIdsRef = useRef<Set<string>>(new Set());
@@ -99,7 +110,11 @@ export function useAgentChat(): AgentChatState {
   useEffect(() => {
     let cancelled = false;
     const storage = getBrowserStorage();
-    const conversationId = storage ? readStoredConversationId(storage) : null;
+    const userId = storage
+      ? getOrCreateStoredAgentUserId(storage)
+      : `web_${crypto.randomUUID().replaceAll('-', '')}`;
+    userIdRef.current = userId;
+    const conversationId = storage ? readStoredConversationId(storage, userId) : null;
 
     const completeRestore = () => {
       if (cancelled) return;
@@ -126,19 +141,28 @@ export function useAgentChat(): AgentChatState {
       })
       .catch((restoreError: unknown) => {
         if (cancelled || isAbortError(restoreError)) return;
-        // 会话恢复失败：静默开启新会话，不展示错误
-        conversationIdRef.current = null;
-        const storage = getBrowserStorage();
-        if (storage) clearStoredConversationId(storage);
-        messagesRef.current = [];
-        streamingCompleteIdsRef.current = new Set();
-        setMessages([]);
-        setStreamingCompleteIds(new Set());
-        setInput('');
-        setError(null);
-        setConnectionStatus('idle');
-        setHasConversation(false);
-        setToolProgress(null);
+        if (shouldDiscardStoredConversation(restoreError)) {
+          // 仅在服务端确认会话不存在时清理失效的本地引用
+          conversationIdRef.current = null;
+          const storage = getBrowserStorage();
+          if (storage) clearStoredConversationId(storage);
+          messagesRef.current = [];
+          streamingCompleteIdsRef.current = new Set();
+          setMessages([]);
+          setStreamingCompleteIds(new Set());
+          setInput('');
+          setError(null);
+          setConnectionStatus('idle');
+          setHasConversation(false);
+          setToolProgress(null);
+          return;
+        }
+
+        // 临时网络或服务错误保留会话标识，刷新页面后仍可重试恢复
+        const message = restoreError instanceof Error ? restoreError.message : '会话历史恢复失败，请稍后刷新重试';
+        setError(message);
+        setConnectionStatus('error');
+        setHasConversation(true);
       })
       .finally(completeRestore);
 
@@ -196,17 +220,20 @@ export function useAgentChat(): AgentChatState {
 
     try {
       let conversationId = conversationIdRef.current;
+      const userId = userIdRef.current;
+      if (!userId) throw new Error('用户会话初始化失败，请刷新页面后重试');
       if (!conversationId) {
-        conversationId = await createAgentConversation(trimmed, controller.signal);
+        conversationId = await createAgentConversation(trimmed, userId, controller.signal);
         conversationIdRef.current = conversationId;
         const storage = getBrowserStorage();
-        if (storage) writeStoredConversationId(storage, conversationId);
+        if (storage) writeStoredConversationId(storage, userId, conversationId);
         setHasConversation(true);
       }
       const response: AgentApiResponse = await callAgentApi(
         {
           conversationId,
           content: trimmed,
+          userId,
         },
         updateStreamed,
         controller.signal,

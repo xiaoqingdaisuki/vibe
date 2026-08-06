@@ -5,6 +5,23 @@ interface ImageProxyResult {
 
 const DEFAULT_AGENT_API_BASE_URL = '';
 
+// 判断未知值是否为普通对象
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+// 递归提取 TS 与 FastAPI 错误包络中的消息
+function getUpstreamErrorMessage(payload: unknown, depth = 0): string | undefined {
+  if (typeof payload === 'string') return payload.length <= 300 ? payload : undefined;
+  if (!isRecord(payload) || depth > 3) return undefined;
+  const direct = payload.message;
+  if (typeof direct === 'string' && direct.length <= 300) return direct;
+  return (
+    getUpstreamErrorMessage(payload.error, depth + 1) ??
+    getUpstreamErrorMessage(payload.detail, depth + 1)
+  );
+}
+
 // 构造错误响应结果
 function errorResult(message: string, status: number): ImageProxyResult {
   return { status, body: { error: { message } } };
@@ -53,11 +70,10 @@ export async function proxyAgentImage(payload: unknown): Promise<ImageProxyResul
 
   const upstreamPayload: unknown = await upstream.json().catch(() => null);
   if (!upstream.ok) {
-    const error =
-      typeof upstreamPayload === 'object' && upstreamPayload !== null && !Array.isArray(upstreamPayload)
-        ? (upstreamPayload as { error?: unknown }).error
-        : undefined;
-    return errorResult(typeof error === 'string' ? error : '图像生成暂时不可用。', upstream.status);
+    return errorResult(
+      getUpstreamErrorMessage(upstreamPayload) ?? '图像生成暂时不可用。',
+      upstream.status,
+    );
   }
 
   const imageDataUrl =

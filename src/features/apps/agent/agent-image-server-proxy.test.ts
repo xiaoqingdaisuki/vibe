@@ -29,3 +29,24 @@ test('forwards an image prompt and adapts the generated data URL', async (t) => 
   assert.equal(upstreamUrl, 'http://agent.test/images/generations');
   assert.deepEqual(JSON.parse(String(upstreamBody)), { prompt: '紫色的山谷' });
 });
+
+test('shows a FastAPI image error instead of replacing it with a generic message', async (t) => {
+  const originalFetch = globalThis.fetch;
+  const originalBaseUrl = process.env.AGENT_API_BASE_URL;
+  process.env.AGENT_API_BASE_URL = 'http://agent.test';
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ detail: { message: '图片模型配额不足' } }), {
+      status: 429,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    if (originalBaseUrl === undefined) delete process.env.AGENT_API_BASE_URL;
+    else process.env.AGENT_API_BASE_URL = originalBaseUrl;
+  });
+
+  const response = await proxyAgentImage({ prompt: '紫色的山谷' });
+
+  assert.equal(response.status, 429);
+  assert.deepEqual(response.body, { error: { message: '图片模型配额不足' } });
+});

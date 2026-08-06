@@ -39,6 +39,7 @@ export default function Minesweeper() {
   const [customError, setCustomError] = useState<string | null>(null);
   const [gameSequence, setGameSequence] = useState(0);
 
+
   useEffect(() => {
     if (status !== 'playing') return;
     const timer = window.setInterval(() => setElapsedSeconds((current) => current + 1), 1_000);

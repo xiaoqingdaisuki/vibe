@@ -144,6 +144,7 @@ export function MinesweeperCanvas({
     drawBoard(canvas, board, config, focusedIndex, hasCanvasFocus, colors, assets);
   });
 
+
   useEffect(() => {
     void renderLatestBoard();
   }, [board, config, focusedIndex, hasCanvasFocus]);

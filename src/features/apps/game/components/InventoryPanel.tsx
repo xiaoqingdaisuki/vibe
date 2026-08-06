@@ -161,7 +161,6 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
     [onAction],
   );
 
-  // Generic one-click sell for a specific item type
   const handleOneClickSellForType = useCallback(
     (itemType: string) => {
       const namesToSell: string[] = [];
@@ -188,7 +187,6 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
     onAction({ type: 'sort' });
   }, [onAction]);
 
-  // Group items
   const grouped = useMemo(() => {
     const groups = new Map<string, Item[]>();
 

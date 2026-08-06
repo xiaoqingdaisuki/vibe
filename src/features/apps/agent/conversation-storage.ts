@@ -1,6 +1,8 @@
-const STORAGE_KEY = 'vibe.agent.conversation.v1';
-const STORAGE_VERSION = 1;
-const CONVERSATION_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+const CONVERSATION_STORAGE_KEY = 'vibe.agent.conversation.v2';
+const USER_STORAGE_KEY = 'vibe.agent.user.v1';
+const CONVERSATION_STORAGE_VERSION = 2;
+const USER_STORAGE_VERSION = 1;
+const ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -10,7 +12,13 @@ export interface StorageLike {
 
 interface StoredConversation {
   version: number;
+  userId: string;
   conversationId: string;
+}
+
+interface StoredUser {
+  version: number;
+  userId: string;
 }
 
 // 验证存储值是否为合法的会话记录格式
@@ -19,29 +27,72 @@ function isStoredConversation(value: unknown): value is StoredConversation {
     typeof value === 'object' &&
     value !== null &&
     !Array.isArray(value) &&
-    (value as Record<string, unknown>).version === STORAGE_VERSION &&
+    (value as Record<string, unknown>).version === CONVERSATION_STORAGE_VERSION &&
+    typeof (value as Record<string, unknown>).userId === 'string' &&
+    ID_PATTERN.test((value as Record<string, string>).userId) &&
     typeof (value as Record<string, unknown>).conversationId === 'string' &&
-    CONVERSATION_ID_PATTERN.test((value as Record<string, string>).conversationId)
+    ID_PATTERN.test((value as Record<string, string>).conversationId)
   );
 }
 
-// 从localStorage读取当前会话ID
-export function readStoredConversationId(storage: StorageLike): string | null {
+// 验证存储值是否为合法的用户标识记录
+function isStoredUser(value: unknown): value is StoredUser {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    (value as Record<string, unknown>).version === USER_STORAGE_VERSION &&
+    typeof (value as Record<string, unknown>).userId === 'string' &&
+    ID_PATTERN.test((value as Record<string, string>).userId)
+  );
+}
+
+// 创建符合后端约束的匿名用户标识
+function createAnonymousUserId(randomUuid: () => string): string {
+  return `web_${randomUuid().replaceAll('-', '')}`;
+}
+
+// 读取或创建浏览器稳定用户标识
+export function getOrCreateStoredAgentUserId(storage: StorageLike, randomUuid = crypto.randomUUID): string {
   try {
-    const raw = storage.getItem(STORAGE_KEY);
+    const raw = storage.getItem(USER_STORAGE_KEY);
+    if (raw) {
+      const parsed: unknown = JSON.parse(raw);
+      if (isStoredUser(parsed)) return parsed.userId;
+    }
+  } catch {
+    // 存储不可用时仍为当前页面生成隔离标识
+  }
+
+  const userId = createAnonymousUserId(randomUuid);
+  try {
+    storage.setItem(USER_STORAGE_KEY, JSON.stringify({ version: USER_STORAGE_VERSION, userId }));
+  } catch {
+    // localStorage 是可选能力，当前页面仍可继续使用
+  }
+  return userId;
+}
+
+// 从localStorage读取当前会话ID
+export function readStoredConversationId(storage: StorageLike, userId: string): string | null {
+  try {
+    const raw = storage.getItem(CONVERSATION_STORAGE_KEY);
     if (!raw) return null;
     const parsed: unknown = JSON.parse(raw);
-    return isStoredConversation(parsed) ? parsed.conversationId : null;
+    return isStoredConversation(parsed) && parsed.userId === userId ? parsed.conversationId : null;
   } catch {
     return null;
   }
 }
 
 // 将会话ID写入localStorage
-export function writeStoredConversationId(storage: StorageLike, conversationId: string): void {
-  if (!CONVERSATION_ID_PATTERN.test(conversationId)) return;
+export function writeStoredConversationId(storage: StorageLike, userId: string, conversationId: string): void {
+  if (!ID_PATTERN.test(userId) || !ID_PATTERN.test(conversationId)) return;
   try {
-    storage.setItem(STORAGE_KEY, JSON.stringify({ version: STORAGE_VERSION, conversationId }));
+    storage.setItem(
+      CONVERSATION_STORAGE_KEY,
+      JSON.stringify({ version: CONVERSATION_STORAGE_VERSION, userId, conversationId }),
+    );
   } catch {
     // Storage is optional. The current browser session remains usable without it.
   }
@@ -50,7 +101,7 @@ export function writeStoredConversationId(storage: StorageLike, conversationId: 
 // 从localStorage清除当前会话ID
 export function clearStoredConversationId(storage: StorageLike): void {
   try {
-    storage.removeItem(STORAGE_KEY);
+    storage.removeItem(CONVERSATION_STORAGE_KEY);
   } catch {
     // Storage is optional. Clearing the in-memory session is still enough for this page.
   }

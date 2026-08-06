@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
-import { flushSync } from 'react-dom';
 import type { AgentSuggestionCard as SuggestionCard } from './agent-api';
 import { getAgentConnectionStatusLabel } from './chat-status';
 import type { AgentConnectionStatus } from './chat-status';
@@ -11,6 +10,7 @@ import { ImageGenerator } from './image-generator';
 import styles from './styles/Agent.module.css';
 import { useAgentChat } from './use-agent-chat';
 import { useChatScroll } from './use-chat-scroll';
+import { getTypewriterFrameSize, shouldAnimateTypewriter } from './typewriter';
 
 // 渲染markdown内容为HTML
 function MarkdownContent({ content }: { content: string }) {
@@ -27,15 +27,20 @@ function TypewriterContent({ content, isStreaming, isStreamingComplete }: { cont
     if (!isStreamingComplete || animatedRef.current) return;
     animatedRef.current = true;
 
+    if (!shouldAnimateTypewriter(content.length)) {
+      return;
+    }
+
     const raf = requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         let current = 0;
         const target = content.length;
+        const frameSize = getTypewriterFrameSize(target);
 
         const tick = () => {
           if (current >= target) return;
-          current += 1;
-          flushSync(() => setVisibleCount(current));
+          current = Math.min(target, current + frameSize);
+          setVisibleCount(current);
           rafRef.current = requestAnimationFrame(tick);
         };
 
@@ -56,7 +61,7 @@ function TypewriterContent({ content, isStreaming, isStreamingComplete }: { cont
   }
 
   // 历史消息直接显示完整内容，无动画
-  if (!isStreamingComplete) {
+  if (!isStreamingComplete || !shouldAnimateTypewriter(content.length) || visibleCount >= content.length) {
     return <MarkdownContent content={content} />;
   }
 
@@ -66,17 +71,11 @@ function TypewriterContent({ content, isStreaming, isStreamingComplete }: { cont
     return <span className={styles.cursor} aria-hidden="true" />;
   }
 
-  const visibleContent = content.slice(0, visibleCount);
-
   return (
-    <div className={styles.md}>
-      {visibleContent.split('').map((char, i) => {
-        if (char === '\n') return <br key={i} />;
-        if (char === ' ') return <span key={i} className={styles.char}>&nbsp;</span>;
-        return <span key={i} className={styles.char}>{char}</span>;
-      })}
+    <>
+      <MarkdownContent content={content.slice(0, visibleCount)} />
       {visibleCount < content.length && <span className={styles.cursor} aria-hidden="true" />}
-    </div>
+    </>
   );
 }
 
@@ -586,7 +585,7 @@ export default function AgentChat() {
           <div ref={messagesEndRef} aria-hidden="true" />
         </div>
 
-        {showScrollButton && !isStreaming ? (
+        {showScrollButton ? (
           <button type="button" onClick={() => scrollToBottom()} className={styles.scrollBtn} aria-label="滚动到底部">
             <ChevronDownIcon />
             最新消息

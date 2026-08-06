@@ -14,9 +14,10 @@ export type AgentV1ProxyResult = JsonProxyResult | StreamProxyResult;
 const CONVERSATION_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 const DEFAULT_TIMEOUT_MS = 105_000;
 const MIN_TIMEOUT_MS = 95_000;
-const MAX_TIMEOUT_MS = 120_000;
+const MAX_TIMEOUT_MS = 110_000;
 const MAX_TITLE_CHARS = 100;
 const MAX_MESSAGE_CHARS = 8_000;
+const USER_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
 // 类型守卫：判断值是否为普通对象
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -129,13 +130,17 @@ async function adaptUpstreamError(upstream: Response): Promise<JsonProxyResult> 
 export async function proxyCreateAgentConversation(payload: unknown): Promise<JsonProxyResult> {
   if (!isRecord(payload)) return errorResult('请求体格式不正确。', 400, 'INVALID_REQUEST');
   const title = getInputText(payload.title, MAX_TITLE_CHARS);
+  const userId = getInputText(payload.user_id, 128);
   if (!title) {
     return errorResult('会话标题格式不正确。', 400, 'INVALID_REQUEST');
+  }
+  if (!userId || !USER_ID_PATTERN.test(userId)) {
+    return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
   }
 
   const upstream = await fetchUpstream('/api/v1/conversations', {
     method: 'POST',
-    body: JSON.stringify({ title, mode: 'chat' }),
+    body: JSON.stringify({ title, mode: 'chat', user_id: userId }),
   });
   if (!(upstream instanceof Response)) return upstream;
   if (!upstream.ok) return adaptUpstreamError(upstream);
@@ -155,13 +160,17 @@ export async function proxyStreamAgentMessage(conversationId: string, payload: u
   }
   if (!isRecord(payload)) return errorResult('请求体格式不正确。', 400, 'INVALID_REQUEST');
   const content = getInputText(payload.content, MAX_MESSAGE_CHARS);
+  const userId = getInputText(payload.user_id, 128);
   if (!content) {
     return errorResult('消息内容格式不正确。', 400, 'INVALID_REQUEST');
+  }
+  if (!userId || !USER_ID_PATTERN.test(userId)) {
+    return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
   }
 
   const upstream = await fetchUpstream(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/stream`, {
     method: 'POST',
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, user_id: userId }),
   });
   if (!(upstream instanceof Response)) return upstream;
   if (!upstream.ok) return adaptUpstreamError(upstream);

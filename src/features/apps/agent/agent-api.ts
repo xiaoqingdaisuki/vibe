@@ -10,6 +10,7 @@ export type AgentMessageRole = 'user' | 'assistant' | 'system';
 export interface AgentApiRequest {
   conversationId: string;
   content: string;
+  userId: string;
 }
 
 export interface AgentApiResponse {
@@ -33,6 +34,22 @@ export interface AgentConversationMessage {
 const AGENT_CONVERSATIONS_URL = '/api/agent/v1/conversations';
 const CONNECTION_ERROR_MESSAGE = '无法连接 AI助手服务，请检查接口地址或网络后重试';
 const EMPTY_RESPONSE_MESSAGE = 'AI助手接口未返回有效内容，请稍后重试';
+
+export class AgentHttpError extends Error {
+  readonly status: number;
+
+  // 保存上游HTTP状态码，便于调用方区分资源不存在与临时故障
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'AgentHttpError';
+    this.status = status;
+  }
+}
+
+// 判断恢复失败是否表示持久化会话已经不存在
+export function shouldDiscardStoredConversation(error: unknown): boolean {
+  return error instanceof AgentHttpError && error.status === 404;
+}
 
 // 判断是否为请求中止错误
 function isAbortError(error: unknown): boolean {
@@ -86,7 +103,7 @@ function requireContent(response: AgentApiResponse): AgentApiResponse {
 function parseJsonResponse(payload: unknown): AgentApiResponse {
   if (!isRecord(payload)) throw new Error(EMPTY_RESPONSE_MESSAGE);
 
-  const content = getTextField(payload, ['content', 'message']);
+  const content = getTextField(payload, ['content', 'message', 'reply']);
   if (content === undefined) throw new Error(EMPTY_RESPONSE_MESSAGE);
 
   return requireContent({
@@ -96,13 +113,13 @@ function parseJsonResponse(payload: unknown): AgentApiResponse {
 }
 
 // 从JSON错误响应中提取错误信息
-function getJsonErrorMessage(payload: unknown): string | undefined {
-  if (!isRecord(payload)) return undefined;
+function getJsonErrorMessage(payload: unknown, depth = 0): string | undefined {
+  if (!isRecord(payload) || depth > 3) return undefined;
 
   const directMessage = getTextField(payload, ['message', 'error']);
   if (directMessage) return directMessage;
 
-  return isRecord(payload.error) ? getTextField(payload.error, ['message']) : undefined;
+  return getJsonErrorMessage(payload.error, depth + 1) ?? getJsonErrorMessage(payload.detail, depth + 1);
 }
 
 // 将工具调用状态转换为中文用户提示
@@ -148,17 +165,17 @@ async function readHttpError(response: Response): Promise<string> {
 }
 
 // 创建新的AI对话会话
-export async function createAgentConversation(title: string, signal?: AbortSignal): Promise<string> {
+export async function createAgentConversation(title: string, userId: string, signal?: AbortSignal): Promise<string> {
   const response = await fetch(AGENT_CONVERSATIONS_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ title: title.slice(0, 100), mode: 'chat' }),
+    body: JSON.stringify({ title: title.slice(0, 100), mode: 'chat', user_id: userId }),
     signal,
   }).catch((error: unknown) => {
     if (isAbortError(error) || signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     throw new Error(CONNECTION_ERROR_MESSAGE);
   });
-  if (!response.ok) throw new Error(await readHttpError(response));
+  if (!response.ok) throw new AgentHttpError(await readHttpError(response), response.status);
 
   const payload: unknown = await response.json().catch(() => null);
   const conversationId = isRecord(payload) ? getTextField(payload, ['id']) : undefined;
@@ -184,7 +201,7 @@ export async function getAgentConversationMessages(
     if (isAbortError(error) || signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     throw new Error(CONNECTION_ERROR_MESSAGE);
   });
-  if (!response.ok) throw new Error(await readHttpError(response));
+  if (!response.ok) throw new AgentHttpError(await readHttpError(response), response.status);
 
   const payload: unknown = await response.json().catch(() => null);
   const messages = isRecord(payload) ? payload.messages : payload;
@@ -213,7 +230,7 @@ async function fetchAgent(request: AgentApiRequest, signal?: AbortSignal): Promi
     return await fetch(`${AGENT_CONVERSATIONS_URL}/${encodeURIComponent(request.conversationId)}/messages/stream`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: request.content }),
+      body: JSON.stringify({ content: request.content, user_id: request.userId }),
       signal,
     });
   } catch (error) {
@@ -316,7 +333,7 @@ export async function callAgentApi(
   onToolProgress?: (progress: AgentToolProgress) => void,
 ): Promise<AgentApiResponse> {
   const response = await fetchAgent(request, signal);
-  if (!response.ok) throw new Error(await readHttpError(response));
+  if (!response.ok) throw new AgentHttpError(await readHttpError(response), response.status);
 
   const contentType = response.headers.get('content-type') ?? '';
   if (contentType.includes('application/json')) {

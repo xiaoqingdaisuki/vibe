@@ -75,21 +75,18 @@ export default function GamePageClient() {
   const currentUsernameRef = useRef<string>('');
   const firstCombatDoneRef = useRef(false);
 
-  // Persist logs to localStorage whenever they change
   useEffect(() => {
     if (currentUsernameRef.current) {
       savePersistedLogs(currentUsernameRef.current, logs);
     }
   }, [logs]);
 
-  // Initialize engine when character changes
   useEffect(() => {
     if (character) {
       engineRef.current = new GameEngine(character);
     }
   }, [character]);
 
-  // Stop combat loop
   const stopCombatLoop = useCallback(() => {
     if (combatTimerRef.current) {
       clearInterval(combatTimerRef.current);
@@ -97,7 +94,6 @@ export default function GamePageClient() {
     }
   }, []);
 
-  // Trigger combat
   const triggerCombat = useCallback(() => {
     if (!engineRef.current) return;
 
@@ -153,7 +149,6 @@ export default function GamePageClient() {
     }
   }, []);
 
-  // Combat loop
   const startCombatLoop = useCallback(() => {
     stopCombatLoop();
     setCombatCycleStartedAt(Date.now());
@@ -163,14 +158,12 @@ export default function GamePageClient() {
     }, COMBAT_INTERVAL_MS);
   }, [stopCombatLoop, triggerCombat]);
 
-  // Enter game - start combat loop
   const enterGame = useCallback(() => {
     setPhase('playing');
     startCombatLoop();
     // triggerCombat is called after engine is initialized via useEffect
   }, [startCombatLoop]);
 
-  // Process offline progress when first loading a character
   const processOfflineProgress = useCallback((char: Character): Character => {
     const now = Date.now();
     const offlineMs = now - char.lastActive;
@@ -238,7 +231,6 @@ export default function GamePageClient() {
     return engine.character;
   }, []);
 
-  // Login handler
   const handleLogin = useCallback(() => {
     if (!username.trim()) return;
     setLoginError('');
@@ -280,7 +272,6 @@ export default function GamePageClient() {
     }
   }, [username, processOfflineProgress, enterGame]);
 
-  // Class selection handler
   const handleClassSelect = useCallback(() => {
     if (!selectedClass) return;
 
@@ -329,14 +320,12 @@ export default function GamePageClient() {
     [character],
   );
 
-  // Cleanup
   useEffect(() => {
     return () => {
       stopCombatLoop();
     };
   }, [stopCombatLoop]);
 
-  // Save character before unload
   useEffect(() => {
     const handleBeforeUnload = () => {
       if (engineRef.current) {
@@ -347,7 +336,6 @@ export default function GamePageClient() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
-  // Trigger first combat once engine is ready after entering game
   useEffect(() => {
     if (phase === 'playing' && engineRef.current && !firstCombatDoneRef.current) {
       firstCombatDoneRef.current = true;

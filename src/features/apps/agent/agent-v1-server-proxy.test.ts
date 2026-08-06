@@ -27,12 +27,12 @@ test('creates a conversation through the Agent v1 API', async (t) => {
     else process.env.AGENT_API_BASE_URL = originalBaseUrl;
   });
 
-  const result = await proxyCreateAgentConversation({ title: '你好', mode: 'chat' });
+  const result = await proxyCreateAgentConversation({ title: '你好', mode: 'chat', user_id: 'web_user123' });
 
   assert.equal(result.status, 201);
   assert.deepEqual(result.body, { id: 'conv_123' });
   assert.equal(upstreamUrl, 'http://agent.test/api/v1/conversations');
-  assert.deepEqual(JSON.parse(String(upstreamBody)), { title: '你好', mode: 'chat' });
+  assert.deepEqual(JSON.parse(String(upstreamBody)), { title: '你好', mode: 'chat', user_id: 'web_user123' });
 });
 
 test('streams only the current message through the Agent v1 conversation API', async (t) => {
@@ -54,12 +54,57 @@ test('streams only the current message through the Agent v1 conversation API', a
     else process.env.AGENT_API_BASE_URL = originalBaseUrl;
   });
 
-  const result = await proxyStreamAgentMessage('conv_123', { content: '只发送当前问题' });
+  const result = await proxyStreamAgentMessage('conv_123', {
+    content: '只发送当前问题',
+    user_id: 'web_user123',
+  });
 
   assert.equal(result.status, 200);
   assert.ok('stream' in result);
   assert.equal(upstreamUrl, 'http://agent.test/api/v1/conversations/conv_123/messages/stream');
-  assert.deepEqual(JSON.parse(String(upstreamBody)), { content: '只发送当前问题' });
+  assert.deepEqual(JSON.parse(String(upstreamBody)), { content: '只发送当前问题', user_id: 'web_user123' });
+});
+
+test('adapts FastAPI nested detail errors to the shared frontend envelope', async (t) => {
+  const originalFetch = globalThis.fetch;
+  const originalBaseUrl = process.env.AGENT_API_BASE_URL;
+  process.env.AGENT_API_BASE_URL = 'http://agent.test';
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ detail: { code: 'NOT_FOUND', message: '会话不存在' } }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    if (originalBaseUrl === undefined) delete process.env.AGENT_API_BASE_URL;
+    else process.env.AGENT_API_BASE_URL = originalBaseUrl;
+  });
+
+  const result = await proxyStreamAgentMessage('conv_123', { content: '测试', user_id: 'web_user123' });
+
+  assert.equal(result.status, 404);
+  assert.deepEqual('body' in result ? result.body : null, {
+    error: { code: 'UPSTREAM_ERROR', message: '会话不存在' },
+  });
+});
+
+test('rejects requests without a stable user identity before contacting upstream', async (t) => {
+  const originalFetch = globalThis.fetch;
+  let fetchCalled = false;
+  globalThis.fetch = async () => {
+    fetchCalled = true;
+    return new Response();
+  };
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  const createResult = await proxyCreateAgentConversation({ title: '你好' });
+  const streamResult = await proxyStreamAgentMessage('conv_123', { content: '测试' });
+
+  assert.equal(createResult.status, 400);
+  assert.equal(streamResult.status, 400);
+  assert.equal(fetchCalled, false);
 });
 
 test('retrieves conversation history through the Agent v1 API', async (t) => {
