@@ -111,8 +111,8 @@ export function useAgentChat(): AgentChatState {
     let cancelled = false;
     const storage = getBrowserStorage();
     const userId = storage
-      ? getOrCreateStoredAgentUserId(storage)
-      : `web_${crypto.randomUUID().replaceAll('-', '')}`;
+      ? getOrCreateStoredAgentUserId(storage, () => crypto.randomUUID())
+      : `web_${crypto.randomUUID().replace(/-/g, '')}`;
     userIdRef.current = userId;
     const conversationId = storage ? readStoredConversationId(storage, userId) : null;
 

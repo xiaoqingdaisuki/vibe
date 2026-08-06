@@ -49,11 +49,11 @@ function isStoredUser(value: unknown): value is StoredUser {
 
 // 创建符合后端约束的匿名用户标识
 function createAnonymousUserId(randomUuid: () => string): string {
-  return `web_${randomUuid().replaceAll('-', '')}`;
+  return `web_${randomUuid().replace(/-/g, '')}`;
 }
 
 // 读取或创建浏览器稳定用户标识
-export function getOrCreateStoredAgentUserId(storage: StorageLike, randomUuid = crypto.randomUUID): string {
+export function getOrCreateStoredAgentUserId(storage: StorageLike, randomUuid: () => string): string {
   try {
     const raw = storage.getItem(USER_STORAGE_KEY);
     if (raw) {

@@ -20,9 +20,8 @@ function createErrorResponse(message: string, status: number, code: string): Res
 function mapAgentPath(pathSegments: string[]): string | null {
   if (pathSegments.length === 0 || !ALLOWED_ROOT_SEGMENTS.has(pathSegments[0])) return null;
   if (pathSegments.some((segment) => !PATH_SEGMENT_PATTERN.test(segment))) return null;
-  const encodedSegments = pathSegments.map((segment) => encodeURIComponent(segment));
-  if (encodedSegments[0] === 'v1') return `/api/${encodedSegments.join('/')}`;
-  return `/${encodedSegments.join('/')}`;
+  if (pathSegments[0] === 'v1') return `/api/${pathSegments.join('/')}`;
+  return `/${pathSegments.join('/')}`;
 }
 
 // 根据配置和入站查询参数构造固定Agent上游地址
@@ -104,7 +103,7 @@ export async function proxyAgentRequest(
     const upstream = await upstreamFetch(upstreamUrl, {
       method: request.method,
       headers: createUpstreamHeaders(request),
-      body,
+      body: body ?? null,
       signal: AbortSignal.timeout(getRequestTimeoutMs()),
       cache: 'no-store',
     });

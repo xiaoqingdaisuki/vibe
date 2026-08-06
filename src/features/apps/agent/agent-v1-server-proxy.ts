@@ -103,6 +103,7 @@ async function fetchUpstream(pathname: string, init: Omit<RequestInit, 'signal'>
         'X-Request-Id': crypto.randomUUID(),
         ...init.headers,
       },
+      body: init.body ?? null,
       signal: AbortSignal.timeout(timeoutMs),
       cache: 'no-store',
     });
