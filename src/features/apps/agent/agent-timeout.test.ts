@@ -10,9 +10,9 @@ test('keeps ordinary requests below the 60 second route budget', () => {
   assert.equal(getAgentRequestTimeoutMs('invalid'), 45_000);
 });
 
-test('keeps streaming beyond the tool deadline and below its 330 second route budget', () => {
-  assert.equal(getAgentStreamTimeoutMs('320000'), 320_000);
-  assert.equal(getAgentStreamTimeoutMs('999999'), 325_000);
-  assert.equal(getAgentStreamTimeoutMs('1'), 311_000);
-  assert.equal(getAgentStreamTimeoutMs('invalid'), 320_000);
+test('keeps streaming below the Hobby plan 300 second route budget', () => {
+  assert.equal(getAgentStreamTimeoutMs('295000'), 295_000);
+  assert.equal(getAgentStreamTimeoutMs('999999'), 295_000);
+  assert.equal(getAgentStreamTimeoutMs('1'), 60_000);
+  assert.equal(getAgentStreamTimeoutMs('invalid'), 295_000);
 });

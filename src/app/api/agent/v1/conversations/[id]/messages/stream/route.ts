@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 
 import { proxyStreamAgentMessage } from '@/features/apps/agent/agent-v1-server-proxy';
 
-export const maxDuration = 330;
+export const maxDuration = 300;
 
 interface RouteContext {
   params: Promise<{ id: string }>;
