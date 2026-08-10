@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   callAgentApi,
   createAgentConversation,
+  deleteAgentConversation,
   getAgentConversationMessages,
   shouldDiscardStoredConversation,
 } from './agent-api';
@@ -41,7 +42,7 @@ interface AgentChatState {
   sendMessage: (text: string, options?: SendMessageOptions) => Promise<void>;
   retryLast: () => void;
   stopStreaming: () => void;
-  startNewConversation: () => void;
+  startNewConversation: () => Promise<boolean>;
 }
 
 // 生成唯一消息ID
@@ -130,7 +131,7 @@ export function useAgentChat(): AgentChatState {
     }
 
     conversationIdRef.current = conversationId;
-    void getAgentConversationMessages(conversationId)
+    void getAgentConversationMessages(conversationId, userId)
       .then((restoredMessages) => {
         if (cancelled) return;
         const messages = restoredMessages.map(toChatMessage);
@@ -294,9 +295,25 @@ export function useAgentChat(): AgentChatState {
     );
   }, []);
 
-  // 开启新会话，清空所有状态
-  const startNewConversation = useCallback(() => {
-    if (abortRef.current) return;
+  // 删除服务端旧会话后再清空本地状态
+  const startNewConversation = useCallback(async (): Promise<boolean> => {
+    if (abortRef.current) return false;
+    const conversationId = conversationIdRef.current;
+    const userId = userIdRef.current;
+    if (conversationId) {
+      if (!userId) {
+        setError('用户会话初始化失败，请刷新页面后重试');
+        return false;
+      }
+      try {
+        await deleteAgentConversation(conversationId, userId);
+      } catch (deleteError) {
+        setError(deleteError instanceof Error ? deleteError.message : '旧会话删除失败，请稍后重试');
+        setConnectionStatus('error');
+        return false;
+      }
+    }
+
     conversationIdRef.current = null;
     const storage = getBrowserStorage();
     if (storage) clearStoredConversationId(storage);
@@ -309,6 +326,7 @@ export function useAgentChat(): AgentChatState {
     setConnectionStatus('idle');
     setHasConversation(false);
     setToolProgress(null);
+    return true;
   }, []);
 
   return {

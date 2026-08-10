@@ -1,13 +1,15 @@
-import type { Character, LogEntry } from './types.ts';
+import type { Character, Item, LogEntry } from './types.ts';
 
-const STORAGE_KEY_PREFIX = 'game_character_';
+const CHARACTER_KEY_PREFIX = 'game:v2:character:';
+const LOGS_KEY_PREFIX = 'game:v2:logs:';
+const LEGACY_STORAGE_KEY_PREFIX = 'game_character_';
 const SESSION_KEY = 'game_session';
 const LOGS_KEY_SUFFIX = '_logs';
 const MAX_STORED_LOGS = 200;
 
 // 判断值是否为普通对象
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 // 校验值是否符合角色快照结构
@@ -55,19 +57,59 @@ function isLogEntry(value: unknown): value is LogEntry {
   );
 }
 
-// 获取浏览器 localStorage，不可用时返回 null
+// 获取浏览器localStorage，隐私模式拒绝访问时返回null
 function getBrowserStorage(): Storage | null {
-  return typeof localStorage === 'undefined' ? null : localStorage;
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
 }
 
-// 根据用户名生成角色 localStorage 键名
+// 根据用户名生成独立的角色存储键
 export function getCharacterStorageKey(username: string): string {
-  return `${STORAGE_KEY_PREFIX}${username}`;
+  return `${CHARACTER_KEY_PREFIX}${encodeURIComponent(username)}`;
 }
 
-// 根据用户名生成日志 localStorage 键名
+// 根据用户名生成独立的日志存储键
 export function getLogsStorageKey(username: string): string {
-  return `${STORAGE_KEY_PREFIX}${username}${LOGS_KEY_SUFFIX}`;
+  return `${LOGS_KEY_PREFIX}${encodeURIComponent(username)}`;
+}
+
+// 生成旧版可能碰撞的角色存储键
+function getLegacyCharacterStorageKey(username: string): string {
+  return `${LEGACY_STORAGE_KEY_PREFIX}${username}`;
+}
+
+// 生成旧版可能碰撞的日志存储键
+function getLegacyLogsStorageKey(username: string): string {
+  return `${LEGACY_STORAGE_KEY_PREFIX}${username}${LOGS_KEY_SUFFIX}`;
+}
+
+// 为旧版碰撞饰品ID补入名称维度
+function migrateLegacyAccessoryId(item: Item): Item {
+  const isLegacyId =
+    /^(?:warrior|mage|rogue)_acc_\d{2}_(?:common|uncommon|rare|epic|legendary|mythic|transcendent)$/.test(item.id);
+  if (item.slot !== 'accessory' || !isLegacyId) return item;
+  const owner = item.classRequired ?? 'all';
+  return {
+    ...item,
+    id: `${owner}_acc_legacy_${encodeURIComponent(item.name)}_${item.minLevel ?? 0}_${item.rarity}`,
+  };
+}
+
+// 迁移角色快照中的旧版饰品ID
+function migrateCharacterSnapshot(character: Character): Character {
+  return {
+    ...character,
+    inventory: character.inventory.map(migrateLegacyAccessoryId),
+    equipment: {
+      weapon: character.equipment.weapon ? migrateLegacyAccessoryId(character.equipment.weapon) : null,
+      armor: character.equipment.armor ? migrateLegacyAccessoryId(character.equipment.armor) : null,
+      accessory: character.equipment.accessory ? migrateLegacyAccessoryId(character.equipment.accessory) : null,
+    },
+  };
 }
 
 // 从 localStorage 加载角色快照，无数据则返回 null
@@ -75,9 +117,18 @@ export function loadCharacterSnapshot(username: string, storage = getBrowserStor
   if (!storage) return null;
 
   try {
-    const data = storage.getItem(getCharacterStorageKey(username));
-    const parsed: unknown = data ? JSON.parse(data) : null;
-    return isCharacterSnapshot(parsed) ? parsed : null;
+    const key = getCharacterStorageKey(username);
+    const currentData = storage.getItem(key);
+    const currentValue: unknown = currentData ? JSON.parse(currentData) : null;
+    if (isCharacterSnapshot(currentValue)) return migrateCharacterSnapshot(currentValue);
+
+    const legacyData = storage.getItem(getLegacyCharacterStorageKey(username));
+    const legacyValue: unknown = legacyData ? JSON.parse(legacyData) : null;
+    if (!isCharacterSnapshot(legacyValue)) return null;
+
+    const migrated = migrateCharacterSnapshot(legacyValue);
+    storage.setItem(key, JSON.stringify(migrated));
+    return migrated;
   } catch {
     return null;
   }
@@ -107,9 +158,19 @@ export function loadPersistedLogs(username: string, storage = getBrowserStorage(
   if (!storage) return [];
 
   try {
-    const data = storage.getItem(getLogsStorageKey(username));
-    const parsed: unknown = data ? JSON.parse(data) : [];
-    return Array.isArray(parsed) ? parsed.filter(isLogEntry) : [];
+    const key = getLogsStorageKey(username);
+    const currentData = storage.getItem(key);
+    if (currentData !== null) {
+      const currentValue: unknown = JSON.parse(currentData);
+      return Array.isArray(currentValue) ? currentValue.filter(isLogEntry) : [];
+    }
+
+    const legacyData = storage.getItem(getLegacyLogsStorageKey(username));
+    const legacyValue: unknown = legacyData ? JSON.parse(legacyData) : [];
+    if (!Array.isArray(legacyValue)) return [];
+    const migrated = legacyValue.filter(isLogEntry);
+    storage.setItem(key, JSON.stringify(migrated));
+    return migrated;
   } catch {
     return [];
   }

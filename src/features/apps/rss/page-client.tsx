@@ -7,8 +7,9 @@ import { cn } from '@/lib/utils';
 import { getStorageItem, setStorageItem } from '@/lib/storage';
 import { FeedErrorState } from './feed-error-state';
 import { loadFeedOnce } from './load-feed';
+import { createStoredSubscriptions, restoreSubscriptions } from './subscriptions';
 import type { RssFeed, RssFeedItem } from './types';
-import { STORAGE_KEY, DEFAULT_FEEDS } from './types';
+import { STORAGE_KEY } from './types';
 import styles from './styles/RSSReader.module.css';
 
 // 将相对链接解析为绝对 URL
@@ -484,16 +485,8 @@ export default function RSSReader() {
   }, []);
 
   useEffect(() => {
-    const saved = getStorageItem<string[]>(STORAGE_KEY, []);
-    const validSaved = saved.filter((url): url is string => {
-      try {
-        const parsed = new URL(url);
-        return (parsed.protocol === 'http:' || parsed.protocol === 'https:') && !DEFAULT_FEEDS.includes(url);
-      } catch {
-        return false;
-      }
-    });
-    const frame = requestAnimationFrame(() => setSubscriptions([...DEFAULT_FEEDS, ...validSaved]));
+    const saved = getStorageItem<unknown>(STORAGE_KEY, null);
+    const frame = requestAnimationFrame(() => setSubscriptions(restoreSubscriptions(saved)));
     return () => cancelAnimationFrame(frame);
   }, []);
 
@@ -522,11 +515,8 @@ export default function RSSReader() {
     });
     setSubscriptions((prev) => {
       if (prev.includes(url)) return prev;
-      const isDefault = DEFAULT_FEEDS.includes(url);
-      const next = isDefault
-        ? [...DEFAULT_FEEDS, ...prev.filter((u) => !DEFAULT_FEEDS.includes(u)), url]
-        : [...prev, url];
-      setStorageItem(STORAGE_KEY, next);
+      const next = [...prev, url];
+      setStorageItem(STORAGE_KEY, createStoredSubscriptions(next));
       subsRef.current = next;
       return next;
     });
@@ -535,7 +525,7 @@ export default function RSSReader() {
   const removeSubscription = useCallback((url: string) => {
     setSubscriptions((prev) => {
       const next = prev.filter((u) => u !== url);
-      setStorageItem(STORAGE_KEY, next);
+      setStorageItem(STORAGE_KEY, createStoredSubscriptions(next));
       subsRef.current = next;
       return next;
     });

@@ -1,3 +1,5 @@
+import { getAgentRequestTimeoutMs, getAgentStreamTimeoutMs } from './agent-timeout.ts';
+
 interface JsonProxyResult {
   status: number;
   body: Record<string, unknown>;
@@ -12,9 +14,6 @@ interface StreamProxyResult {
 export type AgentV1ProxyResult = JsonProxyResult | StreamProxyResult;
 
 const CONVERSATION_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
-const DEFAULT_TIMEOUT_MS = 105_000;
-const MIN_TIMEOUT_MS = 95_000;
-const MAX_TIMEOUT_MS = 110_000;
 const MAX_TITLE_CHARS = 100;
 const MAX_MESSAGE_CHARS = 8_000;
 const USER_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
@@ -22,13 +21,6 @@ const USER_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 // 类型守卫：判断值是否为普通对象
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-// 从环境变量读取请求超时时间，带范围限制
-function getRequestTimeoutMs(): number {
-  const configured = Number(process.env.AGENT_REQUEST_TIMEOUT_MS);
-  if (!Number.isFinite(configured)) return DEFAULT_TIMEOUT_MS;
-  return Math.min(MAX_TIMEOUT_MS, Math.max(MIN_TIMEOUT_MS, Math.trunc(configured)));
 }
 
 // 构造上游API完整URL
@@ -89,11 +81,16 @@ function isTimeoutError(error: unknown): boolean {
 }
 
 // 向上游API发起请求，带超时和错误处理
-async function fetchUpstream(pathname: string, init: Omit<RequestInit, 'signal'>): Promise<Response | JsonProxyResult> {
+async function fetchUpstream(
+  pathname: string,
+  init: Omit<RequestInit, 'signal'>,
+  userId?: string,
+  timeoutMs = getAgentRequestTimeoutMs(),
+): Promise<Response | JsonProxyResult> {
   const url = getAgentApiUrl(pathname);
   if (!url) return errorResult('AI助手服务配置异常，请联系管理员。', 500, 'CONFIG_ERROR');
-
-  const timeoutMs = getRequestTimeoutMs();
+  const apiSecret = process.env.AGENT_API_SECRET?.trim();
+  if (!apiSecret) return errorResult('AI助手服务认证配置缺失，请联系管理员。', 500, 'CONFIG_ERROR');
   try {
     return await fetch(url, {
       ...init,
@@ -101,7 +98,9 @@ async function fetchUpstream(pathname: string, init: Omit<RequestInit, 'signal'>
         Accept: 'application/json, text/event-stream',
         'Content-Type': 'application/json',
         'X-Request-Id': crypto.randomUUID(),
+        ...(userId ? { 'X-Agent-User-Id': userId } : {}),
         ...init.headers,
+        Authorization: `Bearer ${apiSecret}`,
       },
       body: init.body ?? null,
       signal: AbortSignal.timeout(timeoutMs),
@@ -139,10 +138,14 @@ export async function proxyCreateAgentConversation(payload: unknown): Promise<Js
     return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
   }
 
-  const upstream = await fetchUpstream('/api/v1/conversations', {
-    method: 'POST',
-    body: JSON.stringify({ title, mode: 'chat', user_id: userId }),
-  });
+  const upstream = await fetchUpstream(
+    '/api/v1/conversations',
+    {
+      method: 'POST',
+      body: JSON.stringify({ title, mode: 'chat', user_id: userId }),
+    },
+    userId,
+  );
   if (!(upstream instanceof Response)) return upstream;
   if (!upstream.ok) return adaptUpstreamError(upstream);
 
@@ -169,10 +172,15 @@ export async function proxyStreamAgentMessage(conversationId: string, payload: u
     return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
   }
 
-  const upstream = await fetchUpstream(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/stream`, {
-    method: 'POST',
-    body: JSON.stringify({ content, user_id: userId }),
-  });
+  const upstream = await fetchUpstream(
+    `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/stream`,
+    {
+      method: 'POST',
+      body: JSON.stringify({ content, user_id: userId }),
+    },
+    userId,
+    getAgentStreamTimeoutMs(),
+  );
   if (!(upstream instanceof Response)) return upstream;
   if (!upstream.ok) return adaptUpstreamError(upstream);
   if (!upstream.body) return errorResult('AI助手服务返回了无效响应。', 502, 'INVALID_UPSTREAM_RESPONSE');
@@ -185,26 +193,39 @@ export async function proxyStreamAgentMessage(conversationId: string, payload: u
 }
 
 // 代理删除会话请求到上游API
-export async function proxyDeleteAgentConversation(conversationId: string): Promise<JsonProxyResult> {
+export async function proxyDeleteAgentConversation(conversationId: string, userId: string): Promise<JsonProxyResult> {
   if (!CONVERSATION_ID_PATTERN.test(conversationId)) {
     return errorResult('会话 ID 格式不正确。', 400, 'INVALID_REQUEST');
   }
-  const upstream = await fetchUpstream(`/api/v1/conversations/${encodeURIComponent(conversationId)}`, {
-    method: 'DELETE',
-  });
+  if (!USER_ID_PATTERN.test(userId)) {
+    return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
+  }
+  const upstream = await fetchUpstream(
+    `/api/v1/conversations/${encodeURIComponent(conversationId)}`,
+    { method: 'DELETE' },
+    userId,
+  );
   if (!(upstream instanceof Response)) return upstream;
   if (!upstream.ok) return adaptUpstreamError(upstream);
   return { status: 200, body: { success: true } };
 }
 
 // 代理获取会话历史消息请求到上游API
-export async function proxyGetAgentConversationMessages(conversationId: string): Promise<JsonProxyResult> {
+export async function proxyGetAgentConversationMessages(
+  conversationId: string,
+  userId: string,
+): Promise<JsonProxyResult> {
   if (!CONVERSATION_ID_PATTERN.test(conversationId)) {
     return errorResult('会话 ID 格式不正确。', 400, 'INVALID_REQUEST');
   }
-  const upstream = await fetchUpstream(`/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`, {
-    method: 'GET',
-  });
+  if (!USER_ID_PATTERN.test(userId)) {
+    return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
+  }
+  const upstream = await fetchUpstream(
+    `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`,
+    { method: 'GET' },
+    userId,
+  );
   if (!(upstream instanceof Response)) return upstream;
   if (!upstream.ok) return adaptUpstreamError(upstream);
 

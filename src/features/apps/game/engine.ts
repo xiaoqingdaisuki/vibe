@@ -4,7 +4,6 @@ import type {
   CombatResult,
   OfflineResult,
   LogEntry,
-  ItemDef,
   SkillDef,
   MonsterDef,
   CombatRoundDetail,
@@ -83,7 +82,7 @@ export class GameEngine {
   runCombat(monsterLevel: number): CombatResult {
     const monster = this.getMonster(monsterLevel);
     const difficulty = this.getDifficultyTier(monsterLevel);
-    let playerHp = this.character.hp;
+    let playerHp = Math.min(this.character.hp, this.character.maxHp);
     let monsterHp = monster.hp;
     let rounds = 0;
     let playerDmgDealt = 0;
@@ -95,10 +94,9 @@ export class GameEngine {
     const playerAtk = this.calculatePlayerAtk();
     const playerDef = this.calculatePlayerDef();
 
-    // Apply warrior weapon HP bonus (set during calculatePlayerAtk)
-    if (this.character.class === 'warrior') {
-      playerHp += this._combatHpBonus;
-    }
+    // 战士武器生命仅作为本场临时生命，结算时不会写入基础生命
+    const combatHpBonus = this.character.class === 'warrior' ? this._combatHpBonus : 0;
+    playerHp += combatHpBonus;
 
     // Buffs applied this combat (each buff can only be applied once per combat)
     const appliedBuffs = new Set<string>();
@@ -241,7 +239,7 @@ export class GameEngine {
       result.expGained = expGained;
       result.goldGained = goldGained;
 
-      this.character.hp = Math.max(0, playerHp);
+      this.character.hp = Math.min(this.character.maxHp, Math.max(0, playerHp - combatHpBonus));
       this.character.exp += expGained;
       this.character.gold += goldGained;
 
@@ -269,22 +267,22 @@ export class GameEngine {
 
     switch (action.type) {
       case 'equip':
-        logs.push(...this.equipItem(action.slot, action.itemName));
+        logs.push(...this.equipItem(action.slot, action.itemId));
         break;
       case 'unequip':
         logs.push(...this.unequipItem(action.slot));
         break;
       case 'use':
-        logs.push(...this.useItem(action.itemName));
+        logs.push(...this.useItem(action.itemId));
         break;
       case 'open':
-        logs.push(...this.openChest(action.itemName));
+        logs.push(...this.openChest(action.itemId));
         break;
       case 'buy':
-        logs.push(...this.buyItem(action.itemName, action.count ?? 1));
+        logs.push(...this.buyItem(action.itemId, action.count ?? 1));
         break;
       case 'sell':
-        logs.push(...this.sellItem(action.itemName, action.count ?? 1));
+        logs.push(...this.sellItem(action.itemId, action.count ?? 1));
         break;
       case 'expand':
         logs.push(...this.expandBag());
@@ -293,7 +291,7 @@ export class GameEngine {
         logs.push(...this.sortInventory());
         break;
       case 'bulkSell':
-        logs.push(...this.bulkSell(action.itemNames));
+        logs.push(...this.bulkSell(action.itemIds));
         break;
       case 'toggleFavorite':
         logs.push(...this.toggleFavorite(action.itemName));
@@ -598,17 +596,6 @@ export class GameEngine {
     return Number.isInteger(value) && value > 0;
   }
 
-  // 根据物品名称查找物品定义
-  private findItemDefByName(itemName: string): ItemDef | undefined {
-    const normalized = itemName.trim().toLowerCase();
-    return ITEMS.find(
-      (item) =>
-        item.name.toLowerCase() === normalized ||
-        item.id.toLowerCase() === normalized ||
-        item.id.replaceAll('_', ' ').toLowerCase() === normalized,
-    );
-  }
-
   // 计算伤害（攻击 - 防御，带随机波动）
   private calculateDamage(atk: number, def: number): number {
     const baseDamage = Math.max(1, atk - def * 1.0);
@@ -844,20 +831,21 @@ export class GameEngine {
     return logs;
   }
   // 装备物品到指定部位
-  private equipItem(slot: EquipSlot, itemName: string): LogEntry[] {
+  private equipItem(slot: EquipSlot, itemId: string): LogEntry[] {
     const logs: LogEntry[] = [];
-    const itemIndex = this.character.inventory.findIndex((i) => i.name === itemName);
+    const itemIndex = this.character.inventory.findIndex((item) => item.id === itemId);
 
     if (itemIndex === -1) {
       logs.push({
         timestamp: Date.now(),
-        text: `找不到物品：${itemName}`,
+        text: `找不到物品：${itemId}`,
         type: 'info',
       });
       return logs;
     }
 
     const item = this.character.inventory[itemIndex];
+    const itemName = item.name;
     if (item.type !== 'equipment' || item.slot !== slot) {
       logs.push({
         timestamp: Date.now(),
@@ -890,19 +878,18 @@ export class GameEngine {
       return logs;
     }
 
-    // Unequip current item if any
-    if (this.character.equipment[slot]) {
-      this.tryAddToInventory(this.character.equipment[slot]!);
-    }
-
     // Equip new item (resolve per-class stats if needed)
     const itemToEquip = { ...item };
     if (item.scaleWithClass && item.stats) {
       itemToEquip.stats = resolveStatsForClass(item.stats, this.character.class);
     }
     itemToEquip.scaleWithClass = undefined;
+    const previousItem = this.character.equipment[slot];
+    const nextInventory = [...this.character.inventory];
+    if (previousItem) nextInventory[itemIndex] = previousItem;
+    else nextInventory.splice(itemIndex, 1);
+    this.character.inventory = nextInventory;
     this.character.equipment[slot] = itemToEquip;
-    this.character.inventory = this.character.inventory.filter((_, i) => i !== itemIndex);
 
     logs.push({
       timestamp: Date.now(),
@@ -927,7 +914,16 @@ export class GameEngine {
       return logs;
     }
 
-    this.tryAddToInventory(current);
+    if (this.character.inventory.length >= this.character.inventoryMax) {
+      logs.push({
+        timestamp: Date.now(),
+        text: '背包已满，无法卸下装备。',
+        type: 'info',
+      });
+      return logs;
+    }
+
+    this.character.inventory = [...this.character.inventory, current];
     this.character.equipment[slot] = null;
 
     logs.push({
@@ -940,20 +936,21 @@ export class GameEngine {
   }
 
   // 使用物品（技能书或其他可消耗品）
-  private useItem(itemName: string): LogEntry[] {
+  private useItem(itemId: string): LogEntry[] {
     const logs: LogEntry[] = [];
-    const itemIndex = this.character.inventory.findIndex((i) => i.name === itemName);
+    const itemIndex = this.character.inventory.findIndex((item) => item.id === itemId);
 
     if (itemIndex === -1) {
       logs.push({
         timestamp: Date.now(),
-        text: `找不到物品：${itemName}`,
+        text: `找不到物品：${itemId}`,
         type: 'info',
       });
       return logs;
     }
 
     const item = this.character.inventory[itemIndex];
+    const itemName = item.name;
 
     if (item.type === 'skill_book') {
       logs.push(...this.useSkillBook(item));
@@ -971,20 +968,21 @@ export class GameEngine {
   }
 
   // 打开宝箱，随机获得装备或技能书
-  private openChest(chestName: string): LogEntry[] {
+  private openChest(itemId: string): LogEntry[] {
     const logs: LogEntry[] = [];
-    const chestIndex = this.character.inventory.findIndex((i) => i.name === chestName);
+    const chestIndex = this.character.inventory.findIndex((item) => item.id === itemId);
 
     if (chestIndex === -1) {
       logs.push({
         timestamp: Date.now(),
-        text: `找不到宝箱：${chestName}`,
+        text: `找不到宝箱：${itemId}`,
         type: 'info',
       });
       return logs;
     }
 
     const chest = this.character.inventory[chestIndex];
+    const chestName = chest.name;
     if (chest.type !== 'chest') {
       logs.push({
         timestamp: Date.now(),
@@ -1271,7 +1269,7 @@ export class GameEngine {
   }
 
   // 从商店购买物品
-  private buyItem(itemName: string, count: number): LogEntry[] {
+  private buyItem(itemId: string, count: number): LogEntry[] {
     const logs: LogEntry[] = [];
     if (!this.isPositiveWholeNumber(count)) {
       logs.push({
@@ -1283,19 +1281,18 @@ export class GameEngine {
     }
 
     const ITEM_MAP = new Map(ITEMS.map((item) => [item.id, item]));
-    const shopItem = SHOP_ITEMS.find((s) => {
-      const def = ITEM_MAP.get(s.itemId);
-      return def && this.findItemDefByName(itemName)?.id === def.id;
-    });
+    const shopItem = SHOP_ITEMS.find((item) => item.itemId === itemId);
+    const itemDef = shopItem ? ITEM_MAP.get(shopItem.itemId) : undefined;
 
-    if (!shopItem) {
+    if (!shopItem || !itemDef) {
       logs.push({
         timestamp: Date.now(),
-        text: `商店没有出售：${itemName}`,
+        text: `商店没有出售：${itemId}`,
         type: 'info',
       });
       return logs;
     }
+    const itemName = itemDef.name;
 
     const shopMinLevel = shopItem.minLevel;
     if (shopMinLevel && this.character.level < shopMinLevel) {
@@ -1317,12 +1314,18 @@ export class GameEngine {
       return logs;
     }
 
+    if (this.character.inventory.length + count > this.character.inventoryMax) {
+      logs.push({
+        timestamp: Date.now(),
+        text: `背包空间不足，无法购买 ${itemName} x${count}。`,
+        type: 'info',
+      });
+      return logs;
+    }
+
     this.character.gold -= totalCost;
-    const itemDef = ITEM_MAP.get(shopItem.itemId);
-    if (itemDef) {
-      for (let i = 0; i < count; i++) {
-        this.tryAddToInventory({ ...itemDef });
-      }
+    for (let i = 0; i < count; i++) {
+      this.character.inventory.push({ ...itemDef });
     }
 
     logs.push({
@@ -1335,7 +1338,7 @@ export class GameEngine {
   }
 
   // 出售物品换取金币
-  private sellItem(itemName: string, count: number): LogEntry[] {
+  private sellItem(itemId: string, count: number): LogEntry[] {
     const logs: LogEntry[] = [];
     if (!this.isPositiveWholeNumber(count)) {
       logs.push({
@@ -1346,10 +1349,9 @@ export class GameEngine {
       return logs;
     }
 
-    // Find items in inventory by name directly (chest-generated items have modified IDs)
     const itemIndices: number[] = [];
     for (let i = 0; i < this.character.inventory.length && itemIndices.length < count; i++) {
-      if (this.character.inventory[i].name === itemName) {
+      if (this.character.inventory[i].id === itemId) {
         itemIndices.push(i);
       }
     }
@@ -1357,11 +1359,14 @@ export class GameEngine {
     if (itemIndices.length === 0) {
       logs.push({
         timestamp: Date.now(),
-        text: `找不到物品：${itemName}`,
+        text: `找不到物品：${itemId}`,
         type: 'info',
       });
       return logs;
     }
+
+    const sampleItem = this.character.inventory[itemIndices[0]];
+    const itemName = sampleItem.name;
 
     if (itemIndices.length < count) {
       logs.push({
@@ -1373,7 +1378,6 @@ export class GameEngine {
     }
 
     // Use the actual item's rarity for pricing
-    const sampleItem = this.character.inventory[itemIndices[0]];
     const rarity = sampleItem.rarity;
 
     // Sell price: gray=10, green=100, blue=200, purple+=chestPrice/10
@@ -1497,9 +1501,9 @@ export class GameEngine {
   }
 
   // 批量出售指定物品
-  private bulkSell(itemNames: string[]): LogEntry[] {
+  private bulkSell(itemIds: string[]): LogEntry[] {
     const logs: LogEntry[] = [];
-    if (itemNames.length === 0) {
+    if (itemIds.length === 0) {
       logs.push({ timestamp: Date.now(), text: '请先选择要出售的物品。', type: 'info' });
       return logs;
     }
@@ -1510,19 +1514,14 @@ export class GameEngine {
     const skippedBlocked: string[] = [];
     const skippedFavorite: string[] = [];
 
-    // Deduplicate names
-    const namesToSell = [...new Set(itemNames)];
+    const itemIdsToSell = [...new Set(itemIds)];
 
-    for (const itemName of namesToSell) {
-      // Find all matching items in inventory directly (no need for static lookup)
+    for (const itemId of itemIdsToSell) {
       const itemIndices: number[] = [];
-      let sampleRarity: ItemRarity = 'common';
 
       for (let i = 0; i < this.character.inventory.length && itemIndices.length < 999; i++) {
-        if (this.character.inventory[i].name === itemName) {
-          if (itemIndices.length === 0) {
-            sampleRarity = this.character.inventory[i].rarity;
-          }
+        if (this.character.inventory[i].id === itemId) {
+          const itemName = this.character.inventory[i].name;
           // Skip favorited items
           if (this.character.favorites.includes(this.character.inventory[i].name)) {
             if (!skippedFavorite.includes(itemName)) {
@@ -1535,9 +1534,13 @@ export class GameEngine {
       }
 
       if (itemIndices.length === 0) {
-        logs.push({ timestamp: Date.now(), text: `背包中没有找到：${itemName}`, type: 'info' });
+        logs.push({ timestamp: Date.now(), text: `背包中没有找到：${itemId}`, type: 'info' });
         continue;
       }
+
+      const sampleItem = this.character.inventory[itemIndices[0]];
+      const itemName = sampleItem.name;
+      const sampleRarity = sampleItem.rarity;
 
       // Block mythic/transcendent from bulk sell
       if (BLOCKED_RARITIES.includes(sampleRarity)) {

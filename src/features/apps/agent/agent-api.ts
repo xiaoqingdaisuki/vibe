@@ -183,19 +183,27 @@ export async function createAgentConversation(title: string, userId: string, sig
   return conversationId;
 }
 
-// 删除指定对话会话
-export async function deleteAgentConversation(conversationId: string): Promise<void> {
-  await fetch(`${AGENT_CONVERSATIONS_URL}/${encodeURIComponent(conversationId)}`, {
+// 删除指定对话会话，失败时保留本地引用以便重试
+export async function deleteAgentConversation(conversationId: string, userId: string): Promise<void> {
+  const query = new URLSearchParams({ user_id: userId });
+  const response = await fetch(`${AGENT_CONVERSATIONS_URL}/${encodeURIComponent(conversationId)}?${query}`, {
     method: 'DELETE',
-  }).catch(() => undefined);
+  }).catch(() => {
+    throw new Error(CONNECTION_ERROR_MESSAGE);
+  });
+  if (!response.ok && response.status !== 404) {
+    throw new AgentHttpError(await readHttpError(response), response.status);
+  }
 }
 
 // 获取指定会话的历史消息列表
 export async function getAgentConversationMessages(
   conversationId: string,
+  userId: string,
   signal?: AbortSignal,
 ): Promise<AgentConversationMessage[]> {
-  const response = await fetch(`${AGENT_CONVERSATIONS_URL}/${encodeURIComponent(conversationId)}/messages`, {
+  const query = new URLSearchParams({ user_id: userId });
+  const response = await fetch(`${AGENT_CONVERSATIONS_URL}/${encodeURIComponent(conversationId)}/messages?${query}`, {
     signal,
   }).catch((error: unknown) => {
     if (isAbortError(error) || signal?.aborted) throw new DOMException('Aborted', 'AbortError');

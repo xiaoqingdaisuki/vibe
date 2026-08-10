@@ -85,7 +85,7 @@ export function ShopPanel({ character, onAction }: ShopPanelProps) {
                   </div>
                   <div className={styles.itemActions}>
                     <button
-                      onClick={() => onAction({ type: 'buy', itemName: itemDef.name })}
+                      onClick={() => onAction({ type: 'buy', itemId: itemDef.id })}
                       className={styles.buyBtn}
                       disabled={disabled}
                     >

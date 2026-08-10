@@ -163,22 +163,22 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
 
   const handleOneClickSellForType = useCallback(
     (itemType: string) => {
-      const namesToSell: string[] = [];
+      const itemIdsToSell: string[] = [];
 
       for (const item of character.inventory) {
         if (item.type !== itemType) continue;
         if (!rarityFilter.has(item.rarity)) continue;
         if (character.favorites.includes(item.name)) continue;
-        if (!namesToSell.includes(item.name)) {
-          namesToSell.push(item.name);
+        if (!itemIdsToSell.includes(item.id)) {
+          itemIdsToSell.push(item.id);
         }
       }
 
-      if (namesToSell.length === 0) {
+      if (itemIdsToSell.length === 0) {
         return;
       }
 
-      onAction({ type: 'bulkSell', itemNames: namesToSell });
+      onAction({ type: 'bulkSell', itemIds: itemIdsToSell });
     },
     [rarityFilter, character.inventory, character.favorites, onAction],
   );
@@ -425,7 +425,7 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
                           <div className={styles.itemActions}>
                             {equippable && item.slot && (
                               <button
-                                onClick={() => onAction({ type: 'equip', slot: item.slot!, itemName: item.name })}
+                                onClick={() => onAction({ type: 'equip', slot: item.slot!, itemId: item.id })}
                                 className={`${styles.actionBtn} ${styles.equipBtn}`}
                               >
                                 装备
@@ -442,7 +442,7 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
                             )}
                             {item.type === 'chest' && (
                               <button
-                                onClick={() => onAction({ type: 'open', itemName: item.name })}
+                                onClick={() => onAction({ type: 'open', itemId: item.id })}
                                 className={`${styles.actionBtn} ${styles.openBtn}`}
                               >
                                 开启
@@ -450,14 +450,14 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
                             )}
                             {item.type === 'skill_book' && (
                               <button
-                                onClick={() => onAction({ type: 'use', itemName: item.name })}
+                                onClick={() => onAction({ type: 'use', itemId: item.id })}
                                 className={`${styles.actionBtn} ${styles.skillBtn}`}
                               >
                                 使用
                               </button>
                             )}
                             <button
-                              onClick={() => onAction({ type: 'sell', itemName: item.name })}
+                              onClick={() => onAction({ type: 'sell', itemId: item.id })}
                               className={`${styles.actionBtn} ${styles.sellBtn}`}
                             >
                               出售 +{sellPrice}
@@ -538,7 +538,7 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
               {canEquip(detailItem) && detailItem.slot && (
                 <button
                   onClick={() => {
-                    onAction({ type: 'equip', slot: detailItem.slot!, itemName: detailItem.name });
+                    onAction({ type: 'equip', slot: detailItem.slot!, itemId: detailItem.id });
                     setDetailItem(null);
                   }}
                   className={`${styles.actionBtn} ${styles.equipBtn}`}
@@ -548,7 +548,7 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
               )}
               <button
                 onClick={() => {
-                  onAction({ type: 'sell', itemName: detailItem.name });
+                  onAction({ type: 'sell', itemId: detailItem.id });
                   setDetailItem(null);
                 }}
                 className={`${styles.actionBtn} ${styles.sellBtn}`}

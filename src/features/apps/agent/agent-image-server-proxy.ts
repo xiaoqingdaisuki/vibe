@@ -1,3 +1,5 @@
+import { getAgentRequestTimeoutMs } from './agent-timeout.ts';
+
 interface ImageProxyResult {
   status: number;
   body: { imageDataUrl: string } | { error: { message: string } };
@@ -16,10 +18,7 @@ function getUpstreamErrorMessage(payload: unknown, depth = 0): string | undefine
   if (!isRecord(payload) || depth > 3) return undefined;
   const direct = payload.message;
   if (typeof direct === 'string' && direct.length <= 300) return direct;
-  return (
-    getUpstreamErrorMessage(payload.error, depth + 1) ??
-    getUpstreamErrorMessage(payload.detail, depth + 1)
-  );
+  return getUpstreamErrorMessage(payload.error, depth + 1) ?? getUpstreamErrorMessage(payload.detail, depth + 1);
 }
 
 // 构造错误响应结果
@@ -55,25 +54,32 @@ export async function proxyAgentImage(payload: unknown): Promise<ImageProxyResul
   if (!imageApiUrl) {
     return errorResult('AGENT_API_BASE_URL 配置无效。', 500);
   }
-
+  const apiSecret = process.env.AGENT_API_SECRET?.trim();
+  if (!apiSecret) {
+    return errorResult('AGENT_API_SECRET 配置缺失。', 500);
+  }
   let upstream: Response;
   try {
     upstream = await fetch(imageApiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${apiSecret}`,
+        'Content-Type': 'application/json',
+      },
       body: JSON.stringify({ prompt: prompt.trim() }),
+      signal: AbortSignal.timeout(getAgentRequestTimeoutMs()),
       cache: 'no-store',
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && (error.name === 'TimeoutError' || error.name === 'AbortError')) {
+      return errorResult('图像生成超时，请稍后重试。', 504);
+    }
     return errorResult('无法连接图像服务，请检查本地后端是否已启动。', 503);
   }
 
   const upstreamPayload: unknown = await upstream.json().catch(() => null);
   if (!upstream.ok) {
-    return errorResult(
-      getUpstreamErrorMessage(upstreamPayload) ?? '图像生成暂时不可用。',
-      upstream.status,
-    );
+    return errorResult(getUpstreamErrorMessage(upstreamPayload) ?? '图像生成暂时不可用。', upstream.status);
   }
 
   const imageDataUrl =

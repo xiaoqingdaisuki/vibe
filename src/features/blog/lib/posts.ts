@@ -5,6 +5,7 @@ import type { BlogPost, BlogPostMetadata } from '../types';
 
 const BLOG_DIR = path.join(process.cwd(), 'src/content/blog');
 const BLOG_EXTENSIONS = ['.mdx', '.md'] as const;
+const BLOG_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/i;
 
 // 校验并提取 gray-matter frontmatter 中的元数据
 function parseBlogMetadata(data: unknown): BlogPostMetadata | null {
@@ -36,7 +37,7 @@ function parseBlogMetadata(data: unknown): BlogPostMetadata | null {
     return null;
   }
 
-  if (metadata.published !== undefined && typeof metadata.published !== 'boolean') {
+  if (typeof metadata.published !== 'boolean') {
     return null;
   }
 
@@ -51,7 +52,7 @@ function parseBlogMetadata(data: unknown): BlogPostMetadata | null {
     updated: metadata.updated,
     tags: tags ?? [],
     category: metadata.category,
-    published: metadata.published ?? true,
+    published: metadata.published,
     pinned: metadata.pinned,
     cover: metadata.cover,
   };
@@ -76,7 +77,7 @@ function readBlogFile(filePath: string): BlogPost | null {
     updated: metadata.updated,
     tags: metadata.tags || [],
     category: metadata.category,
-    published: metadata.published ?? true,
+    published: metadata.published,
     pinned: metadata.pinned,
     cover: metadata.cover,
     content,
@@ -85,6 +86,8 @@ function readBlogFile(filePath: string): BlogPost | null {
 
 // 根据 slug 解析对应的博客文件完整路径
 function resolveBlogPostPath(slug: string): string | null {
+  if (!BLOG_SLUG_PATTERN.test(slug)) return null;
+
   for (const extension of BLOG_EXTENSIONS) {
     const filePath = path.join(BLOG_DIR, `${slug}${extension}`);
     if (fs.existsSync(filePath)) {

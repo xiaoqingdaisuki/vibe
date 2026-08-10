@@ -3,15 +3,20 @@ import test from 'node:test';
 
 import { proxyAgentImage } from './agent-image-server-proxy.ts';
 
+const TEST_AGENT_API_SECRET = 'test-agent-secret-with-at-least-32-bytes';
+process.env.AGENT_API_SECRET = TEST_AGENT_API_SECRET;
+
 test('forwards an image prompt and adapts the generated data URL', async (t) => {
   const originalFetch = globalThis.fetch;
   const originalBaseUrl = process.env.AGENT_API_BASE_URL;
   process.env.AGENT_API_BASE_URL = 'http://agent.test';
   let upstreamUrl: string | undefined;
   let upstreamBody: BodyInit | null | undefined;
+  let upstreamHeaders: HeadersInit | undefined;
   globalThis.fetch = async (input, init) => {
     upstreamUrl = String(input);
     upstreamBody = init?.body;
+    upstreamHeaders = init?.headers;
     return new Response(JSON.stringify({ image_data_url: 'data:image/png;base64,aGVsbG8=' }), {
       headers: { 'Content-Type': 'application/json' },
     });
@@ -28,6 +33,7 @@ test('forwards an image prompt and adapts the generated data URL', async (t) => 
   assert.deepEqual(response.body, { imageDataUrl: 'data:image/png;base64,aGVsbG8=' });
   assert.equal(upstreamUrl, 'http://agent.test/images/generations');
   assert.deepEqual(JSON.parse(String(upstreamBody)), { prompt: '紫色的山谷' });
+  assert.equal(new Headers(upstreamHeaders).get('authorization'), `Bearer ${TEST_AGENT_API_SECRET}`);
 });
 
 test('shows a FastAPI image error instead of replacing it with a generic message', async (t) => {
@@ -49,4 +55,23 @@ test('shows a FastAPI image error instead of replacing it with a generic message
 
   assert.equal(response.status, 429);
   assert.deepEqual(response.body, { error: { message: '图片模型配额不足' } });
+});
+
+test('returns a gateway timeout when image generation exceeds the route budget', async (t) => {
+  const originalFetch = globalThis.fetch;
+  const originalBaseUrl = process.env.AGENT_API_BASE_URL;
+  process.env.AGENT_API_BASE_URL = 'http://agent.test';
+  globalThis.fetch = async () => {
+    throw new DOMException('Timed out', 'TimeoutError');
+  };
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    if (originalBaseUrl === undefined) delete process.env.AGENT_API_BASE_URL;
+    else process.env.AGENT_API_BASE_URL = originalBaseUrl;
+  });
+
+  const response = await proxyAgentImage({ prompt: '测试超时' });
+
+  assert.equal(response.status, 504);
+  assert.deepEqual(response.body, { error: { message: '图像生成超时，请稍后重试。' } });
 });

@@ -120,15 +120,15 @@ export type GameAction =
   | { type: 'CLEAR_LOGS' };
 
 export type GameInteraction =
-  | { type: 'equip'; slot: EquipSlot; itemName: string }
+  | { type: 'equip'; slot: EquipSlot; itemId: string }
   | { type: 'unequip'; slot: EquipSlot }
-  | { type: 'use'; itemName: string }
-  | { type: 'open'; itemName: string }
-  | { type: 'buy'; itemName: string; count?: number }
-  | { type: 'sell'; itemName: string; count?: number }
+  | { type: 'use'; itemId: string }
+  | { type: 'open'; itemId: string }
+  | { type: 'buy'; itemId: string; count?: number }
+  | { type: 'sell'; itemId: string; count?: number }
   | { type: 'expand' }
   | { type: 'sort' }
-  | { type: 'bulkSell'; itemNames: string[] }
+  | { type: 'bulkSell'; itemIds: string[] }
   | { type: 'toggleFavorite'; itemName: string }
   | { type: 'command'; value: string };
 

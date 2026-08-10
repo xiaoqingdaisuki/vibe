@@ -9,8 +9,9 @@ interface RouteContext {
 }
 
 // 获取指定会话的历史消息列表
-export async function GET(_request: Request, context: RouteContext): Promise<NextResponse> {
+export async function GET(request: Request, context: RouteContext): Promise<NextResponse> {
   const { id } = await context.params;
-  const result = await proxyGetAgentConversationMessages(id);
+  const userId = new URL(request.url).searchParams.get('user_id') ?? '';
+  const result = await proxyGetAgentConversationMessages(id, userId);
   return NextResponse.json(result.body, { status: result.status });
 }

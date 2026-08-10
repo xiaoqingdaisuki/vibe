@@ -5,6 +5,7 @@ import {
   AgentHttpError,
   callAgentApi,
   createAgentConversation,
+  deleteAgentConversation,
   getAgentConversationMessages,
   shouldDiscardStoredConversation,
 } from './agent-api.ts';
@@ -52,10 +53,7 @@ test('surfaces a concise server error without using local fallback data', async 
     globalThis.fetch = originalFetch;
   });
 
-  await assert.rejects(
-    () => callAgentApi(REQUEST, () => undefined),
-    /AI助手服务暂不可用/,
-  );
+  await assert.rejects(() => callAgentApi(REQUEST, () => undefined), /AI助手服务暂不可用/);
 });
 
 test('does not expose an HTML error page to the user', async (t) => {
@@ -65,10 +63,7 @@ test('does not expose an HTML error page to the user', async (t) => {
     globalThis.fetch = originalFetch;
   });
 
-  await assert.rejects(
-    () => callAgentApi(REQUEST, () => undefined),
-    /AI助手请求失败（HTTP 500）/,
-  );
+  await assert.rejects(() => callAgentApi(REQUEST, () => undefined), /AI助手请求失败（HTTP 500）/);
 });
 
 test('streams SSE chunks split across network boundaries', async (t) => {
@@ -134,10 +129,7 @@ test('surfaces a structured error received after an SSE stream starts', async (t
     globalThis.fetch = originalFetch;
   });
 
-  await assert.rejects(
-    () => callAgentApi(REQUEST, () => undefined),
-    new Error('AI助手响应超时，请稍后重试。'),
-  );
+  await assert.rejects(() => callAgentApi(REQUEST, () => undefined), new Error('AI助手响应超时，请稍后重试。'));
 });
 
 test('sends the same stable user identity when creating and streaming a conversation', async (t) => {
@@ -207,11 +199,35 @@ test('loads persisted messages from the v1 conversation API', async (t) => {
     globalThis.fetch = originalFetch;
   });
 
-  const messages = await getAgentConversationMessages('conv_1');
+  const messages = await getAgentConversationMessages('conv_1', 'web_user123');
 
-  assert.equal(requestUrl, '/api/agent/v1/conversations/conv_1/messages');
+  assert.equal(requestUrl, '/api/agent/v1/conversations/conv_1/messages?user_id=web_user123');
   assert.deepEqual(messages, [
     { id: 'msg_1', role: 'user', content: '你好', createdAt: '2026-08-03T08:00:00.000Z' },
     { id: 'msg_2', role: 'assistant', content: '你好！', createdAt: '2026-08-03T08:00:01.000Z' },
+  ]);
+});
+
+test('deletes the server conversation and surfaces failures instead of orphaning it', async (t) => {
+  const originalFetch = globalThis.fetch;
+  const requests: string[] = [];
+  globalThis.fetch = async (input) => {
+    requests.push(String(input));
+    return requests.length === 1
+      ? new Response(null, { status: 204 })
+      : new Response(JSON.stringify({ error: { message: '删除会话失败' } }), {
+          status: 503,
+          headers: { 'Content-Type': 'application/json' },
+        });
+  };
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  await deleteAgentConversation('conv_1', 'web_user123');
+  await assert.rejects(() => deleteAgentConversation('conv_2', 'web_user123'), /删除会话失败/);
+  assert.deepEqual(requests, [
+    '/api/agent/v1/conversations/conv_1?user_id=web_user123',
+    '/api/agent/v1/conversations/conv_2?user_id=web_user123',
   ]);
 });

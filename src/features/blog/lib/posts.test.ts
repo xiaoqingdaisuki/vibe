@@ -17,6 +17,8 @@ const TEMP_OMITTED_PINNED_POST_SLUG = 'temp-z-omitted-pinned-post';
 const TEMP_OMITTED_PINNED_POST_PATH = path.join(BLOG_DIR, `${TEMP_OMITTED_PINNED_POST_SLUG}.md`);
 const TEMP_DRAFT_POST_SLUG = 'temp-draft-post';
 const TEMP_DRAFT_POST_PATH = path.join(BLOG_DIR, `${TEMP_DRAFT_POST_SLUG}.md`);
+const TEMP_PRIVATE_POST_SLUG = 'temp-private-post';
+const TEMP_PRIVATE_POST_PATH = path.join(BLOG_DIR, '..', `${TEMP_PRIVATE_POST_SLUG}.md`);
 
 test('getBlogPostBySlug supports .md posts as well as .mdx', () => {
   fs.writeFileSync(
@@ -74,6 +76,54 @@ published: true
     );
   } finally {
     fs.rmSync(TEMP_POST_PATH, { force: true });
+  }
+});
+
+test('getBlogPostBySlug rejects frontmatter that omits the required published field', () => {
+  fs.writeFileSync(
+    TEMP_POST_PATH,
+    `---
+title: "Unpublished by omission"
+description: "Must not become public by default."
+date: "2026-07-06"
+tags: ["test"]
+category: "Test"
+---
+
+# Private draft
+`,
+    'utf-8',
+  );
+
+  try {
+    assert.equal(getBlogPostBySlug(TEMP_POST_SLUG), null);
+    assert.equal(getPublishedBlogPostBySlug(TEMP_POST_SLUG), null);
+  } finally {
+    fs.rmSync(TEMP_POST_PATH, { force: true });
+  }
+});
+
+test('getBlogPostBySlug refuses encoded route traversal outside the blog directory', () => {
+  fs.writeFileSync(
+    TEMP_PRIVATE_POST_PATH,
+    `---
+title: "Private content"
+description: "Outside the public blog directory."
+date: "2026-07-06"
+tags: ["test"]
+category: "Test"
+published: true
+---
+
+# Must stay private
+`,
+    'utf-8',
+  );
+
+  try {
+    assert.equal(getBlogPostBySlug(`../${TEMP_PRIVATE_POST_SLUG}`), null);
+  } finally {
+    fs.rmSync(TEMP_PRIVATE_POST_PATH, { force: true });
   }
 });
 

@@ -7,15 +7,20 @@ import {
   proxyStreamAgentMessage,
 } from './agent-v1-server-proxy.ts';
 
+const TEST_AGENT_API_SECRET = 'test-agent-secret-with-at-least-32-bytes';
+process.env.AGENT_API_SECRET = TEST_AGENT_API_SECRET;
+
 test('creates a conversation through the Agent v1 API', async (t) => {
   const originalFetch = globalThis.fetch;
   const originalBaseUrl = process.env.AGENT_API_BASE_URL;
   process.env.AGENT_API_BASE_URL = 'http://agent.test';
   let upstreamUrl = '';
   let upstreamBody: BodyInit | null | undefined;
+  let upstreamHeaders: HeadersInit | undefined;
   globalThis.fetch = async (input, init) => {
     upstreamUrl = String(input);
     upstreamBody = init?.body;
+    upstreamHeaders = init?.headers;
     return new Response(JSON.stringify({ id: 'conv_123' }), {
       status: 201,
       headers: { 'Content-Type': 'application/json' },
@@ -33,6 +38,8 @@ test('creates a conversation through the Agent v1 API', async (t) => {
   assert.deepEqual(result.body, { id: 'conv_123' });
   assert.equal(upstreamUrl, 'http://agent.test/api/v1/conversations');
   assert.deepEqual(JSON.parse(String(upstreamBody)), { title: '你好', mode: 'chat', user_id: 'web_user123' });
+  assert.equal(new Headers(upstreamHeaders).get('authorization'), `Bearer ${TEST_AGENT_API_SECRET}`);
+  assert.equal(new Headers(upstreamHeaders).get('x-agent-user-id'), 'web_user123');
 });
 
 test('streams only the current message through the Agent v1 conversation API', async (t) => {
@@ -124,7 +131,7 @@ test('retrieves conversation history through the Agent v1 API', async (t) => {
     else process.env.AGENT_API_BASE_URL = originalBaseUrl;
   });
 
-  const result = await proxyGetAgentConversationMessages('conv_123');
+  const result = await proxyGetAgentConversationMessages('conv_123', 'web_user123');
 
   assert.equal(result.status, 200);
   assert.deepEqual(result.body, { messages: [{ id: 'msg_1', role: 'user', content: '你好' }] });

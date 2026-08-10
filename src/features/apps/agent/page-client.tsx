@@ -472,7 +472,10 @@ function AgentComposer({
 }
 
 // 开启新会话的确认弹窗，Esc关闭
-function NewConversationDialog({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => void }) {
+function NewConversationDialog({ onCancel, onConfirm }: { onCancel: () => void; onConfirm: () => Promise<boolean> }) {
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onCancel();
@@ -481,6 +484,19 @@ function NewConversationDialog({ onCancel, onConfirm }: { onCancel: () => void; 
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onCancel]);
 
+  // 删除成功后关闭弹窗，失败时保留会话并允许重试
+  const handleConfirm = async () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
+    setDeleteError(null);
+    try {
+      if (await onConfirm()) onCancel();
+      else setDeleteError('旧会话删除失败，当前记录仍已保留，请稍后重试。');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className={styles.dialogOverlay} onMouseDown={onCancel}>
       <section className={styles.dialog} role="dialog" aria-modal="true" aria-labelledby="new-conversation-title" onMouseDown={(event) => event.stopPropagation()}>
@@ -488,12 +504,18 @@ function NewConversationDialog({ onCancel, onConfirm }: { onCancel: () => void; 
           开启新会话
         </h2>
         <p className={styles.dialogText}>开启新会话后会忘记当前所有对话记录</p>
+        {deleteError ? <p className={styles.dialogText}>{deleteError}</p> : null}
         <div className={styles.dialogActions}>
-          <button type="button" className={styles.dialogButton} onClick={onCancel}>
+          <button type="button" className={styles.dialogButton} onClick={onCancel} disabled={isDeleting}>
             取消
           </button>
-          <button type="button" className={`${styles.dialogButton} ${styles.dialogButtonConfirm}`} onClick={onConfirm}>
-            确认
+          <button
+            type="button"
+            className={`${styles.dialogButton} ${styles.dialogButtonConfirm}`}
+            onClick={() => void handleConfirm()}
+            disabled={isDeleting}
+          >
+            {isDeleting ? '删除中…' : '确认'}
           </button>
         </div>
       </section>
@@ -526,10 +548,6 @@ export default function AgentChat() {
   } = useAgentChat();
   const { messagesEndRef, scrollContainerRef, showScrollButton, scrollToBottom } = useChatScroll(messages, isStreaming);
   const hasMessages = messages.length > 0;
-  const confirmNewConversation = () => {
-    startNewConversation();
-    setIsNewConversationDialogOpen(false);
-  };
 
   return (
     <div className={styles.shell}>
@@ -604,7 +622,7 @@ export default function AgentChat() {
       {isNewConversationDialogOpen ? (
         <NewConversationDialog
           onCancel={() => setIsNewConversationDialogOpen(false)}
-          onConfirm={confirmNewConversation}
+          onConfirm={startNewConversation}
         />
       ) : null}
     </div>

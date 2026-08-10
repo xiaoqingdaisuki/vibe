@@ -622,7 +622,7 @@ export function randomEquipItem(chestRarity: ItemRarity, charLevel: number): Ite
 
   return {
     ...base,
-    id: `${base.id.split('_').slice(0, 2).join('_')}_${String(level).padStart(2, '0')}_${newRarity}`,
+    id: createGeneratedEquipmentId(base, level, newRarity),
     name,
     stats,
     rarity: newRarity,
@@ -630,6 +630,12 @@ export function randomEquipItem(chestRarity: ItemRarity, charLevel: number): Ite
     description,
     minLevel: level,
   };
+}
+
+// 生成保留饰品原始编号的稳定装备ID
+export function createGeneratedEquipmentId(base: ItemDef, level: number, rarity: ItemRarity): string {
+  const prefix = base.slot === 'accessory' ? base.id : base.id.split('_').slice(0, 2).join('_');
+  return `${prefix}_${String(level).padStart(2, '0')}_${rarity}`;
 }
 
 export const ITEMS: ItemDef[] = [
