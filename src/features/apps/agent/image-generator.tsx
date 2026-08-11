@@ -17,7 +17,7 @@ function ImageIcon() {
   );
 }
 
-// 可折叠的图像生成面板，调用StepFun API生成图片
+// 可折叠的图像生成面板，调用API生成图片
 export function ImageGenerator() {
   const [isOpen, setIsOpen] = useState(false);
   const [prompt, setPrompt] = useState('');
@@ -53,14 +53,13 @@ export function ImageGenerator() {
         <span className={styles.imageGeneratorIcon}>
           <ImageIcon />
         </span>
-        <span className={styles.imageGeneratorTitle}>图像生成</span>
-        <span className={styles.imageGeneratorHint}>使用 StepFun step-image-edit-2</span>
+        <span className={styles.imageGeneratorTitle}>文本生成图像</span>
       </button>
 
       {isOpen ? (
         <div className={styles.imageGeneratorBody}>
           <label htmlFor={promptId} className={styles.imagePromptLabel}>
-            描述你想要生成的图片
+            文本描述想要生成的图片内容
           </label>
           <textarea
             id={promptId}
