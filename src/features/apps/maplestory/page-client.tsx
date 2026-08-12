@@ -6,6 +6,7 @@ import { Input } from '@/components/base/Input';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/base/Table';
 
 import { monsterDatabase, monstersWithDrops } from './data';
+import { getMaplestoryFilterSearch } from './filter-url';
 import { getMonsterTableResult, getVisibleDrops, type MonsterSortKey, type SortDirection } from './table-model';
 import type { MapleMonster, MonsterStats } from './types';
 import styles from './styles/Maplestory.module.css';
@@ -18,6 +19,10 @@ interface Column {
 
 interface SortableColumn extends Column {
   key: MonsterSortKey;
+}
+
+interface MaplestoryProps {
+  initialFilter?: string;
 }
 
 const allColumns: Column[] = [
@@ -181,9 +186,9 @@ function MonsterRow({ monster, query }: { monster: MapleMonster; query: string }
 }
 
 // 渲染怪物数据库的筛选、排序和完整滚动表格
-export function Maplestory() {
-  const [query, setQuery] = useState('');
-  const [filterQuery, setFilterQuery] = useState('');
+export function Maplestory({ initialFilter = '' }: MaplestoryProps) {
+  const [query, setQuery] = useState(initialFilter);
+  const [filterQuery, setFilterQuery] = useState(initialFilter);
   const [sortKey, setSortKey] = useState<MonsterSortKey>('level');
   const [sortDirection, setSortDirection] = useState<SortDirection>('ascending');
   const result = getMonsterTableResult(monstersWithDrops, { query: filterQuery, sortKey, sortDirection });
@@ -193,6 +198,17 @@ export function Maplestory() {
     const timeoutId = window.setTimeout(() => setFilterQuery(query), 300);
 
     return () => window.clearTimeout(timeoutId);
+  }, [query]);
+
+  // 将输入内容同步到地址栏，便于直接分享当前筛选页
+  useEffect(() => {
+    const nextSearch = getMaplestoryFilterSearch(window.location.search, query);
+    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+    const nextPath = `${window.location.pathname}${nextSearch}${window.location.hash}`;
+
+    if (nextPath !== currentPath) {
+      window.history.replaceState(null, '', nextPath);
+    }
   }, [query]);
 
   // 切换同一字段时翻转顺序，切换字段时从升序开始
@@ -301,13 +317,6 @@ export function Maplestory() {
           )}
         </TableBody>
       </Table>
-
-      <p className={styles.attribution}>
-        来源：
-        <a href={monsterDatabase.source.url} target="_blank" rel="noreferrer">
-          {monsterDatabase.source.name}
-        </a>
-      </p>
     </section>
   );
 }

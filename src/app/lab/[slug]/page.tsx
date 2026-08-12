@@ -5,6 +5,7 @@ import { getLabAppBySlug, getAllLabAppSlugs } from '@/features/lab/lib/get-lab-a
 
 interface LabAppPageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ filter?: string | string[] }>;
 }
 
 interface ComingSoonAppProps {
@@ -57,9 +58,10 @@ export async function generateMetadata({ params }: LabAppPageProps) {
 }
 
 // Lab应用详情页，根据slug动态加载并渲染对应应用
-export default async function LabAppPage({ params }: LabAppPageProps) {
-  const { slug } = await params;
+export default async function LabAppPage({ params, searchParams }: LabAppPageProps) {
+  const [{ slug }, resolvedSearchParams] = await Promise.all([params, searchParams]);
   const app = getLabAppBySlug(slug);
+  const initialFilter = typeof resolvedSearchParams.filter === 'string' ? resolvedSearchParams.filter : undefined;
 
   if (!app) {
     notFound();
@@ -82,7 +84,7 @@ export default async function LabAppPage({ params }: LabAppPageProps) {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 md:px-6 md:py-12">
       <Breadcrumb items={[{ label: 'Lab', href: '/lab' }, { label: app.title }]} />
-      <AppComponent />
+      <AppComponent initialFilter={app.slug === 'maplestory' ? initialFilter : undefined} />
     </div>
   );
 }

@@ -88,8 +88,7 @@
   color: var(--color-accent);
 }
 
-.resultSummary,
-.attribution {
+.resultSummary {
   margin: 0;
   color: var(--color-foreground-secondary);
   font-size: var(--text-sm);
@@ -187,18 +186,6 @@
   padding: var(--space-32);
   text-align: center;
   color: var(--color-foreground-secondary);
-}
-
-.attribution a {
-  color: var(--color-accent);
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.attribution a:hover,
-.attribution a:active {
-  color: var(--color-accent-hover);
-  text-decoration: underline;
 }
 
 .srOnly {

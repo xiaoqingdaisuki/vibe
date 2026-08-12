@@ -1,6 +1,6 @@
 // Lab app 懒加载器类型定义
 export type LabAppLoader = () => Promise<{
-  default: React.ComponentType;
+  default: React.ComponentType<{ initialFilter?: string }>;
 }>;
 
 const LAB_APP_LOADERS: Record<string, LabAppLoader> = {
