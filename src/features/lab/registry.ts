@@ -12,6 +12,16 @@ const registeredLabApps: LabApp[] = [
     dataSource: 'future-backend',
   },
   {
+    slug: 'maplestory',
+    title: '冒险岛怀旧服怪物资料',
+    description: '浏览冒险岛国服怀旧服怪物的属性与掉落道具，支持本地检索和排序。',
+    category: 'tool',
+    tags: ['maplestory', 'database', 'monster'],
+    href: '/lab/maplestory',
+    featured: true,
+    dataSource: 'local',
+  },
+  {
     slug: 'sudoku',
     title: '数独',
     description: '数独游戏，支持五级难度与键盘操作。',
