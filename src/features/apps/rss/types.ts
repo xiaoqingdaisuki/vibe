@@ -17,7 +17,7 @@ export interface RssFeed {
 
 export const DEFAULT_FEEDS: string[] = [
   'https://v2ex.com/index.xml',
-  'https://36kr.com/feed',
+  'https://rss.ovh/36kr/newsflashes',
   'https://sspai.com/feed',
   'https://feeds.feedburner.com/ruanyifeng',
   'https://plink.anyfeeder.com/zhihu/daily',

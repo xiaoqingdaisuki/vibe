@@ -18,7 +18,7 @@ export default function AboutPage() {
           description="Developer, tinkerer, and builder of things on the web."
         />
 
-        <div className="mt-8 md:mt-10 space-y-5 text-base leading-relaxed text-secondary">
+        <div className="mt-4 md:mt-4 space-y-5 text-base leading-relaxed text-secondary">
           <p>
             Hi, I&apos;m the creator of Vibe. I build web apps, experiment with new technologies, and write about what I
             learn along the way.

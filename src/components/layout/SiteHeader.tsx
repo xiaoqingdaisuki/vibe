@@ -43,7 +43,7 @@ export function SiteHeader() {
 
   return (
     <header className={`sticky top-0 z-50 border-bottom-base ${styles.header}`}>
-      <div className="mx-auto max-w-5xl px-4">
+      <div className="mx-auto max-w-5xl px-6">
         <div className="flex h-14 items-center justify-between">
           {/* Logo — with accent dot */}
           <Link

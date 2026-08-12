@@ -16,7 +16,7 @@ const registeredLabApps: LabApp[] = [
     title: '冒险岛怀旧服怪物资料',
     description: '浏览冒险岛国服怀旧服怪物的属性与掉落道具，支持本地检索和排序。',
     category: 'tool',
-    tags: ['maplestory', 'database', 'monster'],
+    tags: ['maplestory', 'monster'],
     href: '/lab/maplestory',
     featured: true,
     dataSource: 'local',
