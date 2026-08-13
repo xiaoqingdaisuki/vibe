@@ -1,0 +1,209 @@
+---
+title: '服务器常用运维命令'
+description: '覆盖 Linux 排障、服务管理与 Docker/Compose 生命周期、日志、网络和清理操作的实用命令速查。'
+date: '2026-08-13'
+tags: ['Linux', 'Docker', 'Operations']
+category: 'Engineering'
+published: true
+---
+
+## 服务器健康检查
+
+```bash
+# 系统已运行多久、负载是否持续升高
+uptime
+
+# 内存与 swap 使用情况
+free -h
+
+# 文件系统容量与类型；重点看 Use% 接近 100% 的挂载点
+df -hT
+
+# 查看前 20 个 CPU 或内存占用最高的进程
+ps aux --sort=-%cpu | head -n 20
+ps aux --sort=-%mem | head -n 20
+
+# 查看正在监听的 TCP/UDP 端口及其进程
+sudo ss -lntup
+```
+
+## Linux：服务、日志与进程
+
+`systemctl` 是多数现代 Linux 发行版的服务入口。排障时先看状态，再决定是否重启。
+
+```bash
+# 服务状态、最近错误和主进程 PID
+sudo systemctl status nginx
+
+# 启动、停止、重启与重新加载配置
+sudo systemctl start nginx
+sudo systemctl stop nginx
+sudo systemctl restart nginx
+sudo systemctl reload nginx
+
+# 设置开机启动，或取消开机启动
+sudo systemctl enable nginx
+sudo systemctl disable nginx
+
+# 修改 unit 文件后必须重新加载 systemd 配置
+sudo systemctl daemon-reload
+```
+
+`reload` 只适合服务自身支持热加载配置的场景；不确定时先执行该服务的配置检测命令，例如 Nginx：
+
+```bash
+sudo nginx -t
+```
+
+### 进程卡住或端口占用
+
+```bash
+# 按名称查进程；pgrep 比 ps | grep 更适合脚本使用
+pgrep -af 'node|java|nginx'
+
+# 查看一个 PID 打开的网络连接与文件
+sudo lsof -p 1234
+
+# 查谁占用了 8080 端口
+sudo lsof -nP -iTCP:8080 -sTCP:LISTEN
+
+# 先发送可处理的终止信号；仅在确认无响应时才使用 -9
+sudo kill -TERM 1234
+sudo kill -KILL 1234
+```
+
+### 网络连通性与 DNS
+
+```bash
+# 本机路由和网卡地址
+ip addr
+ip route
+
+# TCP 连通性与 HTTP 响应头
+nc -vz api.example.com 443
+curl -I --connect-timeout 5 https://api.example.com/health
+
+# DNS 解析；没有 dig 时可用 getent
+dig +short api.example.com
+getent hosts api.example.com
+
+# 从服务器侧观察到目标的路径与丢包情况
+ping -c 4 api.example.com
+```
+
+`ping` 通并不等于业务端口通；生产排查应以目标协议为准，例如 HTTPS 用 `curl`，TCP 服务用 `nc`。
+
+## Docker：容器生命周期与日志
+
+```bash
+# 运行中容器，以及包含已退出容器的完整列表
+docker ps
+docker ps -a
+
+# 查看容器的退出码、启动时间、挂载和网络等底层信息
+docker inspect <container>
+
+# 最近 200 行日志，并持续跟随；--since 适合限定故障窗口
+docker logs --tail 200 -f <container>
+docker logs --since 30m <container>
+
+# 实时观察容器 CPU、内存、网络与块 I/O
+docker stats
+docker stats <container>
+```
+
+### 创建、更新与重启容器
+
+```bash
+# 常驻服务的常用配置
+docker run -d \
+  --name <container> \
+  --restart unless-stopped \
+  --publish 127.0.0.1:<host-port>:<container-port>/tcp \
+  --mount type=volume,src=<volume>,dst=/var/lib/app \
+  my-registry.example.com/app:2026-08-13
+
+# 生命周期操作
+docker start <container>
+docker stop <container>
+docker restart <container>
+docker rm <container>
+```
+
+端口绑定到 `127.0.0.1` 时仅允许宿主机访问，适合由反向代理对外提供 HTTPS；省略该地址会默认发布到所有网卡。健康检查变为 `unhealthy` 不会替代主进程退出后的重启策略。
+
+### Docker：镜像、网络、卷与空间
+
+```bash
+# 镜像、网络和数据卷列表
+docker image ls
+docker network ls
+docker volume ls
+
+# Docker 实际占用；可回收空间是清理前的依据
+docker system df
+
+# 查看容器所在网络与卷的详细信息
+docker network inspect app_default
+docker volume inspect app_db-data
+
+# 拉取或构建镜像
+docker pull nginx:1.28-alpine
+docker build -t my-app:2026-08-13 .
+```
+
+清理操作必须先确认范围：
+
+```bash
+# 仅清理悬空镜像；仍会删除对象，生产环境先执行 docker image ls 确认
+docker image prune
+
+# 清理所有已停止容器
+docker container prune
+
+# 显示 Docker 全局可回收空间后，再决定是否清理
+docker system df
+
+# 高风险：会清理未使用的镜像、容器、网络；--volumes 还会清理未使用卷
+docker system prune --volumes
+```
+
+### Docker Compose：多服务应用
+
+```bash
+# 校验并展开最终配置，部署前先执行
+docker compose config
+
+# 构建并在后台启动；镜像有更新时拉取
+docker compose up -d --build
+docker compose pull
+
+# 查看服务、跟随日志、进入某个服务
+docker compose ps
+docker compose logs --tail 200 -f api
+docker compose exec api sh
+
+# 只重启或重新创建一个服务
+docker compose restart api
+docker compose up -d --force-recreate api
+
+# 停止并移除容器与默认网络，保留命名卷
+docker compose down
+
+# 高风险：同时移除命名卷，数据库等持久化数据会丢失
+docker compose down -v
+```
+
+部署有环境差异时，先显式指定组合配置并检查最终结果：
+
+```bash
+docker compose -f compose.yaml -f compose.production.yaml config
+docker compose -f compose.yaml -f compose.production.yaml up -d
+```
+
+## 参考
+
+- [Docker CLI reference](https://docs.docker.com/reference/cli/docker/)
+- [docker container run reference](https://docs.docker.com/reference/cli/docker/container/run/)
+- [Docker Compose CLI reference](https://docs.docker.com/reference/cli/docker/compose/)
+- [GNU Coreutils manual](https://www.gnu.org/software/coreutils/manual/coreutils.html)

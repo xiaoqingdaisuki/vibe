@@ -164,10 +164,6 @@ Blog rendering rules:
 - Update it only when the user explicitly asks for a Vibe log change.
 - When requested, preserve the original commit subject, group entries under the correct `YYYY年MM月DD日` heading, update the `updated` frontmatter date, and keep `pinned: true`.
 
-### 4.4 Maintain Homepage Recent Updates
-
-When adding or changing a Lab app or Blog post that should appear in the homepage Recent updates module, update the three-item `RECENT_UPDATE_REFERENCES` array in `src/features/home/lib/get-recent-updates.ts`. Its array order is the homepage display order, and it must always contain exactly three valid references.
-
 ## 5. Next.js Standards
 
 Use Server Components by default. Add `'use client'` only when a component needs browser state, event handlers, DOM APIs, `localStorage`, canvas, or another client-only capability.

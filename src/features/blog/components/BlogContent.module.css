@@ -5,12 +5,6 @@
   line-height: 1.8;
 }
 
-@media (min-width: 768px) {
-  .content {
-    font-size: var(--text-lg);
-  }
-}
-
 .content :global(h1),
 .content :global(h2),
 .content :global(h3) {
