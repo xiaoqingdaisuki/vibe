@@ -15,6 +15,7 @@
     "prepare": "husky install"
   },
   "dependencies": {
+    "dayjs": "^1.11.21",
     "gray-matter": "^4.0.3",
     "next": "^16.0.0",
     "next-mdx-remote": "^6.0.0",

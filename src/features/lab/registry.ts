@@ -2,6 +2,16 @@ import type { LabApp } from './types';
 
 const registeredLabApps: LabApp[] = [
   {
+    slug: 'timezone',
+    title: '时区工具',
+    description: '根据设备时区实时显示本地与世界时间，一键复制常用代码时间格式。',
+    category: 'tool',
+    tags: ['timezone', 'tool', 'dayjs'],
+    href: '/lab/timezone',
+    featured: true,
+    dataSource: 'local',
+  },
+  {
     slug: 'ai',
     title: 'AI助手',
     description: 'AI 对话助手，支持api模型调用、流式回复与文本生成图片。',
