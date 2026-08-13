@@ -238,7 +238,7 @@ export function Maplestory({ initialFilter = '' }: MaplestoryProps) {
         <div>
           <p className="eyebrow">Monster archive</p>
           <h1 id="maplestory-title" className={styles.title}>
-            冒险岛怀旧服怪物资料
+            冒险岛怪物资料
           </h1>
           <p className={styles.description}>按怪物等级、属性、掉落道具快速定位国服怀旧服的怪物资料。</p>
         </div>

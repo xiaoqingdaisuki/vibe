@@ -23,7 +23,7 @@ const registeredLabApps: LabApp[] = [
   },
   {
     slug: 'maplestory',
-    title: '冒险岛怀旧服怪物资料',
+    title: '冒险岛怪物资料',
     description: '浏览冒险岛国服怀旧服怪物的属性与掉落道具，支持本地检索和排序。',
     category: 'tool',
     tags: ['maplestory', 'monster'],
