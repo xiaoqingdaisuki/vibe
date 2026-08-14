@@ -162,7 +162,7 @@ Blog rendering rules:
 
 - Do not update the Vibe commit log automatically after commits or as part of unrelated code work.
 - Update it only when the user explicitly asks for a Vibe log change.
-- When requested, preserve the original commit subject, group entries under the correct `YYYY年MM月DD日` heading, update the `updated` frontmatter date, and keep `pinned: true`.
+- When requested, preserve the original commit subject, group entries under the correct `YYYY年MM月DD日` heading, and update the `updated` frontmatter date.
 
 ## 5. Next.js Standards
 
