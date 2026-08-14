@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import type { Skill } from './types';
-import { skills } from './data';
+import { skillCatalog } from './data';
 import { renderSkillNotes } from './render-skill-notes';
-import styles from './styles/Skills.module.css';
+import styles from './styles/Skill.module.css';
 
 // 将 markdown 内容渲染为 React 节点
 function MarkdownRenderer({ content }: { content: string }) {
@@ -97,9 +97,9 @@ function SkillDetail({ skill, onBack }: { skill: Skill; onBack: () => void }) {
 }
 
 // 技能列表主组件，支持选中查看详情
-export function Skills() {
+export function SkillApp() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selectedSkill = selectedId ? skills.find((s) => s.id === selectedId) : null;
+  const selectedSkill = selectedId ? skillCatalog.find((s) => s.id === selectedId) : null;
 
   return (
     <div>
@@ -107,15 +107,15 @@ export function Skills() {
         <SkillDetail skill={selectedSkill} onBack={() => setSelectedId(null)} />
       ) : (
         <div className={styles.grid}>
-          {skills.map((skill) => (
+          {skillCatalog.map((skill) => (
             <SkillCard key={skill.id} skill={skill} onClick={() => setSelectedId(skill.id)} />
           ))}
         </div>
       )}
 
-      {skills.length === 0 && <p className="mt-8 text-muted">No skills yet.</p>}
+      {skillCatalog.length === 0 && <p className="mt-8 text-muted">No skills yet.</p>}
     </div>
   );
 }
 
-export default Skills;
+export default SkillApp;
