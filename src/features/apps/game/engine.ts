@@ -30,6 +30,9 @@ import {
   getTierLootTable,
 } from './static-data.ts';
 
+const OFFLINE_CHEST_REWARD_INTERVAL_MINUTES = 15;
+const MAX_OFFLINE_CHEST_REWARD_ROLLS = 20;
+
 // 游戏核心引擎，处理战斗、物品、商店和技能逻辑
 export class GameEngine {
   public character: Character;
@@ -319,6 +322,24 @@ export class GameEngine {
     this.character._combatSpell = this.getCombatSpellPower();
   }
 
+  // 按离线时长抽取宝箱，复用当前难度的七档宝箱掉率
+  private rollOfflineChestRewards(effectiveMinutes: number): Item[] {
+    const rewardRolls = Math.min(
+      Math.floor(effectiveMinutes / OFFLINE_CHEST_REWARD_INTERVAL_MINUTES),
+      MAX_OFFLINE_CHEST_REWARD_ROLLS,
+    );
+    if (rewardRolls === 0) return [];
+
+    const lootTable = getTierLootTable(this.getDifficultyTier(this.character.level));
+    const items: Item[] = [];
+
+    for (let roll = 0; roll < rewardRolls; roll++) {
+      items.push(...this.rollLoot(lootTable, this.character.level));
+    }
+
+    return items;
+  }
+
   // 计算离线收益（最多 8 小时的自动战斗）
   calculateOfflineProgress(): OfflineResult {
     const now = Date.now();
@@ -385,7 +406,12 @@ export class GameEngine {
     if (result.totalWins > 0) {
       this.character.exp += result.totalExpGained;
       this.character.gold += result.totalGoldGained;
-      // Offline: no item drops
+      const chestRewards = this.rollOfflineChestRewards(effectiveMinutes);
+      for (const chest of chestRewards) {
+        if (this.tryAddToInventory(chest)) {
+          result.totalItemsGained.push(chest);
+        }
+      }
       while (this.checkLevelUp()) {
         result.levelUps++;
       }

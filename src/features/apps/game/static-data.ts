@@ -207,8 +207,7 @@ function accStat(lv: number): number {
   return Math.floor(2 + lv * lv * 0.01);
 }
 
-// Rarity bonus multiplier: common=1x, uncommon=2x, rare=4x, epic=8x, legendary=16x, mythic=32x, transcendent=64x
-// (rarityBonus function already handles this)
+// 装备属性倍率：紫装起适配高等级怪物的生命、防御和攻击成长
 
 // ── Rarity System ──────────────────────────────────────────────────────────
 // 灰色 → 绿 → 蓝 → 紫 → 橙 → 红 → 金色
@@ -289,16 +288,19 @@ export function rollRarity(chestRarity: ItemRarity): ItemRarity {
   return 'common';
 }
 
-// 获取稀有度在排序列表中的索引
-function rarityIndex(rarity: ItemRarity): number {
-  return RARITY_ORDER.indexOf(rarity);
-}
+const RARITY_STAT_MULTIPLIER: Record<ItemRarity, number> = {
+  common: 1,
+  uncommon: 2,
+  rare: 4,
+  epic: 120,
+  legendary: 240,
+  mythic: 480,
+  transcendent: 960,
+};
 
-// 根据稀有度索引计算属性加成倍率（2^index）
+// 根据稀有度获取装备属性倍率
 function rarityBonus(rarity: ItemRarity): number {
-  const idx = rarityIndex(rarity);
-  // Exponential: common=1x, uncommon=2x, rare=4x, epic=8x, legendary=16x, mythic=32x, transcendent=64x
-  return Math.pow(2, idx);
+  return RARITY_STAT_MULTIPLIER[rarity];
 }
 
 // 根据新稀有度重新计算装备属性（宝箱roll出更高稀有度时使用）
