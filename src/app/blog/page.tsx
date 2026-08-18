@@ -15,7 +15,7 @@ export default async function BlogPage() {
   return (
     <div className="page-enter">
       <div className="mx-auto max-w-5xl px-4 py-8 md:px-6 md:py-12">
-        <span className="eyebrow">Journal</span>
+        <span className="eyebrow">Essay</span>
         <SectionTitle title="Blog" subtitle="Thoughts, notes and experiments." />
 
         {posts.length === 0 ? (

@@ -73,7 +73,7 @@ const registeredLabApps: LabApp[] = [
   },
   {
     slug: 'skill',
-    title: 'Skills',
+    title: 'Skill',
     description: 'A collection of skills, tools and knowledge resources.',
     category: 'app',
     tags: ['skill', 'knowledge', 'collection'],
