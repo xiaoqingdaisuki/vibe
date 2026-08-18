@@ -12,7 +12,7 @@ const registeredLabApps: LabApp[] = [
     dataSource: 'local',
   },
   {
-    slug: 'ai',
+    slug: 'agent',
     title: 'AI助手',
     description: 'AI 对话助手，支持api模型调用、流式回复与文本生成图片。',
     category: 'app',
