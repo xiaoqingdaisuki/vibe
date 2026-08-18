@@ -17,7 +17,7 @@ const registeredLabApps: LabApp[] = [
     description: 'AI 对话助手，支持api模型调用、流式回复与文本生成图片。',
     category: 'app',
     tags: ['ai', 'chat', 'streaming'],
-    href: '/lab/ai',
+    href: '/lab/agent',
     featured: true,
     dataSource: 'future-backend',
   },
