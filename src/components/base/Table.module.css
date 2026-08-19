@@ -22,7 +22,7 @@
 }
 
 .header {
-  background: var(--color-accent-faint);
+  background: var(--color-panel-background);
 }
 
 .row {
@@ -32,10 +32,6 @@
 .body .row:last-child,
 .footer .row:last-child {
   border-bottom: 0;
-}
-
-.body .row:hover {
-  background: var(--color-accent-faint);
 }
 
 .head,
@@ -57,6 +53,6 @@
 }
 
 .footer {
-  background: var(--color-accent-wash);
+  background: var(--color-panel-background);
   font-weight: 600;
 }

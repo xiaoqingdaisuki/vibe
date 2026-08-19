@@ -53,12 +53,12 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             </span>
           )}
           <input
+            {...props}
             ref={ref}
             id={inputId}
             aria-describedby={describedBy}
-            aria-invalid={error ? true : undefined}
+            aria-invalid={error ? true : props['aria-invalid']}
             className={`${styles.input} ${className} ${inputClassName}`}
-            {...props}
           />
           {endAdornment && <span className={styles.adornment}>{endAdornment}</span>}
         </div>

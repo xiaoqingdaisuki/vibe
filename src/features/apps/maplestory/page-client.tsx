@@ -6,7 +6,7 @@ import { Input } from '@/components/base/Input';
 import { Table, TableBody, TableCaption, TableCell, TableHead, TableHeader, TableRow } from '@/components/base/Table';
 
 import { monsterDatabase, monstersWithDrops } from './data';
-import { getMaplestoryFilterSearch } from './filter-url';
+import { getMaplestoryFilterSearch, getMaplestoryFilterValue } from './filter-url';
 import { getMonsterTableResult, getVisibleDrops, type MonsterSortKey, type SortDirection } from './table-model';
 import type { MapleMonster, MonsterStats } from './types';
 import styles from './styles/Maplestory.module.css';
@@ -19,10 +19,6 @@ interface Column {
 
 interface SortableColumn extends Column {
   key: MonsterSortKey;
-}
-
-interface MaplestoryProps {
-  initialFilter?: string;
 }
 
 const allColumns: Column[] = [
@@ -185,30 +181,44 @@ function MonsterRow({ monster, query }: { monster: MapleMonster; query: string }
   );
 }
 
+// 保留当前页面的其他参数并替换地址栏中的筛选关键词
+function replaceFilterUrl(filter: string): void {
+  const nextSearch = getMaplestoryFilterSearch(window.location.search, filter);
+  const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  const nextPath = `${window.location.pathname}${nextSearch}${window.location.hash}`;
+
+  if (nextPath !== currentPath) {
+    window.history.replaceState(null, '', nextPath);
+  }
+}
+
 // 渲染怪物数据库的筛选、排序和完整滚动表格
-export function Maplestory({ initialFilter = '' }: MaplestoryProps) {
-  const [query, setQuery] = useState(initialFilter);
-  const [filterQuery, setFilterQuery] = useState(initialFilter);
+export function Maplestory() {
+  const [query, setQuery] = useState('');
+  const [filterQuery, setFilterQuery] = useState('');
   const [sortKey, setSortKey] = useState<MonsterSortKey>('level');
   const [sortDirection, setSortDirection] = useState<SortDirection>('ascending');
   const result = getMonsterTableResult(monstersWithDrops, { query: filterQuery, sortKey, sortDirection });
+
+  // 从地址栏初始化筛选，并响应浏览器历史记录变化
+  useEffect(() => {
+    // 将当前地址中的筛选词同步到输入框和表格
+    const applyLocationFilter = () => {
+      const locationFilter = getMaplestoryFilterValue(window.location.search);
+      setQuery(locationFilter);
+      setFilterQuery(locationFilter);
+    };
+
+    applyLocationFilter();
+    window.addEventListener('popstate', applyLocationFilter);
+    return () => window.removeEventListener('popstate', applyLocationFilter);
+  }, []);
 
   // 输入停止 300ms 后再提交筛选，避免连续按键触发全表重排
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setFilterQuery(query), 300);
 
     return () => window.clearTimeout(timeoutId);
-  }, [query]);
-
-  // 将输入内容同步到地址栏，便于直接分享当前筛选页
-  useEffect(() => {
-    const nextSearch = getMaplestoryFilterSearch(window.location.search, query);
-    const currentPath = `${window.location.pathname}${window.location.search}${window.location.hash}`;
-    const nextPath = `${window.location.pathname}${nextSearch}${window.location.hash}`;
-
-    if (nextPath !== currentPath) {
-      window.history.replaceState(null, '', nextPath);
-    }
   }, [query]);
 
   // 切换同一字段时翻转顺序，切换字段时从升序开始
@@ -222,6 +232,7 @@ export function Maplestory({ initialFilter = '' }: MaplestoryProps) {
   // 更新前端筛选关键词
   function handleSearch(value: string) {
     setQuery(value);
+    replaceFilterUrl(value);
   }
 
   // 清空筛选并恢复默认等级升序
@@ -230,6 +241,7 @@ export function Maplestory({ initialFilter = '' }: MaplestoryProps) {
     setFilterQuery('');
     setSortKey('level');
     setSortDirection('ascending');
+    replaceFilterUrl('');
   }
 
   return (

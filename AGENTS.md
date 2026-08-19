@@ -548,7 +548,6 @@ Lint:
 ### 16.1 Skills And Delegation
 
 - Do not use Superpowers skills or workflows for work in this repository.
-- Do not use subagents for work in this repository.
 
 When starting a task:
 
