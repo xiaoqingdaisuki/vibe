@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
+import type { RefObject } from 'react';
 import type { AgentSuggestionCard as SuggestionCard } from './agent-api';
 import { getAgentConnectionStatusLabel } from './chat-status';
 import type { AgentConnectionStatus } from './chat-status';
@@ -10,71 +11,43 @@ import { ImageGenerator } from './image-generator';
 import styles from './styles/Agent.module.css';
 import { useAgentChat } from './use-agent-chat';
 import { useChatScroll } from './use-chat-scroll';
-import { getTypewriterFrameSize, shouldAnimateTypewriter } from './typewriter';
+import { getTypewriterAnimationDuration, shouldAnimateTypewriter } from './typewriter';
 
 // 渲染markdown内容为HTML
 function MarkdownContent({ content }: { content: string }) {
   return <div className={styles.md} dangerouslySetInnerHTML={{ __html: renderBlockMarkdown(content) }} />;
 }
 
-// 流式回复的打字机逐字动画组件
-function TypewriterContent({ content, isStreaming, isStreamingComplete }: { content: string; isStreaming: boolean; isStreamingComplete: boolean }) {
-  const [visibleCount, setVisibleCount] = useState(0);
-  const rafRef = useRef<number | undefined>(undefined);
-  const animatedRef = useRef(false);
+// 流式回复完成后保留全文，并播放不遮挡内容的光标动画
+function TypewriterContent({
+  content,
+  isStreaming,
+  isStreamingComplete,
+}: {
+  content: string;
+  isStreaming: boolean;
+  isStreamingComplete: boolean;
+}) {
+  const [completionAnimationFinished, setCompletionAnimationFinished] = useState(false);
+  const shouldShowCompletionCursor =
+    isStreamingComplete && shouldAnimateTypewriter(content.length) && !completionAnimationFinished;
 
   useEffect(() => {
-    if (!isStreamingComplete || animatedRef.current) return;
-    animatedRef.current = true;
+    if (!isStreamingComplete || !shouldAnimateTypewriter(content.length)) return;
 
-    if (!shouldAnimateTypewriter(content.length)) {
-      return;
-    }
-
-    const raf = requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        let current = 0;
-        const target = content.length;
-        const frameSize = getTypewriterFrameSize(target);
-
-        const tick = () => {
-          if (current >= target) return;
-          current = Math.min(target, current + frameSize);
-          setVisibleCount(current);
-          rafRef.current = requestAnimationFrame(tick);
-        };
-
-        setVisibleCount(0);
-        rafRef.current = requestAnimationFrame(tick);
-      });
-    });
-
+    const timer = window.setTimeout(
+      () => setCompletionAnimationFinished(true),
+      getTypewriterAnimationDuration(content.length),
+    );
     return () => {
-      cancelAnimationFrame(raf);
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      window.clearTimeout(timer);
     };
   }, [isStreamingComplete, content]);
 
-  // streaming中正常渲染markdown
-  if (isStreaming) {
-    return <MarkdownContent content={content} />;
-  }
-
-  // 历史消息直接显示完整内容，无动画
-  if (!isStreamingComplete || !shouldAnimateTypewriter(content.length) || visibleCount >= content.length) {
-    return <MarkdownContent content={content} />;
-  }
-
-  if (content.length === 0) return null;
-
-  if (visibleCount === 0) {
-    return <span className={styles.cursor} aria-hidden="true" />;
-  }
-
   return (
     <>
-      <MarkdownContent content={content.slice(0, visibleCount)} />
-      {visibleCount < content.length && <span className={styles.cursor} aria-hidden="true" />}
+      <MarkdownContent content={content} />
+      {!isStreaming && shouldShowCompletionCursor ? <span className={styles.cursor} aria-hidden="true" /> : null}
     </>
   );
 }
@@ -205,10 +178,17 @@ function formatTime(ts: number): string {
    Components
    ============================================ */
 
-// 带复制反馈的消息复制按钮
-function CopyButton({ text }: { text: string }) {
+// 带复制反馈的消息复制按钮，优先复制气泡中的选中文本
+function CopyButton({
+  text,
+  contentRef,
+}: {
+  text: string;
+  contentRef: RefObject<HTMLDivElement | null>;
+}) {
   const [copied, setCopied] = useState(false);
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const selectedTextRef = useRef('');
 
   useEffect(() => {
     return () => {
@@ -216,8 +196,19 @@ function CopyButton({ text }: { text: string }) {
     };
   }, []);
 
+  // 在按钮获得焦点前保存当前消息气泡内的选区
+  const captureSelectedText = () => {
+    const selection = window.getSelection();
+    const selectedText = selection?.toString() ?? '';
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    selectedTextRef.current =
+      range && contentRef.current?.contains(range.commonAncestorContainer) ? selectedText : '';
+  };
+
+  // 复制选中文本或整条消息，并显示短暂反馈
   const handleClick = async () => {
-    const ok = await copyText(text);
+    const ok = await copyText(selectedTextRef.current.trim() || text);
+    selectedTextRef.current = '';
     if (ok) {
       setCopied(true);
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
@@ -230,7 +221,14 @@ function CopyButton({ text }: { text: string }) {
       <CheckIcon />
     </span>
   ) : (
-    <button type="button" onClick={handleClick} className={styles.messageActionBtn} title="复制" aria-label="复制消息">
+    <button
+      type="button"
+      onPointerDown={captureSelectedText}
+      onClick={handleClick}
+      className={styles.messageActionBtn}
+      title="复制"
+      aria-label="复制消息"
+    >
       <CopyIcon />
     </button>
   );
@@ -266,15 +264,17 @@ function SuggestionCards({ cards, onSelect }: { cards: SuggestionCard[]; onSelec
 
 // 渲染用户消息气泡，右对齐显示
 function UserMessageBubble({ content, timestamp }: { content: string; timestamp: number }) {
+  const contentRef = useRef<HTMLDivElement>(null);
+
   return (
     <div className={`${styles.row} ${styles.rowUser}`}>
       <div className={`${styles.msgAvatar} ${styles.msgAvatarUser}`} aria-hidden="true">
         <UserIcon />
       </div>
       <div className={styles.bubbleWrap}>
-        <div className={`${styles.bubble} ${styles.bubbleUser}`}>{content}</div>
+        <div ref={contentRef} className={`${styles.bubble} ${styles.bubbleUser}`}>{content}</div>
         <div className={`${styles.meta} ${styles.metaUser}`}>
-          <CopyButton text={content} />
+          <CopyButton text={content} contentRef={contentRef} />
           <span className={styles.time}>{formatTime(timestamp)}</span>
         </div>
       </div>
@@ -299,6 +299,7 @@ function AssistantMessageBubble({
   isStreamingComplete: boolean;
 }) {
   const hasContent = content && content.length > 0;
+  const contentRef = useRef<HTMLDivElement>(null);
 
   return (
     <div className={`${styles.row} ${styles.rowAssistant}`}>
@@ -306,7 +307,7 @@ function AssistantMessageBubble({
         <AgentIcon />
       </div>
       <div className={styles.bubbleWrap}>
-        <div className={`${styles.bubble} ${styles.bubbleAssistant}`}>
+        <div ref={contentRef} className={`${styles.bubble} ${styles.bubbleAssistant}`}>
           {hasContent ? (
             <>
               <TypewriterContent content={content} isStreaming={isStreaming} isStreamingComplete={isStreamingComplete} />
@@ -319,7 +320,7 @@ function AssistantMessageBubble({
         {suggestionCards && !isStreaming && <SuggestionCards cards={suggestionCards} onSelect={onSuggestionSelect} />}
         {content && (
           <div className={styles.meta}>
-            <CopyButton text={content} />
+            <CopyButton text={content} contentRef={contentRef} />
             <span className={styles.time}>{formatTime(timestamp)}</span>
           </div>
         )}

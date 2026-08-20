@@ -441,6 +441,22 @@
   line-height: 1.2;
   word-break: break-word;
   overflow-wrap: break-word;
+  cursor: text;
+  -webkit-touch-callout: default;
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+.bubble::selection,
+.bubble *::selection {
+  background: #4c1d95;
+  color: #ffffff;
+}
+
+:global(:root[data-theme='dark']) .bubble::selection,
+:global(:root[data-theme='dark']) .bubble *::selection {
+  background: var(--color-accent-hover);
+  color: #000000;
 }
 
 .bubbleUser {

@@ -204,16 +204,11 @@ export function useAgentChat(): AgentChatState {
     setConnectionStatus('connecting');
 
     let streamed = '';
-    let lastSync = 0;
-    const syncInterval = 50;
+    // 每个有效分片立即写入状态，避免快速流在节流窗口内留下空白气泡
     const updateStreamed = (chunk: string) => {
       streamed += chunk;
       setConnectionStatus('connected');
-      const now = performance.now();
       setToolProgress(null);
-      if (now - lastSync < syncInterval) return;
-
-      lastSync = now;
       setMessages((current) =>
         current.map((message) => (message.id === assistantId ? { ...message, content: streamed } : message)),
       );
@@ -241,12 +236,13 @@ export function useAgentChat(): AgentChatState {
         setToolProgress,
       );
 
+      const completeContent = response.content || streamed;
       setMessages((current) =>
         current.map((message) =>
           message.id === assistantId
             ? {
                 ...message,
-                content: response.content,
+                content: completeContent,
                 isStreaming: false,
                 suggestionCards: response.suggestionCards,
               }

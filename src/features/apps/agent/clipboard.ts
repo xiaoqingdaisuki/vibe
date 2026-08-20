@@ -17,13 +17,15 @@ function copyWithLegacyTextarea(text: string): boolean {
   }
 }
 
-// 复制文本到剪贴板，优先使用navigator.clipboard，降级到textarea方案
+// 复制文本到剪贴板，优先在用户手势内使用textarea，再回退到Clipboard API
 export async function copyText(text: string): Promise<boolean> {
+  if (copyWithLegacyTextarea(text)) return true;
+
   try {
-    if (!globalThis.navigator?.clipboard) return copyWithLegacyTextarea(text);
+    if (!globalThis.navigator?.clipboard) return false;
     await globalThis.navigator.clipboard.writeText(text);
     return true;
   } catch {
-    return copyWithLegacyTextarea(text);
+    return false;
   }
 }
