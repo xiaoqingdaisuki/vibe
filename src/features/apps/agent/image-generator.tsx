@@ -94,7 +94,7 @@ export function ImageGenerator() {
                 unoptimized
                 className={styles.generatedImage}
               />
-              <a href={imageDataUrl} download="stepfun-generated-image.png" className={styles.imageDownload}>
+              <a href={imageDataUrl} download="vibe-agent-generated-image.png" className={styles.imageDownload}>
                 下载图片
               </a>
             </div>
