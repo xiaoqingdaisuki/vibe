@@ -2,6 +2,16 @@ import type { LabApp } from './types';
 
 const registeredLabApps: LabApp[] = [
   {
+    slug: 'editor',
+    title: '代码编辑器',
+    description: '在线编辑 React 与 HTML、CSS、JavaScript，实时预览效果。',
+    category: 'tool',
+    tags: ['react', 'javascript', 'preview'],
+    href: '/lab/editor',
+    featured: true,
+    dataSource: 'local',
+  },
+  {
     slug: 'timezone',
     title: '时区工具',
     description: '根据设备时区实时显示本地与世界时间，一键复制常用代码时间格式。',

@@ -11,6 +11,7 @@ const nextConfig = {
     return [
       { source: '/lab/ai', destination: '/lab/agent', permanent: true },
       { source: '/lab/skills', destination: '/lab/skill', permanent: true },
+      { source: '/lab/online-editor', destination: '/lab/editor', permanent: true },
     ];
   },
 };

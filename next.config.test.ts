@@ -8,10 +8,13 @@ test('redirects legacy Lab routes to their current slugs', async () => {
   const redirects = await nextConfig.redirects();
 
   assert.deepEqual(
-    redirects.filter(({ source }) => source === '/lab/ai' || source === '/lab/skills'),
+    redirects.filter(
+      ({ source }) => source === '/lab/ai' || source === '/lab/online-editor' || source === '/lab/skills',
+    ),
     [
       { source: '/lab/ai', destination: '/lab/agent', permanent: true },
       { source: '/lab/skills', destination: '/lab/skill', permanent: true },
+      { source: '/lab/online-editor', destination: '/lab/editor', permanent: true },
     ],
   );
 });

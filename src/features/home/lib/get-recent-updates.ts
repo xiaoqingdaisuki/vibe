@@ -7,7 +7,7 @@ type RecentUpdateReferences = readonly [RecentUpdateReference, RecentUpdateRefer
 
 export const RECENT_UPDATE_REFERENCES = [
   { kind: 'lab', slug: 'agent' },
-  { kind: 'lab', slug: 'rss' },
+  { kind: 'lab', slug: 'editor' },
   { kind: 'blog', slug: 'vibe-log' },
 ] as const satisfies RecentUpdateReferences;
 

@@ -19,6 +19,7 @@
     "gray-matter": "^4.0.3",
     "next": "^16.0.0",
     "next-mdx-remote": "^6.0.0",
+    "prettier": "^3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -33,7 +34,6 @@
     "eslint-config-next": "^16.x",
     "husky": "^9.1.7",
     "postcss": "^8.x",
-    "prettier": "^3.x",
     "tailwindcss": "^4.x",
     "typescript": "^5.x"
   }

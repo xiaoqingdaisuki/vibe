@@ -1,0 +1,576 @@
+.editor {
+  position: relative;
+}
+
+.header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-16);
+}
+
+.eyebrow,
+.panelLabel {
+  margin: 0;
+  color: var(--color-accent);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: var(--space-8) 0 0;
+  font-size: var(--text-4xl);
+}
+
+.description {
+  margin: 0;
+  color: var(--color-foreground-secondary);
+  font-size: var(--text-base);
+}
+
+.status,
+.previewState {
+  width: fit-content;
+  margin: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8) var(--space-12);
+  color: var(--color-foreground-secondary);
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-12);
+  margin-top: var(--space-24);
+}
+
+.sourceWorkspace {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-16);
+  background: var(--color-panel-background);
+}
+
+.tabs,
+.editorToolbar {
+  display: flex;
+  gap: var(--space-8);
+  overflow-x: auto;
+}
+
+.tabs {
+  align-items: center;
+  gap: 0;
+  border-bottom: 1px solid var(--color-border-light);
+  padding-bottom: var(--space-12);
+}
+
+.tabSequenceItem {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.editorTabItem {
+  display: flex;
+  min-height: var(--touch-target);
+  transition:
+    color var(--dur-150) var(--ease-smooth),
+    opacity var(--dur-150) var(--ease-smooth);
+}
+
+.editorTabItem[data-active='true'] {
+  color: var(--color-accent);
+}
+
+.tab,
+.tabActive,
+.closeEditorButton,
+.addEditorButton,
+.editorButton {
+  min-height: var(--touch-target);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-8) var(--space-12);
+  color: var(--color-foreground-secondary);
+  cursor: pointer;
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  white-space: nowrap;
+  transition:
+    background var(--dur-150) var(--ease-smooth),
+    border-color var(--dur-150) var(--ease-smooth),
+    color var(--dur-150) var(--ease-smooth);
+}
+
+.tab,
+.tabActive {
+  display: flex;
+  align-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.closeEditorButton {
+  min-width: 40px;
+  border: 0;
+  border-radius: 0;
+  padding: var(--space-8);
+  background: transparent;
+  font-size: var(--text-base);
+  line-height: 1;
+}
+
+.tabSeparator {
+  padding: 0 var(--space-4);
+  color: var(--color-foreground-muted);
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  user-select: none;
+}
+
+.addEditorButton {
+  flex: 0 0 auto;
+  margin-left: var(--space-8);
+  background: var(--color-panel-background);
+}
+
+.editorButton {
+  background: var(--color-panel-background);
+}
+
+.editorTabItem[data-active='true'] .tab,
+.editorTabItem[data-active='true'] .tabActive,
+.editorTabItem[data-active='true'] .closeEditorButton,
+.tab:active,
+.closeEditorButton:active,
+.addEditorButton:active,
+.editorButton:active {
+  color: var(--color-accent);
+}
+
+.editorButton:disabled {
+  color: #5c6370;
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.formatError {
+  margin: var(--space-8) 0 0;
+  color: #b91c1c;
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+.previewPanel {
+  min-width: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-16);
+  background: var(--color-panel-background);
+}
+
+.codePanel {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  padding-top: var(--space-16);
+}
+
+.panelHeading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.panelTitle {
+  margin: var(--space-8) 0 0;
+  font-size: var(--text-xl);
+}
+
+.language {
+  margin: 0;
+  color: var(--color-foreground-muted);
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.editorToolbar {
+  margin-top: var(--space-16);
+}
+
+.editorButton {
+  min-width: var(--touch-target);
+}
+
+.editorSurface {
+  position: relative;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 520px;
+  flex: 1;
+  margin-top: var(--space-12);
+  overflow: hidden;
+  border: 1px solid #3e4451;
+  border-radius: var(--radius-md);
+  background: #282c34;
+  color: #abb2bf;
+}
+
+.editorSurface:focus-within {
+  border-color: var(--color-accent);
+}
+
+.lineNumbers,
+.codeLayer,
+.codeInput {
+  margin: 0;
+  padding: var(--space-16);
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: var(--text-sm);
+  line-height: 24px;
+  tab-size: 2;
+  white-space: pre;
+}
+
+.lineNumbers {
+  z-index: 2;
+  min-width: 48px;
+  overflow: hidden;
+  border-right: 1px solid #3e4451;
+  padding-right: var(--space-4);
+  padding-left: var(--space-4);
+  background: #21252b;
+  color: #5c6370;
+  user-select: none;
+}
+
+.lineNumberRow {
+  position: relative;
+  height: 24px;
+}
+
+.lineNumberText {
+  display: block;
+  padding-right: 20px;
+  text-align: right;
+}
+
+.foldButton,
+.foldPlaceholder {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 0;
+  place-items: center;
+  color: #5c6370;
+  font: inherit;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.foldButton {
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background var(--dur-150) var(--ease-smooth),
+    color var(--dur-150) var(--ease-smooth);
+}
+
+.foldButton[aria-expanded='false'] {
+  background: #3e4451;
+  color: #d7b7ff;
+}
+
+.foldButton[aria-expanded='false'] .foldIcon {
+  transform: rotate(-90deg);
+}
+
+.foldIcon {
+  width: 16px;
+  height: 16px;
+}
+
+.codeLayer,
+.codeInput {
+  grid-column: 2;
+  grid-row: 1;
+  overflow: auto;
+}
+
+.codeLayer {
+  z-index: 3;
+  color: #abb2bf;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.tokenComment {
+  color: #5c6370;
+}
+
+.tokenTag {
+  color: #e06c75;
+}
+
+.tokenAttribute,
+.tokenNumber {
+  color: #d19a66;
+}
+
+.tokenString {
+  color: #98c379;
+}
+
+.tokenKeyword,
+.tokenAtRule {
+  color: #c678dd;
+}
+
+.tokenFunction {
+  color: #61afef;
+}
+
+.tokenProperty {
+  color: #e5c07b;
+}
+
+.tokenOperator {
+  color: #56b6c2;
+}
+
+.codeInput {
+  z-index: 2;
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  border: 0;
+  resize: none;
+  background: transparent;
+  color: transparent;
+  caret-color: #abb2bf;
+  outline: 0;
+}
+
+.codeInput::selection {
+  background: #4c1d95;
+  color: transparent;
+}
+
+.previewPanel {
+  display: flex;
+  flex-direction: column;
+}
+
+.previewToolbar {
+  display: flex;
+  gap: var(--space-8);
+  margin-top: var(--space-12);
+}
+
+.previewState[data-state='ready'] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-wash);
+  color: var(--color-accent);
+}
+
+.previewFrame,
+.previewPaused,
+.previewLoading {
+  display: block;
+  width: 100%;
+  min-height: 520px;
+  margin-top: var(--space-12);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+}
+
+.previewFrame {
+  flex: 1;
+}
+
+.previewPaused {
+  display: grid;
+  gap: var(--space-16);
+  padding: var(--space-16);
+  place-content: center;
+  color: var(--color-foreground-secondary);
+  text-align: center;
+}
+
+.previewLoading {
+  display: grid;
+  place-items: center;
+  color: var(--color-foreground-muted);
+  font-size: var(--text-sm);
+}
+
+.previewPaused p {
+  max-width: 320px;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.previewConsole {
+  min-height: 160px;
+  margin-top: var(--space-12);
+  border-top: 1px solid var(--color-border-light);
+  padding-top: var(--space-12);
+}
+
+.consoleLabel,
+.consoleEmpty {
+  margin: 0;
+}
+
+.consoleLabel {
+  color: var(--color-foreground-secondary);
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.consoleEmpty {
+  margin-top: var(--space-12);
+  color: var(--color-foreground-muted);
+  font-size: var(--text-xs);
+}
+
+.diagnosticList {
+  display: grid;
+  gap: var(--space-8);
+  margin: var(--space-16) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.diagnosticItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-8);
+  color: var(--color-foreground-secondary);
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: var(--text-xs);
+}
+
+.diagnosticItem span {
+  color: var(--color-foreground-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.diagnosticItem[data-level='error'] span {
+  color: var(--color-error);
+}
+
+.diagnosticItem[data-level='warn'] span {
+  color: #b45309;
+}
+
+.diagnosticItem[data-level='result'] span {
+  color: var(--color-accent);
+}
+
+.diagnosticItem code {
+  overflow-wrap: anywhere;
+  font-family: inherit;
+}
+
+.revision {
+  margin: var(--space-12) 0 0;
+  color: var(--color-foreground-muted);
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: var(--text-xs);
+}
+
+@media (min-width: 768px) {
+  .editor {
+    display: flex;
+    height: calc(100vh - 96px);
+    height: calc(100dvh - 96px);
+    min-height: 0;
+    flex-direction: column;
+  }
+
+  .header {
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--space-24);
+    row-gap: var(--space-12);
+  }
+
+  .description {
+    grid-column: 1 / -1;
+  }
+
+  .workspace {
+    grid-template-columns: minmax(0, 6fr) minmax(0, 4fr);
+    gap: var(--space-16);
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  .sourceWorkspace,
+  .previewPanel {
+    height: 100%;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .codePanel {
+    min-height: 0;
+  }
+
+  .editorSurface,
+  .previewFrame,
+  .previewPaused,
+  .previewLoading {
+    min-height: 0;
+    flex: 1;
+  }
+
+  .previewConsole {
+    min-height: 160px;
+    flex: 0 0 160px;
+    overflow: auto;
+  }
+
+  .addEditorButton:hover,
+  .editorButton:hover {
+    border-color: var(--color-accent);
+    background: var(--color-accent-wash);
+  }
+
+  .editorTabItem:hover .tab,
+  .editorTabItem:hover .closeEditorButton,
+  .addEditorButton:hover,
+  .editorButton:hover {
+    color: var(--color-accent);
+  }
+
+  .foldButton:hover {
+    background: #3e4451;
+    color: #d7b7ff;
+  }
+}

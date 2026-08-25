@@ -22,6 +22,9 @@ importers:
       next-mdx-remote:
         specifier: ^6.0.0
         version: 6.0.0(@types/react@19.2.17)(react@19.2.7)
+      prettier:
+        specifier: ^3
+        version: 3.9.4
       react:
         specifier: ^19.0.0
         version: 19.2.7
@@ -59,9 +62,6 @@ importers:
       postcss:
         specifier: ^8.x
         version: 8.5.16
-      prettier:
-        specifier: ^3.x
-        version: 3.9.4
       tailwindcss:
         specifier: ^4.x
         version: 4.3.2
