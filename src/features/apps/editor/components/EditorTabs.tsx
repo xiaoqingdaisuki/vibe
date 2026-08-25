@@ -1,3 +1,6 @@
+import type { ReactElement } from 'react';
+
+import { getEditorTabId } from '../editor-dom';
 import type { EditorDocument } from '../types';
 import styles from '../styles/OnlineEditor.module.css';
 
@@ -10,7 +13,7 @@ interface EditorTabsProps {
 }
 
 // 渲染可新建、切换与按需关闭的独立编辑器标签
-export function EditorTabs({ activeEditorId, editors, onAdd, onClose, onSelect }: EditorTabsProps) {
+export function EditorTabs({ activeEditorId, editors, onAdd, onClose, onSelect }: EditorTabsProps): ReactElement {
   const canCloseEditor = editors.length > 1;
 
   return (
@@ -22,11 +25,13 @@ export function EditorTabs({ activeEditorId, editors, onAdd, onClose, onSelect }
           <div key={editor.id} className={styles.tabSequenceItem}>
             <div className={styles.editorTabItem} data-active={selected}>
               <button
+                id={getEditorTabId(editor.id)}
                 className={selected ? styles.tabActive : styles.tab}
                 type="button"
                 role="tab"
                 aria-selected={selected}
-                aria-controls="source-panel-title"
+                aria-controls="source-panel"
+                tabIndex={selected ? 0 : -1}
                 onClick={() => onSelect(editor.id)}
               >
                 {editor.title}

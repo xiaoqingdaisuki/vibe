@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type ReactElement } from 'react';
 
 import { CodeEditor } from './components/CodeEditor';
 import { EditorTabs } from './components/EditorTabs';
@@ -12,7 +12,7 @@ import { useOnlineEditorWorkspace } from './use-online-editor-workspace';
 import { useVibeTheme } from './use-vibe-theme';
 
 // 渲染多工作区 React 编辑器与实时预览工作台
-export function OnlineEditor() {
+export function OnlineEditor(): ReactElement {
   const { activeEditor, addEditor, closeEditor, editors, resetActiveEditor, selectEditor, updateEditor } =
     useOnlineEditorWorkspace();
   const theme = useVibeTheme();
@@ -56,9 +56,7 @@ export function OnlineEditor() {
             代码编辑器
           </h1>
         </div>
-        <p className={styles.description}>
-          在线编辑 React 与 HTML、CSS、JavaScript，实时预览效果。
-        </p>
+        <p className={styles.description}>在线编辑 React 与 HTML、CSS、JavaScript，实时预览效果。</p>
       </header>
 
       <div className={styles.workspace}>
@@ -72,6 +70,7 @@ export function OnlineEditor() {
           />
           <CodeEditor
             key={activeEditor.id}
+            editorId={activeEditor.id}
             editorTitle={activeEditor.title}
             value={activeEditor.code}
             isFormatting={isFormatting}

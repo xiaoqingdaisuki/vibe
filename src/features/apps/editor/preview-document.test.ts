@@ -70,6 +70,31 @@ test('instruments plain JavaScript and publishes its final expression to Runtime
   assert.match(document, /runJavaScript/);
 });
 
+test('uses AST instrumentation so multiline final expressions remain valid', () => {
+  const document = createPreviewDocument({
+    code: 'Math.max(\n  1,\n  2,\n);',
+    nonce: 'test-nonce',
+    sessionId: 'session-1',
+    theme: 'light',
+  });
+
+  assert.match(document, /__VIBE_EDITOR_EXECUTION_RESULT__ = \(Math\.max\(\\n  1,\\n  2,\\n\)\)/);
+  assert.doesNotMatch(document, /__VIBE_EDITOR_EXECUTION_RESULT__ = \(\);/);
+});
+
+test('creates a stylesheet runtime for standalone CSS source', () => {
+  const document = createPreviewDocument({
+    code: 'body { color: rebeccapurple; }',
+    nonce: 'test-nonce',
+    sessionId: 'session-1',
+    theme: 'light',
+  });
+
+  assert.match(document, /"mode":"css"/);
+  assert.match(document, /const runCss/);
+  assert.match(document, /style\.textContent = payload\.code/);
+});
+
 test('serializes editor source without allowing a script-breakout sequence', () => {
   const document = createPreviewDocument({
     code: '</script><script>window.escape = true;</script>',

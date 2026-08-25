@@ -1,10 +1,18 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 
 import type { Theme } from '@/lib/theme';
 
 import { createPreviewDocument } from '../preview-document';
+import {
+  getHotPreviewAction,
+  getPreviewStateAfterCommand,
+  isCurrentPreviewMessage,
+  parseRuntimeMessage,
+  type PreviewDiagnostic,
+  type PreviewState,
+} from '../preview-state';
 import styles from '../styles/OnlineEditor.module.css';
 
 interface PreviewFrameProps {
@@ -12,30 +20,9 @@ interface PreviewFrameProps {
   theme: Theme;
 }
 
-type PreviewState = 'loading' | 'paused' | 'ready';
-
-type PreviewMessageType =
-  | 'vibe:online-editor:console'
-  | 'vibe:online-editor:ready'
-  | 'vibe:online-editor:result'
-  | 'vibe:online-editor:runtime-error';
-
 interface PreviewFrameState {
   sessionId: string;
   source: string;
-}
-
-interface PreviewDiagnostic {
-  id: string;
-  level: 'error' | 'info' | 'log' | 'result' | 'warn';
-  message: string;
-}
-
-interface RuntimeMessage {
-  level?: PreviewDiagnostic['level'];
-  message?: string;
-  sessionId: string;
-  type: PreviewMessageType;
 }
 
 // 创建无法从预览外部猜测的会话标识和 CSP nonce
@@ -56,37 +43,8 @@ function createFrameState(code: string, theme: Theme): PreviewFrameState {
   };
 }
 
-// 将未知的 postMessage 数据收窄为可处理的预览运行时消息
-function parseRuntimeMessage(value: unknown): RuntimeMessage | undefined {
-  if (!value || typeof value !== 'object') return undefined;
-
-  const message = value as Record<string, unknown>;
-  const type = message.type;
-  if (
-    type !== 'vibe:online-editor:console' &&
-    type !== 'vibe:online-editor:ready' &&
-    type !== 'vibe:online-editor:result' &&
-    type !== 'vibe:online-editor:runtime-error'
-  ) {
-    return undefined;
-  }
-  if (typeof message.sessionId !== 'string') return undefined;
-
-  const level = message.level;
-  const validLevel =
-    level === 'error' || level === 'info' || level === 'log' || level === 'result' || level === 'warn'
-      ? level
-      : undefined;
-  return {
-    level: validLevel,
-    message: typeof message.message === 'string' ? message.message : undefined,
-    sessionId: message.sessionId,
-    type,
-  };
-}
-
 // 渲染可停止、可重启，并随 JSX 源码热重建的隔离运行时
-export function PreviewFrame({ code, theme }: PreviewFrameProps) {
+export function PreviewFrame({ code, theme }: PreviewFrameProps): ReactElement {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const previousCodeRef = useRef(code);
   const [diagnostics, setDiagnostics] = useState<PreviewDiagnostic[]>([]);
@@ -109,12 +67,12 @@ export function PreviewFrame({ code, theme }: PreviewFrameProps) {
     previousCodeRef.current = code;
     setDiagnostics([]);
     setFrame(createFrameState(code, theme));
-    setPreviewState('loading');
+    setPreviewState(getPreviewStateAfterCommand('restart'));
   }
 
   // 中止 iframe 运行，让高负载脚本不再占用预览执行环境
   function stopPreview(): void {
-    setPreviewState('paused');
+    setPreviewState(getPreviewStateAfterCommand('stop'));
   }
 
   // 接收且仅接收当前沙箱会话主动发出的运行消息
@@ -123,10 +81,10 @@ export function PreviewFrame({ code, theme }: PreviewFrameProps) {
       if (event.source !== iframeRef.current?.contentWindow) return;
 
       const message = parseRuntimeMessage(event.data);
-      if (!frame || !message || message.sessionId !== frame.sessionId) return;
+      if (!frame || !isCurrentPreviewMessage(message, frame.sessionId) || !message) return;
 
       if (message.type === 'vibe:online-editor:ready') {
-        setPreviewState('ready');
+        setPreviewState(getPreviewStateAfterCommand('ready'));
         return;
       }
 
@@ -152,15 +110,16 @@ export function PreviewFrame({ code, theme }: PreviewFrameProps) {
   // 在短暂输入空闲后以新 iframe 热更新 JSX，确保运行时彻底隔离
   useEffect(() => {
     const previousCode = previousCodeRef.current;
-    if (previousCode === code) return;
+    const action = getHotPreviewAction(previousCode, code, previewState, Boolean(frame));
+    if (action === 'none') return;
 
     previousCodeRef.current = code;
-    if (previewState === 'paused' || !frame) return;
+    if (action === 'remember') return;
 
     const timeoutId = window.setTimeout(() => {
       setDiagnostics([]);
       setFrame(createFrameState(code, theme));
-      setPreviewState('loading');
+      setPreviewState(getPreviewStateAfterCommand('restart'));
     }, 300);
 
     return () => window.clearTimeout(timeoutId);

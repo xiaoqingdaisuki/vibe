@@ -58,3 +58,20 @@ test('recognizes JSX tags, attributes and surrounding JavaScript', () => {
   assert.deepEqual(getTokenValues(source, 'jsx', 'attribute'), ['tone', 'onClick', 'run']);
   assert.deepEqual(getTokenValues(source, 'jsx', 'string'), ['"primary"']);
 });
+
+test('highlights CSS and JavaScript embedded in HTML with their language colors', () => {
+  const source = '<style>.card { color: #7c3aed; }</style>\n<script>const total = Math.max(1, 2);</script>';
+
+  assert.deepEqual(getTokenValues(source, 'html', 'property'), ['color', 'max']);
+  assert.deepEqual(getTokenValues(source, 'html', 'number'), ['#7c3aed', '1', '2']);
+  assert.deepEqual(getTokenValues(source, 'html', 'keyword'), ['const']);
+  assert.equal(reconstructSource(source, 'html'), source);
+});
+
+test('highlights CSS declarations inside a JavaScript template literal', () => {
+  const source = 'const styleText = `\n.card {\n  color: #7c3aed;\n}\n`;';
+
+  assert.deepEqual(getTokenValues(source, 'jsx', 'property'), ['color']);
+  assert.deepEqual(getTokenValues(source, 'jsx', 'number'), ['#7c3aed']);
+  assert.equal(reconstructSource(source, 'jsx'), source);
+});

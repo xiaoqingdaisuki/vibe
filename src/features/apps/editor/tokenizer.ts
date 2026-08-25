@@ -63,6 +63,7 @@ const JAVASCRIPT_KEYWORDS = new Set([
 const IDENTIFIER_PATTERN = /[a-zA-Z0-9_$-]/;
 const IDENTIFIER_START_PATTERN = /[a-zA-Z_$-]/;
 const NUMBER_PATTERN = /[0-9a-fA-F.xX%]/;
+const CSS_TEMPLATE_PATTERN = /(?:^|[;{])\s*(?:--[\w-]+|[a-z-]+)\s*:\s*[^=]/i;
 
 // 将相邻同类 token 合并，保持高亮层节点数量稳定
 function pushToken(tokens: SyntaxToken[], kind: SyntaxTokenKind, value: string): void {
@@ -118,6 +119,7 @@ function getPreviousNonWhitespaceIndex(source: string, start: number): number {
 // 对 HTML 标签、属性、注释和文本执行容错分词
 function tokenizeHtml(source: string): SyntaxToken[] {
   const tokens: SyntaxToken[] = [];
+  const normalizedSource = source.toLowerCase();
   let index = 0;
 
   while (index < source.length) {
@@ -140,6 +142,7 @@ function tokenizeHtml(source: string): SyntaxToken[] {
     pushToken(tokens, 'plain', '<');
     index += 1;
 
+    const isClosingTag = source[index] === '/';
     if (source[index] === '/' || source[index] === '!') {
       pushToken(tokens, 'plain', source[index]);
       index += 1;
@@ -147,7 +150,8 @@ function tokenizeHtml(source: string): SyntaxToken[] {
 
     const tagStart = index;
     index = consumeWhile(source, index, (character) => IDENTIFIER_PATTERN.test(character));
-    if (index > tagStart) pushToken(tokens, 'tag', source.slice(tagStart, index));
+    const tagName = source.slice(tagStart, index).toLowerCase();
+    if (tagName) pushToken(tokens, 'tag', source.slice(tagStart, index));
 
     while (index < source.length && source[index] !== '>') {
       if (/\s/.test(source[index])) {
@@ -178,6 +182,15 @@ function tokenizeHtml(source: string): SyntaxToken[] {
     if (source[index] === '>') {
       pushToken(tokens, 'plain', '>');
       index += 1;
+    }
+
+    if (!isClosingTag && (tagName === 'script' || tagName === 'style')) {
+      const closingTagStart = normalizedSource.indexOf(`</${tagName}`, index);
+      const embeddedEnd = closingTagStart === -1 ? source.length : closingTagStart;
+      const embeddedSource = source.slice(index, embeddedEnd);
+      const embeddedTokens = tagName === 'style' ? tokenizeCss(embeddedSource) : tokenizeJsx(embeddedSource);
+      for (const token of embeddedTokens) pushToken(tokens, token.kind, token.value);
+      index = embeddedEnd;
     }
   }
 
@@ -265,7 +278,24 @@ function tokenizeJavascript(source: string): SyntaxToken[] {
       continue;
     }
 
-    if (source[index] === '"' || source[index] === "'" || source[index] === '`') {
+    if (source[index] === '`') {
+      const stringEnd = consumeString(source, index);
+      const hasClosingBacktick = source[stringEnd - 1] === '`';
+      const contentEnd = hasClosingBacktick ? stringEnd - 1 : stringEnd;
+      const content = source.slice(index + 1, contentEnd);
+
+      if (CSS_TEMPLATE_PATTERN.test(content)) {
+        pushToken(tokens, 'string', '`');
+        for (const token of tokenizeCss(content)) pushToken(tokens, token.kind, token.value);
+        if (hasClosingBacktick) pushToken(tokens, 'string', '`');
+      } else {
+        pushToken(tokens, 'string', source.slice(index, stringEnd));
+      }
+      index = stringEnd;
+      continue;
+    }
+
+    if (source[index] === '"' || source[index] === "'") {
       const stringEnd = consumeString(source, index);
       pushToken(tokens, 'string', source.slice(index, stringEnd));
       index = stringEnd;

@@ -1,4 +1,22 @@
 .editor {
+  --editor-background: #282c34;
+  --editor-border: #3e4451;
+  --editor-comment: #5c6370;
+  --editor-foreground: #abb2bf;
+  --editor-gutter-background: #21252b;
+  --editor-selection: #4c1d95;
+  --editor-selection-foreground: #ffffff;
+  --editor-token-attribute: #d19a66;
+  --editor-token-function: #61afef;
+  --editor-token-keyword: #c678dd;
+  --editor-token-operator: #56b6c2;
+  --editor-token-property: #e5c07b;
+  --editor-token-string: #98c379;
+  --editor-token-tag: #e06c75;
+  --editor-fold-active: #d7b7ff;
+  --editor-error: #b91c1c;
+  --preview-background: #ffffff;
+  --runtime-warning: #b45309;
   position: relative;
 }
 
@@ -161,14 +179,14 @@
 }
 
 .editorButton:disabled {
-  color: #5c6370;
+  color: var(--editor-comment);
   cursor: wait;
   opacity: 0.7;
 }
 
 .formatError {
   margin: var(--space-8) 0 0;
-  color: #b91c1c;
+  color: var(--editor-error);
   font-size: var(--text-xs);
   font-weight: 500;
 }
@@ -226,10 +244,10 @@
   flex: 1;
   margin-top: var(--space-12);
   overflow: hidden;
-  border: 1px solid #3e4451;
+  border: 1px solid var(--editor-border);
   border-radius: var(--radius-md);
-  background: #282c34;
-  color: #abb2bf;
+  background: var(--editor-background);
+  color: var(--editor-foreground);
 }
 
 .editorSurface:focus-within {
@@ -242,8 +260,8 @@
   margin: 0;
   padding: var(--space-16);
   font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
-  font-size: var(--text-sm);
-  line-height: 24px;
+  font-size: var(--text-base);
+  line-height: var(--touch-target);
   tab-size: 2;
   white-space: pre;
 }
@@ -252,22 +270,22 @@
   z-index: 2;
   min-width: 48px;
   overflow: hidden;
-  border-right: 1px solid #3e4451;
+  border-right: 1px solid var(--editor-border);
   padding-right: var(--space-4);
   padding-left: var(--space-4);
-  background: #21252b;
-  color: #5c6370;
+  background: var(--editor-gutter-background);
+  color: var(--editor-comment);
   user-select: none;
 }
 
 .lineNumberRow {
   position: relative;
-  height: 24px;
+  height: var(--touch-target);
 }
 
 .lineNumberText {
   display: block;
-  padding-right: 20px;
+  padding-right: var(--space-20);
   text-align: right;
 }
 
@@ -277,13 +295,13 @@
   top: 50%;
   right: 0;
   display: grid;
-  width: 20px;
-  height: 20px;
+  width: var(--touch-target);
+  height: var(--touch-target);
   border: 0;
   border-radius: var(--radius-sm);
   padding: 0;
   place-items: center;
-  color: #5c6370;
+  color: var(--editor-comment);
   font: inherit;
   line-height: 1;
   transform: translateY(-50%);
@@ -297,9 +315,14 @@
     color var(--dur-150) var(--ease-smooth);
 }
 
+.foldButton:active {
+  background: var(--editor-border);
+  color: var(--editor-fold-active);
+}
+
 .foldButton[aria-expanded='false'] {
-  background: #3e4451;
-  color: #d7b7ff;
+  background: var(--editor-border);
+  color: var(--editor-fold-active);
 }
 
 .foldButton[aria-expanded='false'] .foldIcon {
@@ -319,48 +342,48 @@
 }
 
 .codeLayer {
-  z-index: 3;
-  color: #abb2bf;
+  z-index: 2;
+  color: var(--editor-foreground);
   overflow: hidden;
   pointer-events: none;
 }
 
 .tokenComment {
-  color: #5c6370;
+  color: var(--editor-comment);
 }
 
 .tokenTag {
-  color: #e06c75;
+  color: var(--editor-token-tag);
 }
 
 .tokenAttribute,
 .tokenNumber {
-  color: #d19a66;
+  color: var(--editor-token-attribute);
 }
 
 .tokenString {
-  color: #98c379;
+  color: var(--editor-token-string);
 }
 
 .tokenKeyword,
 .tokenAtRule {
-  color: #c678dd;
+  color: var(--editor-token-keyword);
 }
 
 .tokenFunction {
-  color: #61afef;
+  color: var(--editor-token-function);
 }
 
 .tokenProperty {
-  color: #e5c07b;
+  color: var(--editor-token-property);
 }
 
 .tokenOperator {
-  color: #56b6c2;
+  color: var(--editor-token-operator);
 }
 
 .codeInput {
-  z-index: 2;
+  z-index: 3;
   width: 100%;
   min-width: 0;
   height: 100%;
@@ -368,13 +391,13 @@
   resize: none;
   background: transparent;
   color: transparent;
-  caret-color: #abb2bf;
+  caret-color: var(--editor-foreground);
   outline: 0;
 }
 
 .codeInput::selection {
-  background: #4c1d95;
-  color: transparent;
+  background: var(--editor-selection);
+  color: var(--editor-selection-foreground);
 }
 
 .previewPanel {
@@ -403,7 +426,7 @@
   margin-top: var(--space-12);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: #ffffff;
+  background: var(--preview-background);
 }
 
 .previewFrame {
@@ -485,7 +508,7 @@
 }
 
 .diagnosticItem[data-level='warn'] span {
-  color: #b45309;
+  color: var(--runtime-warning);
 }
 
 .diagnosticItem[data-level='result'] span {
@@ -507,9 +530,9 @@
 @media (min-width: 768px) {
   .editor {
     display: flex;
-    height: calc(100vh - 96px);
-    height: calc(100dvh - 96px);
+    height: auto;
     min-height: 0;
+    flex: 1;
     flex-direction: column;
   }
 
@@ -570,7 +593,25 @@
   }
 
   .foldButton:hover {
-    background: #3e4451;
-    color: #d7b7ff;
+    background: var(--editor-border);
+    color: var(--editor-fold-active);
+  }
+}
+
+@media (min-width: 768px) and (hover: hover) and (pointer: fine) {
+  .lineNumbers,
+  .codeLayer,
+  .codeInput {
+    line-height: 24px;
+  }
+
+  .lineNumberRow {
+    height: 24px;
+  }
+
+  .foldButton,
+  .foldPlaceholder {
+    width: 20px;
+    height: 20px;
   }
 }

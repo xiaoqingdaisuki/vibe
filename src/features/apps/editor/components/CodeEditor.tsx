@@ -5,6 +5,7 @@ import {
   type ChangeEvent,
   type KeyboardEvent,
   type MouseEvent,
+  type ReactElement,
   type UIEvent,
 } from 'react';
 
@@ -14,12 +15,14 @@ import {
   getSourceEditFromFoldedChange,
   type CodeFoldRegion,
 } from '../code-folding';
+import { getEditorTabId } from '../editor-dom';
 import { indentCode, outdentCode, type TextEditResult } from '../editor-commands';
 import styles from '../styles/OnlineEditor.module.css';
 import { tokenizeCode, type SyntaxTokenKind } from '../tokenizer';
 import type { EditorLanguage } from '../types';
 
 interface CodeEditorProps {
+  editorId: string;
   editorTitle: string;
   isFormatting: boolean;
   language: EditorLanguage;
@@ -55,6 +58,7 @@ const TOKEN_CLASS_NAMES: Partial<Record<SyntaxTokenKind, string>> = {
 
 // 渲染统一的原生输入层与 One Dark 代码显示层
 export function CodeEditor({
+  editorId,
   editorTitle,
   isFormatting,
   language,
@@ -64,7 +68,7 @@ export function CodeEditor({
   onReset,
   onRun,
   value,
-}: CodeEditorProps) {
+}: CodeEditorProps): ReactElement {
   const codeLayerRef = useRef<HTMLPreElement>(null);
   const lineNumbersRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -215,7 +219,7 @@ export function CodeEditor({
   }
 
   return (
-    <section className={styles.codePanel} aria-labelledby="source-panel-title">
+    <section id="source-panel" className={styles.codePanel} role="tabpanel" aria-labelledby={getEditorTabId(editorId)}>
       <div className={styles.panelHeading}>
         <div>
           <p className={styles.panelLabel}>{SOURCE_LABELS[language]}</p>

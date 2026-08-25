@@ -46,9 +46,11 @@ const RUNTIME_SOURCE = `
   (() => {
     const payload = window.__VIBE_ONLINE_EDITOR_PAYLOAD__;
     const host = document.getElementById('vibe-preview-root');
+    let hasBabelRuntime = false;
     let hasReactRuntime = false;
 
     const send = (message) => parent.postMessage({ ...message, sessionId: payload.sessionId }, '*');
+    // 将任意控制台值转为可跨窗口传递的文本
     const toMessage = (value) => {
       if (value instanceof Error) return value.stack || value.message;
       if (typeof value === 'string') return value;
@@ -66,6 +68,7 @@ const RUNTIME_SOURCE = `
       document.documentElement.style.setProperty('overflow', 'auto', 'important');
     };
     const reportRuntimeError = (error) => send({ type: 'vibe:online-editor:runtime-error', message: toMessage(error) });
+    // 加载 CSP 允许的公开 HTTPS 脚本并报告网络错误
     const loadScript = (url) =>
       new Promise((resolve, reject) => {
         const script = document.createElement('script');
@@ -76,6 +79,13 @@ const RUNTIME_SOURCE = `
         script.onerror = () => reject(new Error('无法加载运行时依赖：' + url));
         document.head.append(script);
       });
+    // 按需加载 Babel，供 JSX 与 JavaScript AST 转换共同使用
+    const ensureBabelRuntime = async () => {
+      if (hasBabelRuntime) return;
+      await loadScript(payload.reactRuntime.babel);
+      hasBabelRuntime = true;
+    };
+    // 并行获取 React 模块，再复用已加载的 Babel 转换 JSX
     const ensureReactRuntime = async () => {
       if (hasReactRuntime) return;
       const [reactModule, reactDomModule] = await Promise.all([
@@ -84,20 +94,23 @@ const RUNTIME_SOURCE = `
       ]);
       window.React = reactModule.default || reactModule;
       window.ReactDOM = reactDomModule.default || reactDomModule;
-      await loadScript(payload.reactRuntime.babel);
+      await ensureBabelRuntime();
       hasReactRuntime = true;
     };
+    // 等待动态脚本完成，以保持 HTML 脚本的声明顺序
     const waitForScript = (script) =>
       new Promise((resolve, reject) => {
         script.onload = () => resolve();
         script.onerror = () => reject(new Error('无法加载脚本：' + (script.src || '内联脚本')));
         document.body.append(script);
       });
+    // 识别需经 Babel 转换的 JSX 与显式 Babel 脚本
     const isBabelScript = (sourceScript) => {
       const type = (sourceScript.getAttribute('type') || '').toLowerCase();
       const source = sourceScript.textContent || '';
       return type === 'text/babel' || type === 'text/jsx' || /<\\/?[A-Za-z][A-Za-z0-9.-]*(?:\\s|\\/?>)/.test(source);
     };
+    // 将 HTML 内联与外链脚本复制到隔离文档中顺序执行
     const executeHtmlScript = async (sourceScript) => {
       const sourceUrl = sourceScript.getAttribute('src');
       const sourceType = (sourceScript.getAttribute('type') || '').toLowerCase();
@@ -132,6 +145,7 @@ const RUNTIME_SOURCE = `
 
       document.body.append(script);
     };
+    // 装载 HTML 正文、样式资源与脚本到独立预览根节点
     const runHtml = async () => {
       const sourceDocument = new DOMParser().parseFromString(payload.code, 'text/html');
       const sourceScripts = Array.from(sourceDocument.querySelectorAll('script'));
@@ -146,6 +160,15 @@ const RUNTIME_SOURCE = `
       host.innerHTML = sourceDocument.body.innerHTML;
       for (const sourceScript of sourceScripts) await executeHtmlScript(sourceScript);
     };
+    // 将独立 CSS 注入预览文档，允许 body 与伪元素直接呈现效果
+    const runCss = () => {
+      host.innerHTML = '<div id="root"></div>';
+      const style = document.createElement('style');
+      style.nonce = payload.nonce;
+      style.textContent = payload.code;
+      document.head.append(style);
+    };
+    // 编译并执行 React JSX 源码
     const runJsx = async () => {
       host.innerHTML = '<div id="root"></div>';
       await ensureReactRuntime();
@@ -159,6 +182,7 @@ const RUNTIME_SOURCE = `
       script.textContent = transformed;
       document.body.append(script);
     };
+    // 发布同步值、Promise 结果或无返回值状态到 Runtime
     const sendJavaScriptResult = (value) => {
       if (value && typeof value.then === 'function') {
         value.then(sendJavaScriptResult).catch(reportRuntimeError);
@@ -167,6 +191,7 @@ const RUNTIME_SOURCE = `
       const message = value === undefined ? '已执行（未返回值）' : toMessage(value);
       send({ type: 'vibe:online-editor:result', message });
     };
+    // 执行宿主侧完成 AST 插桩的 JavaScript，不依赖远程运行时
     const runJavaScript = () => {
       host.innerHTML = '';
       window.__VIBE_EDITOR_EXECUTION_RESULT__ = undefined;
@@ -177,6 +202,7 @@ const RUNTIME_SOURCE = `
       sendJavaScriptResult(window.__VIBE_EDITOR_EXECUTION_RESULT__);
     };
 
+    // 镜像沙箱控制台输出，限制 Runtime 只保留结构化文本
     ['log', 'info', 'warn', 'error'].forEach((level) => {
       const original = console[level];
       console[level] = (...args) => {
@@ -187,18 +213,22 @@ const RUNTIME_SOURCE = `
 
     window.addEventListener('error', (event) => reportRuntimeError(event.error || event.message));
     window.addEventListener('unhandledrejection', (event) => reportRuntimeError(event.reason));
+    // 仅接收当前会话的网站主题同步消息
     window.addEventListener('message', (event) => {
       const message = event.data;
       if (!message || message.sessionId !== payload.sessionId || message.type !== 'vibe:online-editor:theme') return;
       applyTheme(message.theme);
     });
 
+    // 根据自动识别模式启动一次隔离执行并通知父页面
     const start = async () => {
       try {
         applyTheme(payload.theme);
         enableViewportScroll();
         if (payload.mode === 'html') {
           await runHtml();
+        } else if (payload.mode === 'css') {
+          runCss();
         } else if (payload.mode === 'jsx') {
           await runJsx();
         } else {

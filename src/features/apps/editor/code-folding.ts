@@ -63,6 +63,14 @@ const SCOPE_CLOSERS: Partial<Record<string, string>> = {
   '{': '}',
 };
 
+type SkippedCodeKind = 'block-comment' | 'line-break' | 'line-comment' | 'quoted-string';
+
+interface SkippedCodeRange {
+  endIndex: number;
+  endLine: number;
+  kind: SkippedCodeKind;
+}
+
 // 为作用域生成稳定键值，避免折叠状态依赖对象引用
 function getRegionKey(startLine: number, endLine: number): string {
   return `${startLine}:${endLine}`;
@@ -95,6 +103,49 @@ function getLineAtOffset(source: string, offset: number): number {
   return line;
 }
 
+// 跳过两个折叠扫描器都不应解析的换行、注释与普通字符串
+function getSkippedCodeRange(source: string, index: number, line: number): SkippedCodeRange | undefined {
+  const character = source[index];
+  const nextCharacter = source[index + 1];
+
+  if (character === '\n') {
+    return { endIndex: index + 1, endLine: line + 1, kind: 'line-break' };
+  }
+
+  if (character === '/' && nextCharacter === '/') {
+    const lineEnd = source.indexOf('\n', index + 2);
+    return { endIndex: lineEnd === -1 ? source.length : lineEnd, endLine: line, kind: 'line-comment' };
+  }
+
+  if (character === '/' && nextCharacter === '*') {
+    const commentEnd = source.indexOf('*/', index + 2);
+    const endIndex = commentEnd === -1 ? source.length : commentEnd + 2;
+    const endLine = line + source.slice(index, endIndex).split('\n').length - 1;
+    return { endIndex, endLine, kind: 'block-comment' };
+  }
+
+  if (character !== '"' && character !== "'") return undefined;
+
+  const quote = character;
+  let endIndex = index + 1;
+  let endLine = line;
+  while (endIndex < source.length) {
+    if (source[endIndex] === '\\') {
+      if (source[endIndex + 1] === '\n') endLine += 1;
+      endIndex += 2;
+      continue;
+    }
+    if (source[endIndex] === '\n') endLine += 1;
+    if (source[endIndex] === quote) {
+      endIndex += 1;
+      break;
+    }
+    endIndex += 1;
+  }
+
+  return { endIndex, endLine, kind: 'quoted-string' };
+}
+
 // 解析多行配对符号与块注释，保留模板字符串内的 CSS 等结构化代码
 function getBraceFoldableRegions(source: string): CodeFoldRegion[] {
   const regions: CodeFoldRegion[] = [];
@@ -104,47 +155,13 @@ function getBraceFoldableRegions(source: string): CodeFoldRegion[] {
 
   while (index < source.length) {
     const character = source[index];
-    const nextCharacter = source[index + 1];
-
-    if (character === '\n') {
-      line += 1;
-      index += 1;
-      continue;
-    }
-
-    if (character === '/' && nextCharacter === '/') {
-      const lineEnd = source.indexOf('\n', index + 2);
-      index = lineEnd === -1 ? source.length : lineEnd;
-      continue;
-    }
-
-    if (character === '/' && nextCharacter === '*') {
+    const skippedRange = getSkippedCodeRange(source, index, line);
+    if (skippedRange) {
       const startLine = line;
-      const commentEnd = source.indexOf('*/', index + 2);
-      const end = commentEnd === -1 ? source.length : commentEnd + 2;
-      line += source.slice(index, end).split('\n').length - 1;
-      if (line > startLine) {
+      line = skippedRange.endLine;
+      index = skippedRange.endIndex;
+      if (skippedRange.kind === 'block-comment' && line > startLine) {
         regions.push({ endLine: line, key: getRegionKey(startLine, line), startLine });
-      }
-      index = end;
-      continue;
-    }
-
-    if (character === '"' || character === "'") {
-      const quote = character;
-      index += 1;
-      while (index < source.length) {
-        if (source[index] === '\\') {
-          if (source[index + 1] === '\n') line += 1;
-          index += 2;
-          continue;
-        }
-        if (source[index] === '\n') line += 1;
-        if (source[index] === quote) {
-          index += 1;
-          break;
-        }
-        index += 1;
       }
       continue;
     }
@@ -180,44 +197,10 @@ function getBacktickFoldableRegions(source: string): CodeFoldRegion[] {
 
   while (index < source.length) {
     const character = source[index];
-    const nextCharacter = source[index + 1];
-
-    if (character === '\n') {
-      line += 1;
-      index += 1;
-      continue;
-    }
-
-    if (character === '/' && nextCharacter === '/') {
-      const lineEnd = source.indexOf('\n', index + 2);
-      index = lineEnd === -1 ? source.length : lineEnd;
-      continue;
-    }
-
-    if (character === '/' && nextCharacter === '*') {
-      const commentEnd = source.indexOf('*/', index + 2);
-      const end = commentEnd === -1 ? source.length : commentEnd + 2;
-      line += source.slice(index, end).split('\n').length - 1;
-      index = end;
-      continue;
-    }
-
-    if (character === '"' || character === "'") {
-      const quote = character;
-      index += 1;
-      while (index < source.length) {
-        if (source[index] === '\\') {
-          if (source[index + 1] === '\n') line += 1;
-          index += 2;
-          continue;
-        }
-        if (source[index] === '\n') line += 1;
-        if (source[index] === quote) {
-          index += 1;
-          break;
-        }
-        index += 1;
-      }
+    const skippedRange = getSkippedCodeRange(source, index, line);
+    if (skippedRange) {
+      line = skippedRange.endLine;
+      index = skippedRange.endIndex;
       continue;
     }
 

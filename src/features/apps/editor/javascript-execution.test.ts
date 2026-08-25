@@ -12,9 +12,16 @@ test('captures the final JavaScript expression for the Runtime result', () => {
   );
 });
 
-test('runs declarations without incorrectly treating them as an expression result', () => {
+test('preserves a complete multiline final expression', () => {
+  const source = 'Math.max(\n  1,\n  2,\n);';
+
   assert.equal(
-    createExecutableJavaScript("const greeting = 'hello';"),
-    "const greeting = 'hello';\nwindow.__VIBE_EDITOR_EXECUTION_RESULT__ = undefined;",
+    createExecutableJavaScript(source),
+    'window.__VIBE_EDITOR_EXECUTION_RESULT__ = (Math.max(\n  1,\n  2,\n));',
   );
+});
+
+test('leaves declarations and invalid in-progress source unchanged', () => {
+  assert.equal(createExecutableJavaScript("const greeting = 'hello';"), "const greeting = 'hello';");
+  assert.equal(createExecutableJavaScript('const greeting ='), 'const greeting =');
 });
