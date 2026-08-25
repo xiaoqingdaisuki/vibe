@@ -18,6 +18,12 @@
   --preview-background: #ffffff;
   --runtime-warning: #b45309;
   position: relative;
+  --editor-window-height: 1000px;
+  --editor-mobile-code-panel-height: 1000px;
+  height: var(--editor-window-height);
+  max-height: var(--editor-window-height);
+  min-height: 0;
+  overflow: auto;
 }
 
 .header {
@@ -527,10 +533,21 @@
   font-size: var(--text-xs);
 }
 
+@media (max-width: 767px) {
+  .codePanel {
+    height: var(--editor-mobile-code-panel-height);
+    max-height: var(--editor-mobile-code-panel-height);
+    min-height: 0;
+    flex: 0 0 var(--editor-mobile-code-panel-height);
+    overflow: hidden;
+  }
+}
+
 @media (min-width: 768px) {
   .editor {
     display: flex;
-    height: auto;
+    height: var(--editor-window-height);
+    max-height: var(--editor-window-height);
     min-height: 0;
     flex: 1;
     flex-direction: column;
