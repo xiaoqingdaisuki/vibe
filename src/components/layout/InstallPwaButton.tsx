@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useSyncExternalStore, type MouseEvent } from 'react';
+import { createPortal } from 'react-dom';
 import { shouldShowIosInstallGuide } from '@/lib/pwa-install';
 import styles from './InstallPwaButton.module.css';
 
@@ -47,20 +48,16 @@ interface IosInstallDialogProps {
 
 // 展示 iOS 将网页添加到主屏幕的操作步骤
 function IosInstallDialog({ onClose }: IosInstallDialogProps) {
-  // 打开引导时锁定页面滚动，并支持使用 Escape 关闭
+  // 打开引导时支持使用 Escape 关闭，但不锁定页面滚动
   useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-
     // 处理键盘关闭操作
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === 'Escape') onClose();
     }
 
-    document.body.style.overflow = 'hidden';
     document.addEventListener('keydown', handleKeyDown);
 
     return () => {
-      document.body.style.overflow = previousOverflow;
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [onClose]);
@@ -70,7 +67,7 @@ function IosInstallDialog({ onClose }: IosInstallDialogProps) {
     if (event.target === event.currentTarget) onClose();
   }
 
-  return (
+  return createPortal(
     <div className={styles.dialogOverlay} onClick={handleBackdropClick}>
       <section
         className={styles.dialog}
@@ -144,8 +141,14 @@ function IosInstallDialog({ onClose }: IosInstallDialogProps) {
             </span>
           </li>
         </ol>
+        <div className={styles.dialogActions}>
+          <button type="button" className={styles.dismissButton} onClick={onClose}>
+            Not now
+          </button>
+        </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

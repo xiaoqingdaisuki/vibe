@@ -130,6 +130,34 @@
   font-weight: 700;
 }
 
+.dialogActions {
+  margin-top: var(--space-24);
+}
+
+.dismissButton {
+  width: 100%;
+  min-height: var(--touch-target);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-background);
+  color: var(--color-foreground-secondary);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: 600;
+  transition:
+    background var(--dur-150) var(--ease-smooth),
+    border-color var(--dur-150) var(--ease-smooth),
+    color var(--dur-150) var(--ease-smooth);
+}
+
+.dismissButton:hover,
+.dismissButton:active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-wash);
+  color: var(--color-accent);
+}
+
 .shareIcon {
   display: inline-block;
   vertical-align: text-bottom;
