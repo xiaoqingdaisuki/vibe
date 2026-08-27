@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { InstallPwaButton } from './InstallPwaButton';
 import { ThemeToggle } from './ThemeToggle';
 import styles from './SiteHeader.module.css';
 
@@ -67,6 +68,7 @@ export function SiteHeader() {
               })}
             </nav>
 
+            <InstallPwaButton />
             <ThemeToggle />
 
             {/* Mobile hamburger */}

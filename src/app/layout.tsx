@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { SiteFooter } from '@/components/layout/SiteFooter';
+import { ServiceWorkerRegistration } from '@/components/layout/ServiceWorkerRegistration';
 import { DEFAULT_THEME, getThemeInitializationScript } from '@/lib/theme';
 import './globals.css';
 
@@ -15,6 +16,23 @@ export const metadata: Metadata = {
   description: 'A personal Web Lab — apps, experiments, and public API powered demos.',
   keywords: ['web lab', 'next.js', 'experiments', 'tools'],
   authors: [{ name: 'xiaoqingdaisuki' }],
+  applicationName: 'Vibe',
+  manifest: '/manifest.webmanifest',
+  icons: {
+    icon: [
+      { url: '/icons/vibe-icon.svg', type: 'image/svg+xml' },
+      { url: '/icon', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/apple-icon', sizes: '180x180', type: 'image/png' }],
+  },
+  appleWebApp: {
+    capable: true,
+    title: 'Vibe',
+    statusBarStyle: 'default',
+  },
+  other: {
+    'apple-mobile-web-app-capable': 'yes',
+  },
   openGraph: {
     type: 'website',
     locale: 'en_US',
@@ -43,6 +61,7 @@ export default function RootLayout({
         <Script id="theme-initialization" strategy="beforeInteractive">
           {themeInitializationScript}
         </Script>
+        <ServiceWorkerRegistration />
         <div className="flex min-h-screen flex-col">
           <SiteHeader />
           <main className="flex-1">{children}</main>

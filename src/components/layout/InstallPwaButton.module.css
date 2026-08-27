@@ -1,0 +1,40 @@
+.installButton {
+  display: inline-flex;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-foreground-secondary);
+  cursor: pointer;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  transition:
+    background var(--dur-150) var(--ease-smooth),
+    color var(--dur-150) var(--ease-smooth);
+}
+
+.installButton:hover,
+.installButton:active {
+  background: var(--color-accent-wash);
+  color: var(--color-accent);
+}
+
+.installLabel {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .installButton {
+    width: auto;
+    padding: 0 var(--space-12);
+  }
+
+  .installLabel {
+    display: inline;
+  }
+}
