@@ -1,10 +1,11 @@
 .installButton {
   display: inline-flex;
-  width: var(--touch-target);
+  min-width: var(--touch-target);
   height: var(--touch-target);
   align-items: center;
   justify-content: center;
   gap: var(--space-8);
+  padding: 0 var(--space-12);
   border: 0;
   border-radius: var(--radius-md);
   background: transparent;
@@ -25,16 +26,112 @@
 }
 
 .installLabel {
-  display: none;
+  display: inline;
 }
 
-@media (min-width: 768px) {
-  .installButton {
-    width: auto;
-    padding: 0 var(--space-12);
-  }
+.dialogOverlay {
+  position: fixed;
+  z-index: 70;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-16);
+  background: var(--color-overlay);
+}
 
-  .installLabel {
-    display: inline;
-  }
+.dialog {
+  width: 100%;
+  max-width: 400px;
+  padding: var(--space-24);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-panel-background);
+  color: var(--color-foreground);
+}
+
+.dialogHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+}
+
+.dialogTitle {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.closeButton {
+  display: inline-flex;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-foreground-muted);
+  cursor: pointer;
+  transition:
+    background var(--dur-150) var(--ease-smooth),
+    color var(--dur-150) var(--ease-smooth);
+}
+
+.closeButton:hover,
+.closeButton:active {
+  background: var(--color-accent-wash);
+  color: var(--color-accent);
+}
+
+.dialogDescription {
+  margin: var(--space-16) 0 0;
+  color: var(--color-foreground-secondary);
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
+.stepList {
+  display: grid;
+  gap: var(--space-12);
+  margin: var(--space-24) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.stepItem {
+  display: grid;
+  grid-template-columns: var(--space-24) minmax(0, 1fr);
+  gap: var(--space-12);
+  align-items: start;
+  color: var(--color-foreground-secondary);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.stepItem strong {
+  color: var(--color-foreground);
+  font-weight: 600;
+}
+
+.stepNumber {
+  display: inline-flex;
+  width: var(--space-24);
+  height: var(--space-24);
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--color-accent-wash);
+  color: var(--color-accent);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.shareIcon {
+  display: inline-block;
+  vertical-align: text-bottom;
+  color: var(--color-accent);
 }
