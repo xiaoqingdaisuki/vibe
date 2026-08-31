@@ -6,14 +6,6 @@ const nextConfig = {
   images: {
     remotePatterns: [new URL('https://static.mxdzlk.com/**')],
   },
-  // 将已公开的旧 Lab 地址永久重定向到新 slug
-  async redirects() {
-    return [
-      { source: '/lab/ai', destination: '/lab/agent', permanent: true },
-      { source: '/lab/skills', destination: '/lab/skill', permanent: true },
-      { source: '/lab/online-editor', destination: '/lab/editor', permanent: true },
-    ];
-  },
 };
 
 export default nextConfig;

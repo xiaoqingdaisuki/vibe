@@ -33,6 +33,7 @@ pnpm-debug.log*
 # ---- AI / Coding agents ----
 .claude/
 .codex/
+.agents/
 
 # ---- OS ----
 .DS_Store
