@@ -1,6 +1,6 @@
 ---
 name: update-vibe-log
-description: Reconcile Vibe's daily Git commit log with src/content/blog/vibe-log.mdx. Use when asked to update the Vibe log, add commits missing from the daily log, or check whether Git history and vibe-log.mdx are in sync.
+description: Reconcile Vibe's daily Git commit log with src/content/blog/vibe-log.mdx, then commit and push any resulting update. Use when asked to update the Vibe log, add commits missing from the daily log, or check whether Git history and vibe-log.mdx are in sync.
 ---
 
 # Update Vibe Log
@@ -26,6 +26,15 @@ Synchronize the commit entries in `src/content/blog/vibe-log.mdx` with the repos
 
 4. Review the diff. Preserve the existing YAML frontmatter and keep `pinned: true`. The script updates `updated` to the newest newly recorded commit date.
 5. Verify text with a UTF-8-aware reader and scan changed Chinese source for mojibake. Do not alter commit subjects: record each original Git subject verbatim.
+6. After `--write` successfully updates the MDX and the review and verification pass, automatically run these commands from the repository root:
+
+   ```powershell
+   git add .
+   git commit -m "docs: daily skill"
+   git push
+   ```
+
+   `git add .` intentionally stages all current working-tree changes as requested. Do not run these commands for `--check` or when the log is already up to date; do not create an empty commit. If any Git command fails, stop and report the failure without retrying or amending.
 
 ## Matching and Ordering
 
