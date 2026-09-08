@@ -2,6 +2,16 @@ import type { LabApp } from './types';
 
 const registeredLabApps: LabApp[] = [
   {
+    slug: 'agent',
+    title: 'AI助手',
+    description: 'AI 对话助手，支持api模型调用、流式回复与文本生成图片。',
+    category: 'app',
+    tags: ['ai', 'chat', 'streaming'],
+    href: '/lab/agent',
+    featured: true,
+    dataSource: 'future-backend',
+  },
+  {
     slug: 'editor',
     title: '代码编辑器',
     description: '在线编辑 React 与 HTML、CSS、JavaScript，实时预览效果。',
@@ -20,16 +30,6 @@ const registeredLabApps: LabApp[] = [
     href: '/lab/timezone',
     featured: true,
     dataSource: 'local',
-  },
-  {
-    slug: 'agent',
-    title: 'AI助手',
-    description: 'AI 对话助手，支持api模型调用、流式回复与文本生成图片。',
-    category: 'app',
-    tags: ['ai', 'chat', 'streaming'],
-    href: '/lab/agent',
-    featured: true,
-    dataSource: 'future-backend',
   },
   {
     slug: 'maplestory',
