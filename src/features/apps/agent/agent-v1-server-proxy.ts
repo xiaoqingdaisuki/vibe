@@ -92,16 +92,17 @@ async function fetchUpstream(
   const apiSecret = process.env.AGENT_API_SECRET?.trim();
   if (!apiSecret) return errorResult('AI助手服务认证配置缺失，请联系管理员。', 500, 'CONFIG_ERROR');
   try {
+    const headers: Record<string, string> = {
+      Accept: 'application/json, text/event-stream',
+      'X-Request-Id': crypto.randomUUID(),
+      ...(userId ? { 'X-Agent-User-Id': userId } : {}),
+      ...(init.headers as Record<string, string> | undefined),
+      Authorization: `Bearer ${apiSecret}`,
+    };
+    if (!(init.body instanceof FormData)) headers['Content-Type'] = 'application/json';
     return await fetch(url, {
       ...init,
-      headers: {
-        Accept: 'application/json, text/event-stream',
-        'Content-Type': 'application/json',
-        'X-Request-Id': crypto.randomUUID(),
-        ...(userId ? { 'X-Agent-User-Id': userId } : {}),
-        ...init.headers,
-        Authorization: `Bearer ${apiSecret}`,
-      },
+      headers,
       body: init.body ?? null,
       signal: AbortSignal.timeout(timeoutMs),
       cache: 'no-store',
@@ -157,16 +158,60 @@ export async function proxyCreateAgentConversation(payload: unknown): Promise<Js
   return { status: 201, body: { id } };
 }
 
+// 代理获取助手能力配置，供前端决定附件的临时生命周期。
+export async function proxyGetAgentCapabilities(userId: string): Promise<JsonProxyResult> {
+  if (!USER_ID_PATTERN.test(userId)) {
+    return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
+  }
+  const upstream = await fetchUpstream('/api/v1/capabilities', { method: 'GET' }, userId);
+  if (!(upstream instanceof Response)) return upstream;
+  if (!upstream.ok) return adaptUpstreamError(upstream);
+  const payload: unknown = await upstream.json().catch(() => null);
+  if (!isRecord(payload) || typeof payload.memory_enabled !== 'boolean') {
+    return errorResult('AI助手服务返回了无效能力配置。', 502, 'INVALID_UPSTREAM_RESPONSE');
+  }
+  return { status: 200, body: payload };
+}
+
 // 代理流式消息发送请求到上游API
 export async function proxyStreamAgentMessage(conversationId: string, payload: unknown): Promise<AgentV1ProxyResult> {
   if (!CONVERSATION_ID_PATTERN.test(conversationId)) {
     return errorResult('会话 ID 格式不正确。', 400, 'INVALID_REQUEST');
   }
-  if (!isRecord(payload)) return errorResult('请求体格式不正确。', 400, 'INVALID_REQUEST');
-  const content = getInputText(payload.content, MAX_MESSAGE_CHARS);
-  const userId = getInputText(payload.user_id, 128);
-  if (!content) {
-    return errorResult('消息内容格式不正确。', 400, 'INVALID_REQUEST');
+  const isMultipart = payload instanceof FormData;
+  let content: string | undefined;
+  let userId: string | undefined;
+  let body: BodyInit;
+  if (isMultipart) {
+    const metadataValue = payload.get('metadata');
+    let metadata: Record<string, unknown> = {};
+    if (typeof metadataValue === 'string') {
+      try {
+        const parsed = JSON.parse(metadataValue);
+        if (isRecord(parsed)) metadata = parsed;
+      } catch {
+        return errorResult('附件元数据格式不正确。', 400, 'INVALID_REQUEST');
+      }
+    }
+    content = getInputText(metadata.content, MAX_MESSAGE_CHARS);
+    userId = getInputText(metadata.user_id, 128);
+    body = payload;
+  } else {
+    if (!isRecord(payload)) return errorResult('请求体格式不正确。', 400, 'INVALID_REQUEST');
+    content = getInputText(payload.content, MAX_MESSAGE_CHARS);
+    userId = getInputText(payload.user_id, 128);
+    const hasDocumentAttachment = (Array.isArray(payload.session_documents) && payload.session_documents.length > 0)
+      || (Array.isArray(payload.document_attachment_ids) && payload.document_attachment_ids.length > 0);
+    if (!content && !hasDocumentAttachment) {
+      return errorResult('消息内容格式不正确。', 400, 'INVALID_REQUEST');
+    }
+    body = JSON.stringify({
+      content: payload.content,
+      user_id: payload.user_id,
+      client_message_id: payload.client_message_id,
+      session_documents: payload.session_documents,
+      document_attachment_ids: payload.document_attachment_ids,
+    });
   }
   if (!userId || !USER_ID_PATTERN.test(userId)) {
     return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
@@ -176,7 +221,7 @@ export async function proxyStreamAgentMessage(conversationId: string, payload: u
     `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/stream`,
     {
       method: 'POST',
-      body: JSON.stringify({ content, user_id: userId }),
+      body,
     },
     userId,
     getAgentStreamTimeoutMs(),

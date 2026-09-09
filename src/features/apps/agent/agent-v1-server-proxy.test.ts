@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   proxyCreateAgentConversation,
+  proxyGetAgentCapabilities,
   proxyGetAgentConversationMessages,
   proxyStreamAgentMessage,
 } from './agent-v1-server-proxy.ts';
@@ -72,6 +73,34 @@ test('streams only the current message through the Agent v1 conversation API', a
   assert.deepEqual(JSON.parse(String(upstreamBody)), { content: '只发送当前问题', user_id: 'web_user123' });
 });
 
+test('forwards raw PDF and DOCX multipart attachments to the Agent API', async (t) => {
+  const originalFetch = globalThis.fetch;
+  const originalBaseUrl = process.env.AGENT_API_BASE_URL;
+  process.env.AGENT_API_BASE_URL = 'http://agent.test';
+  let upstreamBody: BodyInit | null | undefined;
+  globalThis.fetch = async (_input, init) => {
+    upstreamBody = init?.body;
+    return new Response('data: {"delta":"附件已解析"}\n\ndata: [DONE]\n\n', {
+      headers: { 'Content-Type': 'text/event-stream' },
+    });
+  };
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    if (originalBaseUrl === undefined) delete process.env.AGENT_API_BASE_URL;
+    else process.env.AGENT_API_BASE_URL = originalBaseUrl;
+  });
+
+  const form = new FormData();
+  form.append('metadata', JSON.stringify({ content: '读取文档', user_id: 'web_user123' }));
+  form.append('documents', new Blob(['pdf'], { type: 'application/pdf' }), 'marker.pdf');
+  form.append('documents', new Blob(['docx'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), 'marker.docx');
+  const result = await proxyStreamAgentMessage('conv_123', form);
+
+  assert.equal(result.status, 200);
+  assert.ok(upstreamBody instanceof FormData);
+  assert.equal((upstreamBody as FormData).getAll('documents').length, 2);
+});
+
 test('adapts FastAPI nested detail errors to the shared frontend envelope', async (t) => {
   const originalFetch = globalThis.fetch;
   const originalBaseUrl = process.env.AGENT_API_BASE_URL;
@@ -136,4 +165,29 @@ test('retrieves conversation history through the Agent v1 API', async (t) => {
   assert.equal(result.status, 200);
   assert.deepEqual(result.body, { messages: [{ id: 'msg_1', role: 'user', content: '你好' }] });
   assert.equal(upstreamUrl, 'http://agent.test/api/v1/conversations/conv_123/messages');
+});
+
+test('retrieves memory capability for attachment lifecycle decisions', async (t) => {
+  const originalFetch = globalThis.fetch;
+  const originalBaseUrl = process.env.AGENT_API_BASE_URL;
+  process.env.AGENT_API_BASE_URL = 'http://agent.test';
+  let upstreamUrl = '';
+  globalThis.fetch = async (input) => {
+    upstreamUrl = String(input);
+    return new Response(JSON.stringify({
+      memory_enabled: false,
+      attachments: { document_mode: 'session_only' },
+    }), { headers: { 'Content-Type': 'application/json' } });
+  };
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    if (originalBaseUrl === undefined) delete process.env.AGENT_API_BASE_URL;
+    else process.env.AGENT_API_BASE_URL = originalBaseUrl;
+  });
+
+  const result = await proxyGetAgentCapabilities('web_user123');
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.memory_enabled, false);
+  assert.equal(upstreamUrl, 'http://agent.test/api/v1/capabilities');
 });

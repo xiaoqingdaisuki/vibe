@@ -7,10 +7,44 @@ export interface AgentSuggestionCard {
 
 export type AgentMessageRole = 'user' | 'assistant' | 'system';
 
+export interface AgentSessionDocumentPart {
+  partIndex: number;
+  page?: number;
+  section?: string;
+  content: string;
+}
+
+export interface AgentSessionDocument {
+  localId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  parserVersion: string;
+  parts: AgentSessionDocumentPart[];
+}
+
+export interface AgentImageAttachment {
+  filename: string;
+  blob: Blob;
+  mimeType: string;
+  fingerprint?: string;
+}
+
+export interface AgentDocumentAttachment {
+  filename: string;
+  blob: Blob;
+  mimeType: string;
+}
+
 export interface AgentApiRequest {
   conversationId: string;
   content: string;
   userId: string;
+  sessionDocuments?: AgentSessionDocument[];
+  documentAttachmentIds?: string[];
+  images?: AgentImageAttachment[];
+  files?: AgentDocumentAttachment[];
+  clientMessageId?: string;
 }
 
 export interface AgentApiResponse {
@@ -29,6 +63,17 @@ export interface AgentConversationMessage {
   role: Extract<AgentMessageRole, 'user' | 'assistant'>;
   content: string;
   createdAt: string;
+}
+
+export interface AgentCapabilities {
+  memory_enabled: boolean;
+  attachments?: {
+    enabled?: boolean;
+    documents_enabled?: boolean;
+    images_enabled?: boolean;
+    document_mode?: 'session_only' | 'persistent_rag' | string;
+    persistent_rag_enabled?: boolean;
+  };
 }
 
 const AGENT_CONVERSATIONS_URL = '/api/agent/v1/conversations';
@@ -183,6 +228,35 @@ export async function createAgentConversation(title: string, userId: string, sig
   return conversationId;
 }
 
+// 获取 Agent 能力配置，决定文档是否在发送后继续留在临时会话状态。
+export async function getAgentCapabilities(userId: string, signal?: AbortSignal): Promise<AgentCapabilities> {
+  const query = new URLSearchParams({ user_id: userId });
+  const response = await fetch(`/api/agent/v1/capabilities?${query}`, { signal }).catch((error: unknown) => {
+    if (isAbortError(error) || signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    throw new Error(CONNECTION_ERROR_MESSAGE);
+  });
+  if (!response.ok) throw new AgentHttpError(await readHttpError(response), response.status);
+  const payload: unknown = await response.json().catch(() => null);
+  if (!isRecord(payload) || typeof payload.memory_enabled !== 'boolean') {
+    throw new Error(EMPTY_RESPONSE_MESSAGE);
+  }
+  const attachments = isRecord(payload.attachments) ? payload.attachments : undefined;
+  return {
+    memory_enabled: payload.memory_enabled,
+    attachments: attachments
+      ? {
+          enabled: typeof attachments.enabled === 'boolean' ? attachments.enabled : undefined,
+          documents_enabled:
+            typeof attachments.documents_enabled === 'boolean' ? attachments.documents_enabled : undefined,
+          images_enabled: typeof attachments.images_enabled === 'boolean' ? attachments.images_enabled : undefined,
+          document_mode: typeof attachments.document_mode === 'string' ? attachments.document_mode : undefined,
+          persistent_rag_enabled:
+            typeof attachments.persistent_rag_enabled === 'boolean' ? attachments.persistent_rag_enabled : undefined,
+        }
+      : undefined,
+  };
+}
+
 // 删除指定对话会话，失败时保留本地引用以便重试
 export async function deleteAgentConversation(conversationId: string, userId: string): Promise<void> {
   const query = new URLSearchParams({ user_id: userId });
@@ -235,10 +309,29 @@ async function fetchAgent(request: AgentApiRequest, signal?: AbortSignal): Promi
   if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
   try {
+    const metadata = {
+      content: request.content,
+      user_id: request.userId,
+      client_message_id: request.clientMessageId,
+      session_documents: request.sessionDocuments,
+      document_attachment_ids: request.documentAttachmentIds,
+    };
+    const headers: HeadersInit = { Accept: 'application/json, text/event-stream' };
+    let body: BodyInit;
+    if (request.images?.length || request.files?.length) {
+      const formData = new FormData();
+      formData.append('metadata', JSON.stringify(metadata));
+      request.images?.forEach((image) => formData.append('images', image.blob, image.filename));
+      request.files?.forEach((file) => formData.append('documents', file.blob, file.filename));
+      body = formData;
+    } else {
+      headers['Content-Type'] = 'application/json';
+      body = JSON.stringify(metadata);
+    }
     return await fetch(`${AGENT_CONVERSATIONS_URL}/${encodeURIComponent(request.conversationId)}/messages/stream`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: request.content, user_id: request.userId }),
+      headers,
+      body,
       signal,
     });
   } catch (error) {

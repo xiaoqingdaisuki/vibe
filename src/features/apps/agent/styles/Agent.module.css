@@ -913,6 +913,75 @@
   flex-shrink: 0;
 }
 
+.attachmentList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-bottom: var(--space-8);
+}
+
+.attachmentChip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  max-width: 220px;
+  padding: var(--space-6) var(--space-8);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-faint);
+  color: var(--color-foreground-muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.attachmentChipName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fileInput {
+  display: none;
+}
+
+.attachBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-8);
+  height: var(--space-40);
+  padding: 0 var(--space-8);
+  border: none;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--color-foreground-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.attachBtnLabel {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.attachBtn:hover:not(:disabled),
+.attachBtn:active:not(:disabled) {
+  background: var(--color-background);
+  color: var(--color-accent);
+}
+
+.attachBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.attachmentError {
+  margin: var(--space-8) var(--space-4) 0;
+  color: var(--color-danger, #b42318);
+  font-size: var(--text-xs);
+}
+
 .inputWrap {
   display: flex;
   align-items: flex-end;

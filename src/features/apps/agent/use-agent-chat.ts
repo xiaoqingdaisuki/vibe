@@ -3,10 +3,19 @@ import {
   callAgentApi,
   createAgentConversation,
   deleteAgentConversation,
+  getAgentCapabilities,
   getAgentConversationMessages,
   shouldDiscardStoredConversation,
 } from './agent-api';
-import type { AgentApiResponse, AgentMessageRole, AgentSuggestionCard, AgentToolProgress } from './agent-api';
+import type {
+  AgentApiResponse,
+  AgentDocumentAttachment,
+  AgentImageAttachment,
+  AgentMessageRole,
+  AgentSessionDocument,
+  AgentSuggestionCard,
+  AgentToolProgress,
+} from './agent-api';
 import type { AgentConnectionStatus } from './chat-status';
 import {
   clearStoredConversationId,
@@ -24,8 +33,12 @@ export interface ChatMessage {
   suggestionCards?: AgentSuggestionCard[];
 }
 
-interface SendMessageOptions {
+export interface SendMessageOptions {
   appendUser?: boolean;
+  sessionDocuments?: AgentSessionDocument[];
+  documentAttachmentIds?: string[];
+  images?: AgentImageAttachment[];
+  files?: AgentDocumentAttachment[];
 }
 
 interface AgentChatState {
@@ -36,11 +49,12 @@ interface AgentChatState {
   connectionStatus: AgentConnectionStatus;
   hasConversation: boolean;
   isRestoring: boolean;
+  memoryEnabled: boolean | null;
   toolProgress: AgentToolProgress | null;
   streamingCompleteIds: Set<string>;
   setInput: (value: string) => void;
   sendMessage: (text: string, options?: SendMessageOptions) => Promise<void>;
-  retryLast: () => void;
+  retryLast: (options?: SendMessageOptions) => void;
   stopStreaming: () => void;
   startNewConversation: () => Promise<boolean>;
 }
@@ -89,6 +103,7 @@ export function useAgentChat(): AgentChatState {
   const [connectionStatus, setConnectionStatus] = useState<AgentConnectionStatus>('idle');
   const [hasConversation, setHasConversation] = useState(false);
   const [isRestoring, setIsRestoring] = useState(true);
+  const [memoryEnabled, setMemoryEnabled] = useState<boolean | null>(null);
   const [toolProgress, setToolProgress] = useState<AgentToolProgress | null>(null);
   const [streamingCompleteIds, setStreamingCompleteIds] = useState<Set<string>>(new Set());
   const abortRef = useRef<AbortController | null>(null);
@@ -115,6 +130,13 @@ export function useAgentChat(): AgentChatState {
       ? getOrCreateStoredAgentUserId(storage, () => crypto.randomUUID())
       : `web_${crypto.randomUUID().replace(/-/g, '')}`;
     userIdRef.current = userId;
+    void getAgentCapabilities(userId)
+      .then((capabilities) => {
+        if (!cancelled) setMemoryEnabled(capabilities.memory_enabled);
+      })
+      .catch(() => {
+        // 能力探测失败时保留附件，避免误把临时会话内容丢掉。
+      });
     const conversationId = storage ? readStoredConversationId(storage, userId) : null;
 
     const completeRestore = () => {
@@ -173,9 +195,19 @@ export function useAgentChat(): AgentChatState {
   }, []);
 
   // 发送消息并处理流式响应
-  const sendMessage = useCallback(async (text: string, { appendUser = true }: SendMessageOptions = {}) => {
+  const sendMessage = useCallback(async (
+    text: string,
+    {
+      appendUser = true,
+      sessionDocuments,
+      documentAttachmentIds,
+      images,
+      files,
+    }: SendMessageOptions = {},
+  ) => {
     const trimmed = text.trim();
-    if (!trimmed || abortRef.current || isRestoringRef.current) return;
+    const hasAttachments = Boolean(sessionDocuments?.length || documentAttachmentIds?.length || images?.length || files?.length);
+    if ((!trimmed && !hasAttachments) || abortRef.current || isRestoringRef.current) return;
 
     const controller = new AbortController();
     abortRef.current = controller;
@@ -183,7 +215,7 @@ export function useAgentChat(): AgentChatState {
     const userMessage: ChatMessage = {
       id: generateId(),
       role: 'user',
-      content: trimmed,
+      content: trimmed || '已上传附件，请分析这些内容',
       timestamp: Date.now(),
     };
     const assistantId = generateId();
@@ -219,7 +251,7 @@ export function useAgentChat(): AgentChatState {
       const userId = userIdRef.current;
       if (!userId) throw new Error('用户会话初始化失败，请刷新页面后重试');
       if (!conversationId) {
-        conversationId = await createAgentConversation(trimmed, userId, controller.signal);
+        conversationId = await createAgentConversation(trimmed || '附件分析', userId, controller.signal);
         conversationIdRef.current = conversationId;
         const storage = getBrowserStorage();
         if (storage) writeStoredConversationId(storage, userId, conversationId);
@@ -230,6 +262,10 @@ export function useAgentChat(): AgentChatState {
           conversationId,
           content: trimmed,
           userId,
+          sessionDocuments,
+          documentAttachmentIds,
+          images,
+          files,
         },
         updateStreamed,
         controller.signal,
@@ -276,10 +312,10 @@ export function useAgentChat(): AgentChatState {
   }, []);
 
   // 重试最后一条用户消息
-  const retryLast = useCallback(() => {
+  const retryLast = useCallback((options: SendMessageOptions = {}) => {
     setError(null);
     const lastUserMessage = messagesRef.current.findLast((message) => message.role === 'user');
-    if (lastUserMessage) void sendMessage(lastUserMessage.content, { appendUser: false });
+    if (lastUserMessage) void sendMessage(lastUserMessage.content, { appendUser: false, ...options });
   }, [sendMessage]);
 
   // 中止当前流式生成
@@ -333,6 +369,7 @@ export function useAgentChat(): AgentChatState {
     connectionStatus,
     hasConversation,
     isRestoring,
+    memoryEnabled,
     toolProgress,
     streamingCompleteIds,
     setInput,

@@ -11,7 +11,10 @@ interface RouteContext {
 // 流式发送消息到指定会话，返回SSE事件流
 export async function POST(request: Request, context: RouteContext): Promise<Response> {
   const { id } = await context.params;
-  const payload: unknown = await request.json().catch(() => null);
+  const contentType = request.headers.get('content-type') ?? '';
+  const payload: unknown = contentType.includes('multipart/form-data')
+    ? await request.formData().catch(() => null)
+    : await request.json().catch(() => null);
   const result = await proxyStreamAgentMessage(id, payload);
   if ('body' in result) return NextResponse.json(result.body, { status: result.status });
 
