@@ -164,7 +164,7 @@ export default function GamePageClient() {
     // triggerCombat is called after engine is initialized via useEffect
   }, [startCombatLoop]);
 
-  const processOfflineProgress = useCallback((char: Character): Character => {
+  const processOfflineProgress = useCallback(async (char: Character): Promise<Character> => {
     const now = Date.now();
     const offlineMs = now - char.lastActive;
     const offlineMinutes = Math.floor(offlineMs / 60000);
@@ -173,65 +173,76 @@ export default function GamePageClient() {
       return char;
     }
 
-    const engine = new GameEngine(char);
-    const result = engine.calculateOfflineProgress();
+    // 重型离线结算放到空闲时段执行，避免阻塞登录首帧与交互
+    const settle = () => {
+      const engine = new GameEngine(char);
+      const result = engine.calculateOfflineProgress();
 
-    const offlineLogs: LogEntry[] = [
-      {
-        id: nextLogId(),
-        timestamp: now,
-        text: `=== 离线收益 (${offlineMinutes} 分钟) ===`,
-        type: 'info',
-      },
-      {
-        id: nextLogId(),
-        timestamp: now,
-        text: `自动战斗 ${result.totalCombats} 场 | 胜利 ${result.totalWins} | 失败 ${result.totalLosses}`,
-        type: 'info',
-      },
-      {
-        id: nextLogId(),
-        timestamp: now,
-        text: `获得经验: +${result.totalExpGained} | 金币: +${result.totalGoldGained}`,
-        type: 'info',
-      },
-    ];
+      const offlineLogs: LogEntry[] = [
+        {
+          id: nextLogId(),
+          timestamp: now,
+          text: `=== 离线收益 (${offlineMinutes} 分钟) ===`,
+          type: 'info',
+        },
+        {
+          id: nextLogId(),
+          timestamp: now,
+          text: `自动战斗 ${result.totalCombats} 场 | 胜利 ${result.totalWins} | 失败 ${result.totalLosses}`,
+          type: 'info',
+        },
+        {
+          id: nextLogId(),
+          timestamp: now,
+          text: `获得经验: +${result.totalExpGained} | 金币: +${result.totalGoldGained}`,
+          type: 'info',
+        },
+      ];
 
-    if (result.totalItemsGained.length > 0) {
-      const grouped = new Map<string, { item: (typeof result.totalItemsGained)[0]; count: number }>();
-      for (const item of result.totalItemsGained) {
-        const key = item.id;
-        if (grouped.has(key)) {
-          grouped.get(key)!.count++;
-        } else {
-          grouped.set(key, { item, count: 1 });
+      if (result.totalItemsGained.length > 0) {
+        const grouped = new Map<string, { item: (typeof result.totalItemsGained)[0]; count: number }>();
+        for (const item of result.totalItemsGained) {
+          const key = item.id;
+          if (grouped.has(key)) {
+            grouped.get(key)!.count++;
+          } else {
+            grouped.set(key, { item, count: 1 });
+          }
+        }
+        for (const { item, count } of grouped.values()) {
+          offlineLogs.push({
+            id: nextLogId(),
+            timestamp: now,
+            text: `📦 离线掉落: [${item.rarity}] ${item.name} x${count}`,
+            type: 'loot',
+            rarity: item.rarity,
+          });
         }
       }
-      for (const { item, count } of grouped.values()) {
+
+      if (result.levelUps > 0) {
         offlineLogs.push({
           id: nextLogId(),
           timestamp: now,
-          text: `📦 离线掉落: [${item.rarity}] ${item.name} x${count}`,
-          type: 'loot',
-          rarity: item.rarity,
+          text: `🎉 离线升级了 ${result.levelUps} 次！当前等级: ${engine.character.level}`,
+          type: 'levelup',
         });
       }
-    }
 
-    if (result.levelUps > 0) {
-      offlineLogs.push({
-        id: nextLogId(),
-        timestamp: now,
-        text: `🎉 离线升级了 ${result.levelUps} 次！当前等级: ${engine.character.level}`,
-        type: 'levelup',
-      });
-    }
+      setLogs((prev) => [...offlineLogs, ...prev].slice(-50));
+      return engine.character;
+    };
 
-    setLogs((prev) => [...offlineLogs, ...prev].slice(-50));
-    return engine.character;
+    // 等待空闲回调完成后返回结算结果，避免阻塞主线程
+    const requestIdle = (globalThis as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback;
+    return new Promise((resolve) => {
+      const done = () => resolve(settle());
+      if (requestIdle) requestIdle(done);
+      else setTimeout(done, 0);
+    });
   }, []);
 
-  const handleLogin = useCallback(() => {
+  const handleLogin = useCallback(async () => {
     if (!username.trim()) return;
     setLoginError('');
 
@@ -261,7 +272,7 @@ export default function GamePageClient() {
       currentUsernameRef.current = trimmedUsername;
 
       // Existing character - process offline progress and enter game
-      const updatedChar = processOfflineProgress(localData);
+      const updatedChar = await processOfflineProgress(localData);
       const engine = new GameEngine(updatedChar);
       engine.refreshCombatStats();
       setCharacter(engine.character);

@@ -33,6 +33,17 @@ import {
 const OFFLINE_CHEST_REWARD_INTERVAL_MINUTES = 15;
 const MAX_OFFLINE_CHEST_REWARD_ROLLS = 20;
 
+// 计算从 level 升到 level+1 所需经验，按等级区间分区控制升级难度
+// 轻松升到 25 → 26-29 较难 → 29-30 几乎不可能
+function getExpToNext(level: number): number {
+  // 29→30 几乎不可能
+  if (level >= 29) return 9_999_999;
+  // 25→26、26→27、27→28、28→29 较难
+  if (level >= 25) return [100_000, 300_000, 900_000, 2_700_000][level - 25];
+  // 1→25 轻松：温和增长的经验曲线
+  return Math.floor(40 * Math.pow(1.28, level - 1));
+}
+
 // 游戏核心引擎，处理战斗、物品、商店和技能逻辑
 export class GameEngine {
   public character: Character;
@@ -786,9 +797,8 @@ export class GameEngine {
       this.character.level++;
       leveled = true;
 
-      // Exponential XP curve: 1->2 needs ~750 exp (~50 monsters at Lv1)
-      // Lv2->3: ~1163, Lv5->6: ~3010, Lv10->11: ~11481, Lv15->16: ~36504
-      this.character.expToNext = Math.floor(50 * Math.pow(1.55, this.character.level - 1));
+      // 经验曲线按等级分区：1-25 轻松、26-29 较难、29-30 几乎不可能
+      this.character.expToNext = getExpToNext(this.character.level);
 
       const classDef = CLASSES.find((c) => c.id === this.character.class);
       if (classDef) {

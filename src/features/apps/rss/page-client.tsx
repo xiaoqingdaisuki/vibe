@@ -117,13 +117,20 @@ function parseRSSXml(xmlText: string, feedUrl: string): RssFeed {
     if (enclosure) {
       const encType = enclosure.getAttribute('type') || '';
       const encUrl = enclosure.getAttribute('url') || '';
-      if (encType.startsWith('image/') && encUrl) thumbnail = encUrl;
+      // 缩略图 URL 同样需经协议白名单校验，拒绝非 http/https 的来源
+      if (encType.startsWith('image/') && encUrl) {
+        const resolved = resolveLink(feedUrl, encUrl);
+        if (resolved !== '#') thumbnail = resolved;
+      }
     }
     if (!thumbnail) {
       const mediaContent = node.querySelector('media\\:content, content');
       if (mediaContent) {
         const url = mediaContent.getAttribute('url');
-        if (url) thumbnail = url;
+        if (url) {
+          const resolved = resolveLink(feedUrl, url);
+          if (resolved !== '#') thumbnail = resolved;
+        }
       }
     }
     if (!thumbnail) {

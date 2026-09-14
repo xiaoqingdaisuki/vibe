@@ -289,9 +289,9 @@ export function rollRarity(chestRarity: ItemRarity): ItemRarity {
 }
 
 const RARITY_STAT_MULTIPLIER: Record<ItemRarity, number> = {
-  common: 1,
-  uncommon: 2,
-  rare: 4,
+  common: 2,
+  uncommon: 4,
+  rare: 8,
   epic: 120,
   legendary: 240,
   mythic: 480,
@@ -402,10 +402,11 @@ function buildItemStats(
     };
   } else {
     const base = accStat(lv);
+    // 饰品提供职业主属性，确保能进入攻击结算（与武器一致）
     stats = {
       warrior: { str: Math.floor(base * bonus) },
       mage: { int: Math.floor(base * bonus) },
-      rogue: { luk: Math.floor(base * bonus) },
+      rogue: { dex: Math.floor(base * bonus) },
     };
   }
 
@@ -510,17 +511,17 @@ const ARMOR_LABEL: Record<string, string> = { warrior: '战甲', mage: '长袍',
 
 /**
  * Generates a random item level for chest rewards.
- * Normal rarities: [max(1, charLevel-2), min(25, charLevel+3)] — biased near charLevel
+ * Normal rarities: [max(1, charLevel-1), min(25, charLevel+1)] — only within ±1 of character level
  * Transcendent (最稀有): always at character level (special logic)
  */
-// 为宝箱奖励生成物品等级（接近角色等级）
+// 为宝箱奖励生成物品等级（仅限角色等级±1）
 function getChestItemLevel(charLevel: number, rarity: ItemRarity): number {
   if (rarity === 'transcendent') {
     // 超越品质特殊逻辑：始终等于角色等级
     return Math.max(1, Math.min(25, charLevel));
   }
-  const lo = Math.max(1, charLevel - 2);
-  const hi = Math.min(25, charLevel + 3);
+  const lo = Math.max(1, charLevel - 1);
+  const hi = Math.min(25, charLevel + 1);
   if (lo > hi) return hi;
   return Math.floor(Math.random() * (hi - lo + 1)) + lo;
 }
