@@ -13,6 +13,7 @@ const LAB_APP_LOADERS: Record<string, LabAppLoader> = {
   rss: () => import('./rss/page-client'),
   rpg: () => import('./game/page-client'),
   agent: () => import('./agent/page-client'),
+  note: () => import('./note/page-client'),
 };
 
 // 根据 slug 获取对应的 app 懒加载器

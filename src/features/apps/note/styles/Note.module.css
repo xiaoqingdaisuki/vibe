@@ -1,0 +1,408 @@
+/* 笔记：用轻量的本地笔记板承载指令与自由文本 */
+.tool {
+  padding-bottom: var(--space-32);
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  padding-bottom: var(--space-24);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.headerCopy {
+  min-width: 0;
+}
+
+.eyebrow,
+.sectionLabel {
+  margin: 0;
+  color: var(--color-accent);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin-top: var(--space-8);
+  font-size: var(--text-4xl);
+  text-wrap: balance;
+}
+
+.intro {
+  max-width: 600px;
+  margin: var(--space-12) 0 0;
+  color: var(--color-foreground-secondary);
+  font-size: var(--text-base);
+}
+
+.headerActions,
+.libraryControls,
+.formActions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.headerActions {
+  flex-wrap: wrap;
+}
+
+.composer {
+  margin-top: var(--space-24);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  padding: var(--space-16);
+  background: var(--color-panel-background);
+}
+
+.composerHeader,
+.libraryHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.composerTitle,
+.sectionTitle {
+  margin-top: var(--space-8);
+  font-size: var(--text-2xl);
+  text-wrap: balance;
+}
+
+.composerHint,
+.storageHint,
+.cardMeta,
+.formMeta,
+.count {
+  color: var(--color-foreground-muted);
+  font-size: var(--text-sm);
+}
+
+.cardMeta,
+.count {
+  font-variant-numeric: tabular-nums;
+}
+
+.composerHint,
+.storageHint,
+.cardMeta,
+.count {
+  margin: 0;
+}
+
+.composerHint {
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: var(--text-xs);
+}
+
+.composerForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin-top: var(--space-20);
+}
+
+.textareaLabel {
+  color: var(--color-foreground);
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.textarea {
+  display: block;
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-12);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: var(--text-base);
+  line-height: 1.55;
+  outline: none;
+  transition: border-color var(--dur-150) var(--ease-smooth);
+}
+
+.textarea::placeholder {
+  color: var(--color-foreground-muted);
+}
+
+.textarea:focus {
+  border-color: var(--color-accent);
+}
+
+.textarea:focus-visible,
+.insertCodeButton:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.textareaError {
+  border-color: var(--color-error);
+}
+
+.formMeta {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-12);
+  line-height: 1.45;
+}
+
+.formMeta > span:first-child {
+  min-width: 0;
+  color: var(--color-foreground-secondary);
+}
+
+.formError {
+  color: var(--color-error) !important;
+}
+
+.formMetaActions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.insertCodeButton {
+  min-height: var(--space-32);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4) var(--space-8);
+  background: var(--color-background);
+  color: var(--color-foreground-secondary);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  touch-action: manipulation;
+  transition:
+    background var(--dur-150) var(--ease-smooth),
+    border-color var(--dur-150) var(--ease-smooth),
+    color var(--dur-150) var(--ease-smooth);
+}
+
+.insertCodeButton:hover,
+.insertCodeButton:active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-wash);
+  color: var(--color-accent);
+}
+
+.formActions {
+  margin-top: var(--space-8);
+}
+
+.library {
+  margin-top: var(--space-32);
+}
+
+.libraryControls {
+  justify-content: flex-end;
+}
+
+.count {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-12);
+  margin: var(--space-20) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  content-visibility: auto;
+  contain-intrinsic-size: 240px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-16);
+  background: var(--color-panel-background);
+}
+
+.cardFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  margin-top: var(--space-20);
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--color-border-light);
+}
+
+.cardMeta {
+  padding-top: var(--space-8);
+}
+
+.cardActions {
+  display: flex;
+  flex-shrink: 0;
+  gap: var(--space-8);
+}
+
+.iconButton,
+.codeCopyButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-target);
+  height: var(--touch-target);
+  border: 0;
+  border-radius: var(--radius-sm);
+  padding: 0;
+  background: transparent;
+  color: var(--color-foreground-muted);
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: color var(--dur-150) var(--ease-smooth);
+}
+
+.iconButton {
+  flex: 0 0 auto;
+}
+
+.iconButton svg,
+.codeCopyButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  max-height: 360px;
+  margin: var(--space-16) 0 0;
+  overflow-y: auto;
+  padding-right: var(--space-4);
+}
+
+.textBlock {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-foreground);
+  font-size: var(--text-sm);
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.codeBlock {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-accent-faint);
+}
+
+.codeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.code {
+  flex: 1;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  overflow-x: auto;
+  padding: var(--space-12);
+  color: var(--color-foreground);
+  font-family: ui-monospace, 'SFMono-Regular', Consolas, monospace;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1.55;
+  white-space: pre;
+}
+
+.codeCopyButton {
+  align-self: flex-start;
+  margin-top: var(--space-8);
+  margin-right: var(--space-8);
+}
+
+.iconButton:active,
+.codeCopyButton:active,
+.copied {
+  color: var(--color-accent);
+}
+
+.iconButton:focus-visible,
+.codeCopyButton:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.footer {
+  margin-top: var(--space-24);
+  padding-top: var(--space-16);
+  border-top: 1px solid var(--color-border);
+}
+
+.storageHint {
+  max-width: 680px;
+  line-height: 1.5;
+}
+
+.clipboardFallback {
+  position: fixed;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+
+@media (min-width: 768px) {
+  .header {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .headerActions {
+    justify-content: flex-end;
+  }
+
+  .composer {
+    padding: var(--space-24);
+  }
+
+  .composerHeader,
+  .libraryHeader {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+  }
+
+  .libraryControls {
+    justify-content: flex-end;
+  }
+
+  .list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .iconButton:hover,
+  .codeCopyButton:hover {
+    color: var(--color-accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .textarea,
+  .iconButton,
+  .codeCopyButton,
+  .insertCodeButton {
+    transition: none;
+  }
+}

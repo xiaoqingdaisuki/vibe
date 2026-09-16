@@ -12,6 +12,16 @@ const registeredLabApps: LabApp[] = [
     dataSource: 'future-backend',
   },
   {
+    slug: 'note',
+    title: '笔记',
+    description: '自由记录文本与临时备忘，内容只保存在当前浏览器。',
+    category: 'tool',
+    tags: ['note', 'local', 'clipboard'],
+    href: '/lab/note',
+    featured: true,
+    dataSource: 'local',
+  },
+  {
     slug: 'editor',
     title: '代码编辑器',
     description: '在线编辑 React 与 HTML、CSS、JavaScript，实时预览效果。',
