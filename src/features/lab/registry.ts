@@ -12,6 +12,16 @@ const registeredLabApps: LabApp[] = [
     dataSource: 'future-backend',
   },
   {
+    slug: 'mahjong',
+    title: '日麻',
+    description: 'WebGL2四人日本麻将游戏，支持人机对局、跨设备四位码友人房与本地回放牌谱。',
+    category: 'game',
+    tags: ['game', 'mahjong', 'riichi'],
+    href: '/lab/mahjong',
+    featured: true,
+    dataSource: 'local',
+  },
+  {
     slug: 'note',
     title: '笔记',
     description: '自由记录文本与临时备忘，内容只保存在当前浏览器。',

@@ -14,6 +14,7 @@ const LAB_APP_LOADERS: Record<string, LabAppLoader> = {
   rpg: () => import('./game/page-client'),
   agent: () => import('./agent/page-client'),
   note: () => import('./note/page-client'),
+  mahjong: () => import('./mahjong/page-client'),
 };
 
 // 根据 slug 获取对应的 app 懒加载器

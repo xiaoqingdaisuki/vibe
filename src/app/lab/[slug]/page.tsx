@@ -79,6 +79,10 @@ export default async function LabAppPage({ params }: LabAppPageProps) {
   const loadedApp = await loadApp();
   const AppComponent = loadedApp.default;
 
+  if (app.slug === 'mahjong') {
+    return <AppComponent />;
+  }
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 md:px-6 md:py-12">
       <Breadcrumb items={[{ label: 'Lab', href: '/lab' }, { label: app.title }]} />

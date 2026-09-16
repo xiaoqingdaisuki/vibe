@@ -8,6 +8,7 @@
     "dev": "next dev --turbopack --port 3000",
     "build": "next build",
     "start": "next start --port 3000",
+    "mahjong:room": "node server/mahjong-room.mjs",
     "lint": "eslint .",
     "test": "node --test",
     "typecheck": "tsc --noEmit",
@@ -20,9 +21,11 @@
     "gray-matter": "^4.0.3",
     "next": "^16.0.0",
     "next-mdx-remote": "^6.0.0",
+    "pixi.js": "^8.20.1",
     "prettier": "^3",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@commitlint/cli": "^21.2.0",
