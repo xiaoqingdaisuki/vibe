@@ -84,9 +84,9 @@ export default function Mahjong() {
         ) {
           return current;
         }
-        const tsumogiri = getLegalActions(current, 0).find(
-          (action) => action.type === 'discard' && action.tileId === current.drawnTileId,
-        );
+        const actions = getLegalActions(current, 0);
+        if (actions.some((action) => action.type === 'tsumo')) return current;
+        const tsumogiri = actions.find((action) => action.type === 'discard' && action.tileId === current.drawnTileId);
         return tsumogiri ? applyAction(current, 0, tsumogiri).state : current;
       });
     }, 260);
