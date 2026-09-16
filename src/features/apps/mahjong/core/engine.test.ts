@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { applyAction, createMatch, getLegalActions, playAiTurn } from './engine.ts';
 import { createTileSet } from './tiles.ts';
-import { isWinningHand, scoreHand } from './scoring.ts';
+import { getTenpaiWaits, isWinningHand, scoreHand } from './scoring.ts';
 import type { Suit } from './types.ts';
 
 test('creates a complete unique 136-tile set', () => {
@@ -59,4 +59,29 @@ test('scores a closed all-simples self draw with a visible yaku', () => {
   assert.ok(score.yaku.includes('门清自摸'));
   assert.ok(score.yaku.includes('断幺九'));
   assert.ok(score.points > 0);
+});
+
+test('returns concrete waits for a two-sided tenpai hand', () => {
+  const hand = [0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 10, 22, 23].map((kind, id) => ({
+    id,
+    kind,
+    suit: (kind >= 27 ? 'honor' : (['man', 'pin', 'sou'] as const)[Math.floor(kind / 9)]) as Suit,
+    rank: kind >= 27 ? kind - 26 : (kind % 9) + 1,
+    red: false,
+  }));
+  assert.deepEqual(
+    getTenpaiWaits(hand).map((tile) => tile.kind),
+    [21, 24],
+  );
+});
+
+test('limits a riichi turn to the drawn tile for automatic tsumogiri', () => {
+  const state = createMatch(777);
+  const riichiState = {
+    ...state,
+    players: state.players.map((player) => (player.seat === 0 ? { ...player, riichi: true } : player)),
+  };
+  const actions = getLegalActions(riichiState, 0);
+  assert.ok(actions.length > 0);
+  assert.ok(actions.every((action) => action.type === 'discard' && action.tileId === state.drawnTileId));
 });

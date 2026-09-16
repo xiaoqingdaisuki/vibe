@@ -52,6 +52,7 @@ export default function Mahjong() {
   const transportRef = useRef<FriendRoomTransport | null>(null);
 
   const legalActions = getLegalActions(state, 0);
+  const humanRiichi = state.players[0]?.riichi ?? false;
 
   // AI 回合使用短暂延迟，让训练者看见每一次摸打决策
   useEffect(() => {
@@ -61,6 +62,36 @@ export default function Mahjong() {
     }, 420);
     return () => window.clearTimeout(timer);
   }, [screen, state.phase, state.currentPlayer, state.seq]);
+
+  // 立直后摸牌立即摸切，避免再次显示可操作牌按钮
+  useEffect(() => {
+    if (
+      screen !== 'single' ||
+      state.phase !== 'player-turn' ||
+      state.currentPlayer !== 0 ||
+      !humanRiichi ||
+      state.drawnTileId === null
+    ) {
+      return undefined;
+    }
+    const timer = window.setTimeout(() => {
+      setState((current) => {
+        if (
+          current.phase !== 'player-turn' ||
+          current.currentPlayer !== 0 ||
+          !current.players[0]?.riichi ||
+          current.drawnTileId === null
+        ) {
+          return current;
+        }
+        const tsumogiri = getLegalActions(current, 0).find(
+          (action) => action.type === 'discard' && action.tileId === current.drawnTileId,
+        );
+        return tsumogiri ? applyAction(current, 0, tsumogiri).state : current;
+      });
+    }, 260);
+    return () => window.clearTimeout(timer);
+  }, [screen, state.phase, state.currentPlayer, state.drawnTileId, humanRiichi, state.seq]);
 
   // 离开页面时关闭远程友人房通信并通知房间释放资源
   useEffect(

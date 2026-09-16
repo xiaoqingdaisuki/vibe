@@ -1,5 +1,5 @@
 import type { ScoreResult, Tile, Wind } from './types.ts';
-import { toCounts } from './tiles.ts';
+import { TILE_KIND_COUNT, toCounts } from './tiles.ts';
 
 interface Group {
   readonly type: 'sequence' | 'triplet';
@@ -105,15 +105,27 @@ export function isWinningHand(tiles: readonly Tile[]): boolean {
 
 // 判断 13 张牌是否处于听牌状态，供立直动作和训练提示使用
 export function isTenpai(tiles: readonly Tile[]): boolean {
-  if (tiles.length !== 13) return false;
+  return getTenpaiWaits(tiles).length > 0;
+}
+
+// 为指定牌种创建无实体编号的听牌候选，供规则和界面共同使用
+function createWaitCandidate(kind: number): Tile {
+  const suit = kind >= 27 ? 'honor' : ((['man', 'pin', 'sou'] as const)[Math.floor(kind / 9)] ?? 'honor');
+  const rank = kind >= 27 ? kind - 26 : (kind % 9) + 1;
+  return { id: -1, kind, suit, rank, red: false };
+}
+
+// 返回 13 张牌对应的具体听牌，供训练提示和立直确认使用
+export function getTenpaiWaits(tiles: readonly Tile[]): Tile[] {
+  if (tiles.length !== 13) return [];
   const counts = toCounts(tiles);
-  return counts.some((count, kind) => {
-    if (count >= 4) return false;
-    const suit = kind >= 27 ? 'honor' : (['man', 'pin', 'sou'] as const)[Math.floor(kind / 9)];
-    const rank = kind >= 27 ? kind - 26 : (kind % 9) + 1;
-    const candidate: Tile = { id: -1, kind, suit, rank, red: false };
-    return isWinningHand([...tiles, candidate]);
-  });
+  const waits: Tile[] = [];
+  for (let kind = 0; kind < TILE_KIND_COUNT; kind += 1) {
+    if ((counts[kind] ?? 0) >= 4) continue;
+    const candidate = createWaitCandidate(kind);
+    if (isWinningHand([...tiles, candidate])) waits.push(candidate);
+  }
+  return waits;
 }
 
 // 根据日麻基础役种计算训练用的番、符和总点数
