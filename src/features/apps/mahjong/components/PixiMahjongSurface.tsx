@@ -45,12 +45,25 @@ interface LayoutMetrics {
   height: number;
   desktop: boolean;
   margin: number;
+  playerPanelWidth: number;
   boardX: number;
   boardY: number;
   boardWidth: number;
   boardHeight: number;
   handY: number;
   handHeight: number;
+}
+
+interface CenterMetrics {
+  x: number;
+  y: number;
+  size: number;
+  centerX: number;
+  centerY: number;
+  frameLeft: number;
+  frameTop: number;
+  frameRight: number;
+  frameBottom: number;
 }
 
 interface SceneHandlers {
@@ -162,6 +175,15 @@ const TILE_ASSET_FILES = [
   'Hatsu.png',
   'Chun.png',
 ] as const;
+
+const AVATAR_ASSET_FILES = ['avatar-0.png', 'avatar-1.png', 'avatar-2.png', 'avatar-3.png'] as const;
+
+const TABLE_CENTER_FRAME = {
+  left: 0.4,
+  top: 0.3,
+  right: 0.6,
+  bottom: 0.63,
+} as const;
 
 interface YakuReference {
   name: string;
@@ -426,13 +448,15 @@ const YAKU_REFERENCES: readonly YakuReference[] = [
 function getLayout(width: number, height: number): LayoutMetrics {
   const desktop = width >= 900;
   const margin = desktop ? 24 : 12;
+  const playerPanelWidth = desktop ? Math.min(196, Math.max(136, (width - 900) / 2)) : 132;
+  const tableGutter = desktop ? playerPanelWidth + 16 : margin;
   const handHeight = desktop ? 112 : 82;
   const boardY = desktop ? 82 : 58;
   const availableBoardHeight = height - boardY - handHeight - (desktop ? 24 : 16);
   const boardHeight = desktop
     ? Math.max(240, availableBoardHeight)
     : Math.max(220, Math.min(availableBoardHeight, height * 0.58));
-  const boardWidth = Math.min(width - margin * 2, desktop ? 1420 : width - margin * 2);
+  const boardWidth = Math.min(width - tableGutter * 2, desktop ? 1420 : width - margin * 2);
   const boardX = (width - boardWidth) / 2;
   const handY = height - handHeight - (desktop ? 12 : 8);
   return {
@@ -440,6 +464,7 @@ function getLayout(width: number, height: number): LayoutMetrics {
     height,
     desktop,
     margin,
+    playerPanelWidth,
     boardX,
     boardY,
     boardWidth,
@@ -455,6 +480,28 @@ function getCenterSize(layout: LayoutMetrics): number {
     return Math.min(layout.boardWidth * 0.22, layout.boardHeight * 0.38, 240);
   }
   return Math.min(layout.boardWidth * 0.4, layout.boardHeight * 0.44, 170);
+}
+
+// 根据牌桌素材中央标记计算真实中心，避免按外框几何中心定位
+function getCenterMetrics(layout: LayoutMetrics): CenterMetrics {
+  const size = getCenterSize(layout);
+  const frameLeft = layout.boardX + layout.boardWidth * TABLE_CENTER_FRAME.left;
+  const frameTop = layout.boardY + layout.boardHeight * TABLE_CENTER_FRAME.top;
+  const frameRight = layout.boardX + layout.boardWidth * TABLE_CENTER_FRAME.right;
+  const frameBottom = layout.boardY + layout.boardHeight * TABLE_CENTER_FRAME.bottom;
+  const centerX = (frameLeft + frameRight) / 2;
+  const centerY = (frameTop + frameBottom) / 2;
+  return {
+    x: centerX - size / 2,
+    y: centerY - size / 2,
+    size,
+    centerX,
+    centerY,
+    frameLeft,
+    frameTop,
+    frameRight,
+    frameBottom,
+  };
 }
 
 // 计算结算层尺寸，确保绘制按钮与 Canvas 命中区域保持一致
@@ -557,10 +604,20 @@ function getReviewActionButtons(layout: LayoutMetrics, state: MahjongState): Pos
 
 // 从本地 public 目录加载公有领域牌面，失败时保留矢量文字后备绘制
 async function loadTileTextures(api: PixiApi): Promise<TextureMap> {
-  const entries = await Promise.all(
+  const tileEntries = await Promise.all(
     TILE_ASSET_FILES.map(async (file) => [file, await api.Assets.load(`/assets/mahjong/tiles/${file}`)] as const),
   );
-  return new Map(entries);
+  const [backgroundTexture, tableTexture, ...avatarTextures] = await Promise.all([
+    api.Assets.load('/assets/mahjong/background.png'),
+    api.Assets.load('/assets/mahjong/table.png'),
+    ...AVATAR_ASSET_FILES.map((file) => api.Assets.load(`/assets/mahjong/avatars/${file}`)),
+  ]);
+  return new Map([
+    ...tileEntries,
+    ['background.png', backgroundTexture],
+    ['table.png', tableTexture],
+    ...AVATAR_ASSET_FILES.map((file, index) => [`avatars/${file}`, avatarTextures[index]!] as const),
+  ]);
 }
 
 // 创建 Pixi 文本，统一训练桌的字体、颜色和锚点
@@ -887,8 +944,29 @@ function getActionButtonWidth(label: string, desktop: boolean): number {
 }
 
 // 绘制舒适的绿色绒面背景，使用柔和线条减少冷峻的生成式视觉感
-function drawAtmosphere(api: PixiApi, root: Container, layout: LayoutMetrics, variant: 'lobby' | 'table'): void {
+function drawAtmosphere(
+  api: PixiApi,
+  root: Container,
+  layout: LayoutMetrics,
+  variant: 'lobby' | 'table',
+  textures: TextureMap,
+): void {
   const { width, height } = layout;
+  const backgroundTexture = textures.get('background.png');
+  if (backgroundTexture) {
+    const backgroundSprite = new api.Sprite(backgroundTexture);
+    backgroundSprite.anchor.set(0);
+    backgroundSprite.width = width;
+    backgroundSprite.height = height;
+    root.addChild(backgroundSprite);
+    const wash = new api.Graphics();
+    wash.rect(0, 0, width, height).fill({
+      color: variant === 'table' ? 0x0e4737 : 0xe2eddc,
+      alpha: variant === 'table' ? 0.16 : 0.2,
+    });
+    root.addChild(wash);
+    return;
+  }
   const background = new api.Graphics();
   background.rect(0, 0, width, height).fill(COLORS.background);
   root.addChild(background);
@@ -949,7 +1027,7 @@ function drawWall(
   }
 }
 
-// 绘制中央方形局况牌，集中展示风圈、余牌和带素材的宝牌
+// 绘制中央局况信息，集中展示风圈、余牌和带素材的宝牌
 function drawCenterScore(
   api: PixiApi,
   root: Container,
@@ -957,25 +1035,21 @@ function drawCenterScore(
   layout: LayoutMetrics,
   textures: TextureMap,
 ): void {
-  const { boardX, boardY, boardWidth, boardHeight, desktop } = layout;
-  const centerSize = getCenterSize(layout);
+  const { desktop } = layout;
+  const center = getCenterMetrics(layout);
+  const centerSize = center.size;
   const centerWidth = centerSize;
-  const centerHeight = centerSize;
-  const centerX = boardX + (boardWidth - centerWidth) / 2;
-  const centerY = boardY + (boardHeight - centerHeight) / 2;
-  const square = new api.Graphics();
-  square
-    .roundRect(centerX, centerY, centerSize, centerSize, desktop ? 18 : 12)
-    .fill(COLORS.center)
-    .stroke({ width: 2, color: COLORS.centerLine });
-  root.addChild(square);
+  const contentCenterX = center.centerX;
+  const contentCenterY = center.centerY;
+  const titleY = contentCenterY - (desktop ? 50 : 34);
+  const remainingY = contentCenterY - (desktop ? 14 : 10);
   root.addChild(
     createLabel(
       api,
       `东${state.roundNumber}局`,
-      centerX + centerWidth / 2,
-      centerY + centerHeight * 0.22,
-      desktop ? 23 : 17,
+      contentCenterX,
+      titleY,
+      desktop ? 21 : 16,
       COLORS.cyan,
       0.5,
       0.5,
@@ -986,8 +1060,8 @@ function drawCenterScore(
     createLabel(
       api,
       `剩余 ${state.wall.length}`,
-      centerX + centerWidth / 2,
-      centerY + centerHeight * 0.42,
+      contentCenterX,
+      remainingY,
       desktop ? 18 : 14,
       COLORS.white,
       0.5,
@@ -995,34 +1069,21 @@ function drawCenterScore(
       '700',
     ),
   );
-  root.addChild(
-    createLabel(
-      api,
-      `${state.players[0].score.toLocaleString()} 点`,
-      centerX + centerWidth / 2,
-      centerY + centerHeight * 0.59,
-      desktop ? 13 : 11,
-      COLORS.gold,
-      0.5,
-      0.5,
-      '600',
-    ),
-  );
-  const doraTiles = state.doraIndicators.slice(0, 2);
+  const doraTiles = state.doraIndicators;
   const doraTileWidth = desktop ? 24 : 18;
   const doraTileHeight = doraTileWidth * 1.28;
   const doraGap = desktop ? 5 : 3;
   const doraTextWidth = desktop ? 42 : 32;
   const doraStripWidth =
     doraTextWidth + doraGap + doraTiles.length * doraTileWidth + Math.max(0, doraTiles.length - 1) * doraGap;
-  const doraStripX = centerX + centerWidth / 2 - doraStripWidth / 2;
-  const doraStripY = centerY + centerHeight * 0.7;
-  const doraStrip = new api.Graphics();
-  doraStrip
-    .roundRect(doraStripX - 7, doraStripY - 4, doraStripWidth + 14, doraTileHeight + 8, 7)
-    .fill({ color: 0x102b22, alpha: 0.82 })
-    .stroke({ width: 1, color: COLORS.goldSoft });
-  root.addChild(doraStrip);
+  const doraStripX = contentCenterX - doraStripWidth / 2;
+  const doraStripY = contentCenterY + (desktop ? 14 : 10);
+  const doraDivider = new api.Graphics();
+  doraDivider
+    .moveTo(contentCenterX - centerWidth * 0.3, doraStripY - 9)
+    .lineTo(contentCenterX + centerWidth * 0.3, doraStripY - 9)
+    .stroke({ width: 1, color: COLORS.gold, alpha: 0.48 });
+  root.addChild(doraDivider);
   root.addChild(
     createLabel(
       api,
@@ -1068,14 +1129,15 @@ function drawCenterScore(
       );
     }
   });
+  const windOffset = desktop ? 16 : 10;
   const windLabels: Array<{ text: string; x: number; y: number }> = [
-    { text: '东', x: centerX + centerWidth / 2, y: centerY - 20 },
-    { text: '南', x: centerX + centerWidth + 24, y: centerY + centerHeight / 2 },
-    { text: '西', x: centerX + centerWidth / 2, y: centerY + centerHeight + 20 },
-    { text: '北', x: centerX - 24, y: centerY + centerHeight / 2 },
+    { text: '东', x: center.centerX, y: center.frameTop - windOffset },
+    { text: '南', x: center.frameRight + windOffset, y: center.centerY },
+    { text: '西', x: center.centerX, y: center.frameBottom + windOffset },
+    { text: '北', x: center.frameLeft - windOffset, y: center.centerY },
   ];
   for (const item of windLabels)
-    root.addChild(createLabel(api, item.text, item.x, item.y, desktop ? 14 : 11, COLORS.gold, 0.5, 0.5, '700'));
+    root.addChild(createLabel(api, item.text, item.x, item.y, desktop ? 16 : 12, COLORS.cyan, 0.5, 0.5, '700'));
 }
 
 // 绘制带耳朵、脸颊和表情的可爱动物头像，减少训练桌的生硬感
@@ -1086,7 +1148,28 @@ function drawAnimalAvatar(
   centerY: number,
   radius: number,
   seat: Seat,
+  textures: TextureMap,
 ): void {
+  const avatarTexture = textures.get(`avatars/avatar-${seat}.png`);
+  if (avatarTexture) {
+    const frame = new api.Graphics();
+    frame
+      .roundRect(centerX - radius - 2, centerY - radius - 2, (radius + 2) * 2, (radius + 2) * 2, radius * 0.35)
+      .fill(COLORS.panel)
+      .stroke({ width: 1, color: COLORS.panelLine });
+    root.addChild(frame);
+    const sprite = new api.Sprite(avatarTexture);
+    sprite.anchor.set(0.5);
+    sprite.position.set(centerX, centerY);
+    sprite.width = radius * 2.05;
+    sprite.height = radius * 2.05;
+    const mask = new api.Graphics();
+    mask.roundRect(centerX - radius, centerY - radius, radius * 2, radius * 2, radius * 0.3).fill(COLORS.white);
+    sprite.mask = mask;
+    root.addChild(mask);
+    root.addChild(sprite);
+    return;
+  }
   const palette = [0xf0bb78, 0xd7e8ef, 0xc99068, 0xe79567] as const;
   const earPalette = [0xc47a47, 0xb4cbd8, 0x9d664f, 0xc96545] as const;
   const face = new api.Graphics();
@@ -1121,34 +1204,64 @@ function drawSeatBadge(
   root: Container,
   player: MahjongState['players'][number],
   layout: LayoutMetrics,
+  textures: TextureMap,
   current: boolean,
   displayName = player.name,
 ): void {
-  const { boardX, boardY, boardWidth, boardHeight, desktop } = layout;
-  const boxWidth = desktop ? 168 : 132;
-  const boxHeight = desktop ? 54 : 44;
-  const positions: Record<Seat, { x: number; y: number }> = {
-    0: { x: boardX + boardWidth / 2 - boxWidth / 2, y: boardY + boardHeight - boxHeight - 10 },
-    1: { x: boardX + boardWidth - boxWidth - 12, y: boardY + boardHeight / 2 - boxHeight / 2 },
-    2: { x: boardX + boardWidth / 2 - boxWidth / 2, y: boardY + 8 },
-    3: { x: boardX + 12, y: boardY + boardHeight / 2 - boxHeight / 2 },
-  };
+  const { width, height, boardX, boardY, boardWidth, boardHeight, desktop, handY, handHeight } = layout;
+  const boxWidth = desktop ? layout.playerPanelWidth : 132;
+  const boxHeight = desktop ? 68 : 44;
+  const sideGap = desktop ? 16 : 12;
+  const positions: Record<Seat, { x: number; y: number }> = desktop
+    ? {
+        0: {
+          x: Math.max(8, boardX - boxWidth - sideGap),
+          y: Math.min(height - boxHeight - 8, handY + Math.max(0, (handHeight - boxHeight) / 2)),
+        },
+        1: {
+          x: Math.min(width - boxWidth - 8, boardX + boardWidth + sideGap),
+          y: boardY + boardHeight / 2 - boxHeight / 2,
+        },
+        2: {
+          x: boardX + boardWidth / 2 - boxWidth / 2,
+          y: Math.max(8, boardY - boxHeight - 12),
+        },
+        3: {
+          x: Math.max(8, boardX - boxWidth - sideGap),
+          y: boardY + boardHeight / 2 - boxHeight / 2,
+        },
+      }
+    : {
+        0: { x: boardX + boardWidth / 2 - boxWidth / 2, y: boardY + boardHeight - boxHeight - 10 },
+        1: { x: boardX + boardWidth - boxWidth - 12, y: boardY + boardHeight / 2 - boxHeight / 2 },
+        2: { x: boardX + boardWidth / 2 - boxWidth / 2, y: boardY + 8 },
+        3: { x: boardX + 12, y: boardY + boardHeight / 2 - boxHeight / 2 },
+      };
   const position = positions[player.seat];
   const panel = new api.Graphics();
   panel
-    .roundRect(position.x, position.y, boxWidth, boxHeight, 10)
+    .roundRect(position.x, position.y, boxWidth, boxHeight, desktop ? 14 : 10)
     .fill({ color: current ? 0x3d6b4d : COLORS.panel, alpha: 0.94 })
     .stroke({ width: current ? 2 : 1, color: current ? COLORS.gold : COLORS.panelLine });
   root.addChild(panel);
-  const avatarRadius = desktop ? 16 : 13;
-  drawAnimalAvatar(api, root, position.x + 24, position.y + boxHeight / 2, avatarRadius, player.seat);
+  const avatarRadius = desktop ? Math.min(26, boxHeight * 0.38) : 13;
+  const contentLeft = position.x + avatarRadius * 2 + (desktop ? 26 : 24);
+  drawAnimalAvatar(
+    api,
+    root,
+    position.x + avatarRadius + (desktop ? 12 : 11),
+    position.y + boxHeight / 2,
+    avatarRadius,
+    player.seat,
+    textures,
+  );
   root.addChild(
     createLabel(
       api,
       current ? `● ${displayName}` : displayName,
-      position.x + 46,
-      position.y + 17,
-      desktop ? 13 : 11,
+      contentLeft,
+      position.y + (desktop ? 23 : 17),
+      desktop ? 16 : 11,
       current ? COLORS.gold : COLORS.white,
       0,
       0.5,
@@ -1159,9 +1272,9 @@ function drawSeatBadge(
     createLabel(
       api,
       `${player.score.toLocaleString()} 点 · 河 ${player.discards.length}`,
-      position.x + 46,
-      position.y + 36,
-      desktop ? 10 : 9,
+      contentLeft,
+      position.y + (desktop ? 48 : 36),
+      desktop ? 12 : 9,
       COLORS.muted,
       0,
       0.5,
@@ -1184,17 +1297,29 @@ function drawBoard(
   // 从已选手牌取得牌种，用于牌河中的同牌种提示
   const selectedTileKind =
     selectedTileId === null ? null : (state.players[0]?.hand.find((tile) => tile.id === selectedTileId)?.kind ?? null);
+  const tableTexture = textures.get('table.png');
+  if (tableTexture) {
+    const tableSprite = new api.Sprite(tableTexture);
+    tableSprite.position.set(boardX, boardY);
+    tableSprite.width = boardWidth;
+    tableSprite.height = boardHeight;
+    const tableMask = new api.Graphics();
+    tableMask.roundRect(boardX, boardY, boardWidth, boardHeight, desktop ? 28 : 18).fill(COLORS.white);
+    tableSprite.mask = tableMask;
+    root.addChild(tableMask);
+    root.addChild(tableSprite);
+  }
   const outer = new api.Graphics();
   outer
     .roundRect(boardX, boardY, boardWidth, boardHeight, desktop ? 28 : 18)
-    .fill({ color: 0x244b36, alpha: 0.96 })
+    .fill({ color: 0x244b36, alpha: tableTexture ? 0.12 : 0.96 })
     .stroke({ width: 2, color: COLORS.boardEdge });
   root.addChild(outer);
   const inner = new api.Graphics();
   inner
     .roundRect(boardX + 14, boardY + 14, boardWidth - 28, boardHeight - 28, desktop ? 22 : 14)
-    .fill(COLORS.board)
-    .stroke({ width: 1, color: COLORS.cyan });
+    .fill({ color: COLORS.board, alpha: tableTexture ? 0.08 : 1 })
+    .stroke({ width: 1, color: COLORS.cyan, alpha: tableTexture ? 0.38 : 1 });
   root.addChild(inner);
   const lane = new api.Graphics();
   lane
@@ -1205,7 +1330,7 @@ function drawBoard(
       boardHeight * 0.72,
       desktop ? 18 : 12,
     )
-    .stroke({ width: 1, color: 0x8fd4d2, alpha: 0.26 });
+    .stroke({ width: 1, color: 0x8fd4d2, alpha: tableTexture ? 0.14 : 0.26 });
   root.addChild(lane);
   const wallWidth = desktop ? 34 : 22;
   const wallHeight = desktop ? 22 : 16;
@@ -1221,11 +1346,12 @@ function drawBoard(
     wallWidth,
     'vertical',
   );
-  const centerSize = getCenterSize(layout);
+  const center = getCenterMetrics(layout);
+  const centerSize = center.size;
   const centerWidth = centerSize;
   const centerHeight = centerSize;
-  const centerX = boardX + (boardWidth - centerWidth) / 2;
-  const centerY = boardY + (boardHeight - centerHeight) / 2;
+  const centerX = center.x;
+  const centerY = center.y;
   const riverGap = desktop ? 32 : 14;
   const riverWidth = Math.min(boardWidth * (desktop ? 0.36 : 0.62), centerSize * (desktop ? 1.72 : 1.5));
   const riverHeight = desktop ? 84 : 68;
@@ -1290,6 +1416,7 @@ function drawBoard(
       root,
       player,
       layout,
+      textures,
       player.seat === state.currentPlayer && state.phase !== 'round-over' && state.phase !== 'match-over',
       seatLabels?.[player.seat] ?? player.name,
     );
@@ -1934,8 +2061,8 @@ function drawLobbyCard(
 }
 
 // 绘制模式入口，所有文字和按钮都留在同一个 Pixi Canvas 内
-function drawLobbyScene(api: PixiApi, root: Container, layout: LayoutMetrics): void {
-  drawAtmosphere(api, root, layout, 'lobby');
+function drawLobbyScene(api: PixiApi, root: Container, layout: LayoutMetrics, textures: TextureMap): void {
+  drawAtmosphere(api, root, layout, 'lobby', textures);
   const { width, height, desktop } = layout;
   root.addChild(createLabel(api, '日本麻将', width / 2, height * 0.2, desktop ? 52 : 38, COLORS.ink, 0.5, 0.5, '700'));
   root.addChild(
@@ -1980,10 +2107,10 @@ function drawScene(
   const root = new api.Container();
   app.stage.addChild(root);
   if (screen === 'lobby') {
-    drawLobbyScene(api, root, layout);
+    drawLobbyScene(api, root, layout, textures);
     return;
   }
-  drawAtmosphere(api, root, layout, 'table');
+  drawAtmosphere(api, root, layout, 'table', textures);
   drawBoard(api, root, state, layout, textures, selectedTileId);
   if (reviewMode) {
     drawReviewOverlay(api, root, state, layout, textures);
