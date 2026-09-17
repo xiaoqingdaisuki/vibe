@@ -2,39 +2,18 @@
 
 import { useEffect, useRef } from 'react';
 import type { Application, Container, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js';
-import type { FriendRoomSeat, FriendRoomSnapshot } from '../friend-room';
 import type { LegalAction, MahjongState, Seat, Tile } from '../core/types';
 import { getTenpaiWaits } from '../core/scoring';
 import { createTileSet, tileLabel } from '../core/tiles';
 import styles from '../styles/Mahjong.module.css';
 
-export type MahjongScreen = 'lobby' | 'single' | 'friends';
+export type MahjongScreen = 'lobby' | 'single';
 export type MahjongUtilityPanel = 'none' | 'yaku' | 'settings';
-export type MahjongFriendView = 'entry' | 'room' | 'game';
-export type MahjongFriendTransportMode = 'network' | 'unavailable';
-export type MahjongFriendAction =
-  | { type: 'create-room' }
-  | { type: 'join-room' }
-  | { type: 'copy-code' }
-  | { type: 'back' }
-  | { type: 'digit'; digit: string }
-  | { type: 'backspace' }
-  | { type: 'request-ready' }
-  | { type: 'confirm-ready' }
-  | { type: 'cancel-ready' }
-  | { type: 'start-game' };
 
 interface PixiMahjongSurfaceProps {
   screen: MahjongScreen;
   utilityPanel: MahjongUtilityPanel;
   utilityScroll: number;
-  friendView: MahjongFriendView;
-  friendTransportMode: MahjongFriendTransportMode;
-  friendRoom: FriendRoomSnapshot | null;
-  friendLocalPlayerId: string | null;
-  friendCodeInput: string;
-  friendNotice: string;
-  friendReadyConfirm: boolean;
   state: MahjongState;
   selectedTileId: number | null;
   legalActions: readonly LegalAction[];
@@ -42,12 +21,10 @@ interface PixiMahjongSurfaceProps {
   onAction: (action: LegalAction) => void;
   onRestart: () => void;
   onNextRound: () => void;
-  onChooseMode: (mode: 'single' | 'friends') => void;
+  onChooseMode: (mode: 'single') => void;
   onBackToLobby: () => void;
   onToggleUtilityPanel: (panel: Exclude<MahjongUtilityPanel, 'none'>) => void;
-  onScrollUtility: (delta: number) => void;
-  onFriendAction: (action: MahjongFriendAction) => void;
-  onFriendKey: (key: string) => void;
+  onScrollUtility: (delta: number, limit?: number) => void;
 }
 
 interface PixiApi {
@@ -78,12 +55,10 @@ interface SceneHandlers {
   onAction: (action: LegalAction) => void;
   onRestart: () => void;
   onNextRound: () => void;
-  onChooseMode: (mode: 'single' | 'friends') => void;
+  onChooseMode: (mode: 'single') => void;
   onBackToLobby: () => void;
   onToggleUtilityPanel: (panel: Exclude<MahjongUtilityPanel, 'none'>) => void;
-  onScrollUtility: (delta: number) => void;
-  onFriendAction: (action: MahjongFriendAction) => void;
-  onFriendKey: (key: string) => void;
+  onScrollUtility: (delta: number, limit?: number) => void;
 }
 
 type TextureMap = ReadonlyMap<string, Texture>;
@@ -168,7 +143,7 @@ const YAKU_REFERENCES: readonly YakuReference[] = [
     name: '立直',
     han: '1 番',
     detail: '门清状态宣言立直并支付 1000 点。',
-    sample: [0, 1, 2, 9, 10, 11, 18, 19, 20, 27, 27, 31, 32, 33],
+    sample: [0, 1, 2, 3, 4, 5, 15, 16, 17, 18, 19, 20, 27, 27],
   },
   {
     name: '一发',
@@ -180,7 +155,7 @@ const YAKU_REFERENCES: readonly YakuReference[] = [
     name: '门前清自摸和',
     han: '1 番',
     detail: '门清状态下以自摸方式和牌。',
-    sample: [0, 1, 2, 9, 10, 11, 18, 19, 20, 27, 28, 29, 4, 4],
+    sample: [0, 1, 2, 9, 10, 11, 18, 19, 20, 27, 27, 27, 4, 4],
   },
   {
     name: '平和',
@@ -210,7 +185,7 @@ const YAKU_REFERENCES: readonly YakuReference[] = [
     name: '海底摸月',
     han: '1 番',
     detail: '摸到牌山最后一张牌后自摸和牌。',
-    sample: [0, 1, 2, 9, 10, 11, 18, 19, 20, 27, 28, 29, 4, 4],
+    sample: [0, 1, 2, 9, 10, 11, 18, 19, 20, 27, 27, 27, 4, 4],
   },
   {
     name: '河底捞鱼',
@@ -258,7 +233,7 @@ const YAKU_REFERENCES: readonly YakuReference[] = [
     name: '三色同顺',
     han: '2 番 / 1 番',
     detail: '万、筒、索各有一组相同数字的顺子。',
-    sample: [0, 1, 2, 9, 10, 11, 18, 19, 20, 27, 28, 29, 4, 4],
+    sample: [0, 1, 2, 9, 10, 11, 18, 19, 20, 27, 27, 27, 4, 4],
   },
   {
     name: '三色同刻',
@@ -270,13 +245,13 @@ const YAKU_REFERENCES: readonly YakuReference[] = [
     name: '一气通贯',
     han: '2 番 / 1 番',
     detail: '同一门完成 123、456、789 三组顺子。',
-    sample: [0, 1, 2, 3, 4, 5, 6, 7, 8, 27, 28, 29, 4, 4],
+    sample: [0, 1, 2, 3, 4, 5, 6, 7, 8, 27, 27, 27, 4, 4],
   },
   {
     name: '混全带幺九',
     han: '2 番 / 1 番',
     detail: '每组面子和雀头都含幺九牌或字牌。',
-    sample: [0, 1, 2, 6, 7, 8, 9, 10, 11, 27, 27, 31, 31, 8],
+    sample: [0, 1, 2, 6, 7, 8, 9, 10, 11, 26, 26, 26, 8, 8],
   },
   {
     name: '混老头',
@@ -288,14 +263,14 @@ const YAKU_REFERENCES: readonly YakuReference[] = [
     name: '小三元',
     han: '2 番',
     detail: '两组三元牌刻子加另一组三元牌雀头。',
-    sample: [27, 27, 27, 28, 28, 28, 29, 29, 0, 1, 2, 9, 9, 9],
+    sample: [31, 31, 31, 32, 32, 32, 33, 33, 0, 1, 2, 9, 9, 9],
   },
   { name: '三杠子', han: '2 番', detail: '拥有三组杠子。', sample: [0, 0, 0, 0, 9, 9, 9, 9, 18, 18, 18, 18, 27, 27] },
   {
     name: '混一色',
     han: '3 番 / 2 番',
     detail: '同一门数牌与字牌组成，门清 3 番、鸣牌 2 番。',
-    sample: [0, 1, 2, 3, 4, 5, 6, 7, 8, 27, 28, 29, 27, 27],
+    sample: [0, 1, 2, 3, 4, 5, 6, 7, 8, 27, 27, 27, 28, 28],
   },
   {
     name: '纯全带幺九',
@@ -331,7 +306,7 @@ const YAKU_REFERENCES: readonly YakuReference[] = [
     name: '大三元',
     han: '役满',
     detail: '白、发、中三组三元牌刻子或杠子。',
-    sample: [29, 29, 29, 31, 31, 31, 32, 32, 32, 0, 1, 2, 4, 4],
+    sample: [31, 31, 31, 32, 32, 32, 33, 33, 33, 0, 1, 2, 4, 4],
   },
   {
     name: '小四喜',
@@ -343,7 +318,7 @@ const YAKU_REFERENCES: readonly YakuReference[] = [
     name: '大四喜',
     han: '役满',
     detail: '东南西北四组风牌刻子或杠子。',
-    sample: [27, 27, 27, 28, 28, 28, 29, 29, 29, 30, 30, 30, 27, 28],
+    sample: [27, 27, 27, 28, 28, 28, 29, 29, 29, 30, 30, 30, 27, 27],
   },
   {
     name: '字一色',
@@ -361,7 +336,7 @@ const YAKU_REFERENCES: readonly YakuReference[] = [
     name: '绿一色',
     han: '役满',
     detail: '只使用索子二、三、四、六、八及发牌。',
-    sample: [19, 20, 21, 23, 25, 25, 19, 20, 21, 23, 25, 25, 31, 31],
+    sample: [19, 20, 21, 19, 20, 21, 23, 23, 23, 32, 32, 32, 25, 25],
   },
   {
     name: '九莲宝灯',
@@ -373,7 +348,7 @@ const YAKU_REFERENCES: readonly YakuReference[] = [
     name: '四杠子',
     han: '役满',
     detail: '四组杠子组成和牌。',
-    sample: [0, 0, 0, 0, 9, 9, 9, 9, 18, 18, 18, 18, 27, 27],
+    sample: [0, 0, 0, 0, 9, 9, 9, 9, 18, 18, 18, 18, 27, 27, 27, 27, 31, 31],
   },
   {
     name: '天和',
@@ -554,6 +529,7 @@ function addHandTile(
   width: number,
   height: number,
   selected: boolean,
+  discardedInRiver: boolean,
   textures: TextureMap,
 ): void {
   const card = new api.Container();
@@ -562,8 +538,8 @@ function addHandTile(
     .roundRect(0, 0, width, height, Math.max(5, Math.min(9, width * 0.18)))
     .fill(selected ? COLORS.gold : COLORS.cream)
     .stroke({
-      width: tile.red ? 2 : 1,
-      color: tile.red ? COLORS.red : selected ? COLORS.gold : COLORS.creamEdge,
+      width: discardedInRiver ? 3 : tile.red ? 2 : 1,
+      color: discardedInRiver ? COLORS.red : tile.red ? COLORS.red : selected ? COLORS.gold : COLORS.creamEdge,
     });
   card.position.set(x, y - (selected ? 8 : 0));
   card.addChild(background);
@@ -616,20 +592,21 @@ function addRiverTiles(
   const tileHeight = tileWidth * 1.28;
   const visibleTiles = tiles.slice(-18);
   const rows = Math.ceil(visibleTiles.length / columns);
-  const gridWidth = columns * tileWidth + Math.max(0, columns - 1) * gap;
   const gridHeight = rows * tileHeight + Math.max(0, rows - 1) * gap;
-  const offsetX = Math.max(0, (maxWidth - gridWidth) / 2);
   const offsetY = maxHeight === undefined ? 0 : Math.max(0, (maxHeight - gridHeight) / 2);
   visibleTiles.forEach((tile, index) => {
     const column = index % columns;
     const row = Math.floor(index / columns);
+    const rowTileCount = Math.min(columns, visibleTiles.length - row * columns);
+    const rowWidth = rowTileCount * tileWidth + Math.max(0, rowTileCount - 1) * gap;
+    const rowOffsetX = Math.max(0, (maxWidth - rowWidth) / 2);
     const tileBox = new api.Container();
     const background = new api.Graphics();
     background
       .roundRect(0, 0, tileWidth, tileHeight, 3)
       .fill(COLORS.cream)
       .stroke({ width: 1, color: COLORS.creamEdge });
-    tileBox.position.set(x + offsetX + column * (tileWidth + gap), y + offsetY + row * (tileHeight + gap));
+    tileBox.position.set(x + rowOffsetX + column * (tileWidth + gap), y + offsetY + row * (tileHeight + gap));
     tileBox.addChild(background);
     parent.addChild(tileBox);
     const texture = textures.get(tileAssetKey(tile));
@@ -1035,7 +1012,6 @@ function drawBoard(
   const wallWidth = desktop ? 34 : 22;
   const wallHeight = desktop ? 22 : 16;
   drawWall(api, root, boardX + boardWidth * 0.12, boardY + 25, 7, wallWidth, wallHeight, 'horizontal');
-  drawWall(api, root, boardX + boardWidth * 0.72, boardY + 25, 5, wallWidth, wallHeight, 'horizontal');
   drawWall(api, root, boardX + 23, boardY + boardHeight * 0.22, 7, wallHeight, wallWidth, 'vertical');
   drawWall(
     api,
@@ -1138,6 +1114,7 @@ function drawHumanControls(
   );
   const handWidth = tileWidth * human.hand.length + handGap * (human.hand.length - 1);
   const handX = (width - handWidth) / 2;
+  const discardedKinds = new Set(state.players.flatMap((player) => player.discards.map((tile) => tile.kind)));
   const rail = new api.Graphics();
   rail
     .roundRect(
@@ -1160,6 +1137,7 @@ function drawHumanControls(
       tileWidth,
       tileHeight,
       tile.id === selectedTileId,
+      tile.id === selectedTileId && discardedKinds.has(tile.kind),
       textures,
     ),
   );
@@ -1267,8 +1245,7 @@ function drawTrainingPanel(
   root: Container,
   state: MahjongState,
   layout: LayoutMetrics,
-  title = '日麻 · 单人训练',
-  subtitle = 'LOCAL REPLAY',
+  title = '日本麻将 · 单人训练',
 ): void {
   const { width, margin, desktop } = layout;
   const panel = new api.Graphics();
@@ -1283,7 +1260,7 @@ function drawTrainingPanel(
   root.addChild(
     createLabel(
       api,
-      `东${state.roundNumber}局  ·  ${subtitle}  ·  牌山 ${state.wall.length}`,
+      `东${state.roundNumber}局  ·  牌山 ${state.wall.length}`,
       margin + 14,
       desktop ? 47 : 42,
       desktop ? 10 : 9,
@@ -1308,19 +1285,6 @@ function drawTrainingPanel(
       createLabel(api, icon, x + iconSize / 2, iconY + iconSize / 2, desktop ? 21 : 17, COLORS.gold, 0.5, 0.5, '700'),
     );
   });
-  root.addChild(
-    createLabel(
-      api,
-      'WEBGL2  ·  OFFLINE  ·  LOCAL REPLAY',
-      width - margin,
-      desktop ? 74 : 66,
-      desktop ? 10 : 8,
-      COLORS.mutedDark,
-      1,
-      0.5,
-      '500',
-    ),
-  );
 }
 
 // 计算牌型说明和配置面板的统一尺寸，避免绘制与命中区域产生偏差
@@ -1486,7 +1450,7 @@ function drawUtilityPanel(
     root.addChild(
       createLabel(
         api,
-        '结束当前牌局，返回单人 / 友人模式选择。',
+        '结束当前牌局，返回主页。',
         metrics.x + 28,
         metrics.y + metrics.height - 28,
         desktop ? 11 : 9,
@@ -1568,82 +1532,41 @@ function drawRoundOverlay(api: PixiApi, root: Container, state: MahjongState, la
   }
 }
 
-// 计算模式入口两张大卡片的命中区域，视觉和交互共用同一组坐标
+// 计算单人模式横条的命中区域，视觉和交互共用同一组坐标
 function getLobbyModeRegions(layout: LayoutMetrics): Array<{ x: number; y: number; width: number; height: number }> {
-  const cardWidth = layout.desktop ? 300 : Math.min(300, layout.width - 32);
-  const cardHeight = layout.desktop ? 188 : 148;
-  const gap = layout.desktop ? 24 : 14;
-  const startX = layout.desktop ? (layout.width - cardWidth * 2 - gap) / 2 : (layout.width - cardWidth) / 2;
-  const startY = layout.height * (layout.desktop ? 0.46 : 0.42);
-  return [
-    { x: startX, y: startY, width: cardWidth, height: cardHeight },
-    {
-      x: layout.desktop ? startX + cardWidth + gap : startX,
-      y: layout.desktop ? startY : startY + cardHeight + gap,
-      width: cardWidth,
-      height: cardHeight,
-    },
-  ];
+  const cardWidth = Math.min(layout.desktop ? 560 : 360, layout.width - 32);
+  const cardHeight = layout.desktop ? 82 : 68;
+  return [{ x: (layout.width - cardWidth) / 2, y: layout.height * 0.48, width: cardWidth, height: cardHeight }];
 }
 
-// 绘制模式入口的大型选择卡片，让打开 Canvas 后先做明确的模式分流
+// 绘制单人模式横条入口，只保留名称与进入箭头
 function drawLobbyCard(
   api: PixiApi,
   root: Container,
   rect: { x: number; y: number; width: number; height: number },
   title: string,
-  subtitle: string,
-  detail: string,
-  primary: boolean,
 ): void {
   const card = new api.Graphics();
   card
     .roundRect(rect.x, rect.y, rect.width, rect.height, 16)
-    .fill({ color: primary ? 0x386b4d : COLORS.panel, alpha: 0.94 })
-    .stroke({ width: primary ? 2 : 1, color: primary ? COLORS.gold : COLORS.panelLine });
+    .fill({ color: COLORS.panel, alpha: 0.94 })
+    .stroke({ width: 2, color: COLORS.gold });
   root.addChild(card);
-  const icon = new api.Graphics();
-  icon
-    .circle(rect.x + 42, rect.y + 48, 22)
-    .fill({ color: primary ? COLORS.gold : COLORS.purpleSoft, alpha: 0.94 })
-    .stroke({ width: 1, color: primary ? 0xffe0a2 : COLORS.purple });
-  root.addChild(icon);
+  root.addChild(createLabel(api, title, rect.x + 26, rect.y + rect.height / 2, 20, COLORS.white, 0, 0.5, '700'));
   root.addChild(
-    createLabel(
-      api,
-      primary ? 'AI' : '友',
-      rect.x + 42,
-      rect.y + 48,
-      14,
-      primary ? COLORS.ink : COLORS.white,
-      0.5,
-      0.5,
-      '700',
-    ),
+    createLabel(api, '>', rect.x + rect.width - 28, rect.y + rect.height / 2, 26, COLORS.gold, 0.5, 0.5, '700'),
   );
-  root.addChild(createLabel(api, title, rect.x + 78, rect.y + 38, 21, COLORS.white, 0, 0.5, '700'));
-  root.addChild(
-    createLabel(api, subtitle, rect.x + 78, rect.y + 66, 11, primary ? COLORS.gold : COLORS.muted, 0, 0.5, '600'),
-  );
-  root.addChild(createLabel(api, detail, rect.x + 24, rect.y + rect.height - 30, 11, COLORS.muted, 0, 0.5, '500'));
-  const arrow = new api.Graphics();
-  arrow
-    .moveTo(rect.x + rect.width - 38, rect.y + rect.height / 2 - 8)
-    .lineTo(rect.x + rect.width - 26, rect.y + rect.height / 2)
-    .lineTo(rect.x + rect.width - 38, rect.y + rect.height / 2 + 8)
-    .stroke({ width: 2, color: primary ? COLORS.gold : COLORS.muted });
-  root.addChild(arrow);
 }
 
 // 绘制模式入口，所有文字和按钮都留在同一个 Pixi Canvas 内
 function drawLobbyScene(api: PixiApi, root: Container, layout: LayoutMetrics): void {
   drawAtmosphere(api, root, layout, 'lobby');
   const { width, height, desktop } = layout;
-  root.addChild(createLabel(api, '日麻', width / 2, height * 0.2, desktop ? 56 : 42, COLORS.ink, 0.5, 0.5, '700'));
+  root.addChild(createLabel(api, '日本麻将', width / 2, height * 0.2, desktop ? 52 : 38, COLORS.ink, 0.5, 0.5, '700'));
   root.addChild(
     createLabel(
       api,
-      'RIICHI TRAINING',
+      '本地牌手训练',
       width / 2,
       height * 0.2 + (desktop ? 54 : 40),
       desktop ? 15 : 11,
@@ -1654,662 +1577,10 @@ function drawLobbyScene(api: PixiApi, root: Container, layout: LayoutMetrics): v
     ),
   );
   root.addChild(
-    createLabel(
-      api,
-      '选择你的牌局方式',
-      width / 2,
-      height * 0.36,
-      desktop ? 19 : 15,
-      COLORS.mutedDark,
-      0.5,
-      0.5,
-      '500',
-    ),
+    createLabel(api, '选择训练模式', width / 2, height * 0.36, desktop ? 19 : 15, COLORS.mutedDark, 0.5, 0.5, '500'),
   );
   const regions = getLobbyModeRegions(layout);
-  drawLobbyCard(api, root, regions[0]!, '单人模式', 'LOCAL AI TRAINING', '离线牌局 · 可重复训练与复盘', true);
-  drawLobbyCard(api, root, regions[1]!, '友人牌局', 'FRIEND ROOM', '四位房间码 · 跨设备准备同步', false);
-  root.addChild(
-    createLabel(
-      api,
-      'WEBGL2  ·  PIXI.JS 8  ·  ONE CANVAS',
-      width / 2,
-      height - (desktop ? 30 : 20),
-      desktop ? 11 : 9,
-      COLORS.mutedDark,
-      0.5,
-      0.5,
-      '600',
-    ),
-  );
-}
-
-interface FriendEntryMetrics {
-  panelX: number;
-  panelY: number;
-  panelWidth: number;
-  panelHeight: number;
-  createCard: { x: number; y: number; width: number; height: number };
-  joinCard: { x: number; y: number; width: number; height: number };
-  digitRects: Array<{ x: number; y: number; width: number; height: number; digit: string }>;
-  backspaceRect: { x: number; y: number; width: number; height: number };
-  createButton: { x: number; y: number; width: number; height: number };
-  joinButton: { x: number; y: number; width: number; height: number };
-  backButton: { x: number; y: number; width: number; height: number };
-}
-
-// 计算友人房入口的卡片、键盘和按钮坐标
-function getFriendEntryMetrics(layout: LayoutMetrics): FriendEntryMetrics {
-  const { width, height, desktop } = layout;
-  const panelWidth = Math.min(width - 32, desktop ? 1020 : 360);
-  const panelHeight = desktop ? 472 : Math.min(height - 150, 620);
-  const panelX = (width - panelWidth) / 2;
-  const panelY = desktop ? Math.max(176, height * 0.22) : 92;
-  const gap = desktop ? 18 : 12;
-  const cardWidth = desktop ? (panelWidth - 48 - gap) / 2 : panelWidth - 48;
-  const cardHeight = desktop ? 328 : 260;
-  const createCard = { x: panelX + 24, y: panelY + 82, width: cardWidth, height: cardHeight };
-  const joinCard = {
-    x: desktop ? createCard.x + cardWidth + gap : createCard.x,
-    y: desktop ? createCard.y : createCard.y + cardHeight + gap,
-    width: cardWidth,
-    height: cardHeight,
-  };
-  const keypadX = joinCard.x + 24;
-  const keypadY = joinCard.y + 138;
-  const keypadWidth = joinCard.width - 48;
-  const keypadGap = desktop ? 8 : 6;
-  const keypadHeight = desktop ? 30 : 28;
-  const digitWidth = (keypadWidth - keypadGap * 2) / 3;
-  const digitRects = Array.from({ length: 9 }, (_, index) => {
-    const column = index % 3;
-    const row = Math.floor(index / 3);
-    return {
-      x: keypadX + column * (digitWidth + keypadGap),
-      y: keypadY + row * (keypadHeight + keypadGap),
-      width: digitWidth,
-      height: keypadHeight,
-      digit: String(index + 1),
-    };
-  });
-  const backspaceRect = {
-    x: keypadX,
-    y: keypadY + 3 * (keypadHeight + keypadGap),
-    width: digitWidth,
-    height: keypadHeight,
-  };
-  const zeroRect = {
-    x: keypadX + digitWidth + keypadGap,
-    y: backspaceRect.y,
-    width: digitWidth,
-    height: keypadHeight,
-  };
-  digitRects.push({ ...zeroRect, digit: '0' });
-  return {
-    panelX,
-    panelY,
-    panelWidth,
-    panelHeight,
-    createCard,
-    joinCard,
-    digitRects,
-    backspaceRect,
-    createButton: {
-      x: createCard.x + 24,
-      y: createCard.y + cardHeight - (desktop ? 52 : 46),
-      width: createCard.width - 48,
-      height: desktop ? 36 : 32,
-    },
-    joinButton: {
-      x: joinCard.x + joinCard.width / 2 - (desktop ? 76 : 66),
-      y: joinCard.y + cardHeight - (desktop ? 52 : 46),
-      width: desktop ? 152 : 132,
-      height: desktop ? 36 : 32,
-    },
-    backButton: {
-      x: panelX,
-      y: panelY - (desktop ? 42 : 38),
-      width: desktop ? 124 : 108,
-      height: desktop ? 30 : 28,
-    },
-  };
-}
-
-// 绘制四位房间码输入框和数字键盘
-function drawFriendCodeInput(
-  api: PixiApi,
-  root: Container,
-  value: string,
-  metrics: FriendEntryMetrics,
-  layout: LayoutMetrics,
-): void {
-  const { desktop } = layout;
-  const { joinCard } = metrics;
-  const inputLabelY = joinCard.y + (desktop ? 76 : 68);
-  const inputCellY = joinCard.y + (desktop ? 92 : 82);
-  root.addChild(
-    createLabel(api, '输入 4 位房间码', joinCard.x + 24, inputLabelY, desktop ? 13 : 11, COLORS.gold, 0, 0.5, '600'),
-  );
-  const gap = desktop ? 8 : 6;
-  const width = desktop ? 46 : 38;
-  const totalWidth = width * 4 + gap * 3;
-  const startX = joinCard.x + (joinCard.width - totalWidth) / 2;
-  for (let index = 0; index < 4; index += 1) {
-    const cell = new api.Graphics();
-    cell
-      .roundRect(startX + index * (width + gap), inputCellY, width, desktop ? 42 : 36, 8)
-      .fill(COLORS.cream)
-      .stroke({ width: 1, color: index < value.length ? COLORS.gold : COLORS.creamEdge });
-    root.addChild(cell);
-    root.addChild(
-      createLabel(
-        api,
-        value[index] ?? '·',
-        startX + index * (width + gap) + width / 2,
-        inputCellY + (desktop ? 21 : 18),
-        desktop ? 20 : 16,
-        COLORS.ink,
-        0.5,
-        0.5,
-        '700',
-      ),
-    );
-  }
-}
-
-// 绘制房间码数字键盘，鼠标和触摸均由 Canvas 命中区域处理
-function drawFriendKeypad(api: PixiApi, root: Container, metrics: FriendEntryMetrics, layout: LayoutMetrics): void {
-  const { desktop } = layout;
-  const { joinCard } = metrics;
-  const keypadX = joinCard.x + 24;
-  const keypadY = joinCard.y + (desktop ? 142 : 126);
-  const keypadWidth = joinCard.width - 48;
-  const keypadGap = desktop ? 8 : 6;
-  const keypadHeight = desktop ? 30 : 28;
-  const digitWidth = (keypadWidth - keypadGap * 2) / 3;
-  const labels = [...Array.from({ length: 9 }, (_, index) => String(index + 1)), '⌫', '0'];
-  labels.forEach((label, index) => {
-    const column = index % 3;
-    const row = Math.floor(index / 3);
-    const key = new api.Graphics();
-    key
-      .roundRect(
-        keypadX + column * (digitWidth + keypadGap),
-        keypadY + row * (keypadHeight + keypadGap),
-        digitWidth,
-        keypadHeight,
-        8,
-      )
-      .fill({ color: COLORS.panelRaised, alpha: 0.92 })
-      .stroke({ width: 1, color: COLORS.panelLine });
-    root.addChild(key);
-    root.addChild(
-      createLabel(
-        api,
-        label,
-        keypadX + column * (digitWidth + keypadGap) + digitWidth / 2,
-        keypadY + row * (keypadHeight + keypadGap) + keypadHeight / 2,
-        desktop ? 13 : 12,
-        COLORS.white,
-        0.5,
-        0.5,
-        '600',
-      ),
-    );
-  });
-}
-
-// 绘制友人房创建与加入入口，输入和按钮均保留在同一张 Canvas
-function drawFriendsEntryScene(
-  api: PixiApi,
-  root: Container,
-  layout: LayoutMetrics,
-  transportMode: MahjongFriendTransportMode,
-  codeInput: string,
-  notice: string,
-): void {
-  drawAtmosphere(api, root, layout, 'lobby');
-  const { width, height, desktop } = layout;
-  const metrics = getFriendEntryMetrics(layout);
-  root.addChild(createLabel(api, '友人牌局', width / 2, height * 0.13, desktop ? 40 : 30, COLORS.ink, 0.5, 0.5, '700'));
-  root.addChild(
-    createLabel(
-      api,
-      transportMode === 'network' ? 'FRIEND ROOM · ONLINE SIGNAL' : 'FRIEND ROOM · SERVICE REQUIRED',
-      width / 2,
-      height * 0.13 + (desktop ? 46 : 34),
-      desktop ? 13 : 10,
-      COLORS.gold,
-      0.5,
-      0.5,
-      '600',
-    ),
-  );
-  addButton(
-    api,
-    root,
-    '返回模式选择',
-    metrics.backButton.x,
-    metrics.backButton.y,
-    metrics.backButton.width,
-    metrics.backButton.height,
-    false,
-    !desktop,
-  );
-  const panel = new api.Graphics();
-  panel
-    .roundRect(metrics.panelX, metrics.panelY, metrics.panelWidth, metrics.panelHeight, 20)
-    .fill({ color: COLORS.panel, alpha: 0.94 })
-    .stroke({ width: 1, color: COLORS.panelLine });
-  root.addChild(panel);
-  // 绘制创建或加入卡片的统一容器
-  const drawCard = (rect: { x: number; y: number; width: number; height: number }, title: string, detail: string) => {
-    const card = new api.Graphics();
-    card
-      .roundRect(rect.x, rect.y, rect.width, rect.height, 14)
-      .fill({ color: 0x376d4d, alpha: 0.9 })
-      .stroke({ width: 1, color: COLORS.panelLine });
-    root.addChild(card);
-    root.addChild(createLabel(api, title, rect.x + 24, rect.y + 30, desktop ? 20 : 16, COLORS.white, 0, 0.5, '700'));
-    root.addChild(createLabel(api, detail, rect.x + 24, rect.y + 56, desktop ? 11 : 10, COLORS.muted, 0, 0.5, '500'));
-  };
-  drawCard(metrics.createCard, '创建房间', '成为房主，分享 4 位数字给好友');
-  drawCard(metrics.joinCard, '加入房间', '输入房主分享的房间码');
-  addButton(
-    api,
-    root,
-    '创建房间',
-    metrics.createButton.x,
-    metrics.createButton.y,
-    metrics.createButton.width,
-    metrics.createButton.height,
-    true,
-    !desktop,
-  );
-  drawFriendCodeInput(api, root, codeInput, metrics, layout);
-  drawFriendKeypad(api, root, metrics, layout);
-  addButton(
-    api,
-    root,
-    '加入房间',
-    metrics.joinButton.x,
-    metrics.joinButton.y,
-    metrics.joinButton.width,
-    metrics.joinButton.height,
-    true,
-    !desktop,
-  );
-  root.addChild(
-    createLabel(
-      api,
-      notice,
-      width / 2,
-      metrics.panelY + metrics.panelHeight - 18,
-      desktop ? 11 : 9,
-      COLORS.muted,
-      0.5,
-      0.5,
-      '500',
-    ),
-  );
-}
-
-interface FriendRoomMetrics {
-  panelX: number;
-  panelY: number;
-  panelWidth: number;
-  panelHeight: number;
-  backButton: { x: number; y: number; width: number; height: number };
-  copyButton: { x: number; y: number; width: number; height: number };
-  readyButton: { x: number; y: number; width: number; height: number };
-  startButton: { x: number; y: number; width: number; height: number };
-  seatRects: Array<{ x: number; y: number; width: number; height: number }>;
-}
-
-// 计算房间等待页的席位与操作按钮坐标
-function getFriendRoomMetrics(layout: LayoutMetrics): FriendRoomMetrics {
-  const { width, height, desktop } = layout;
-  const panelWidth = Math.min(width - 32, desktop ? 1040 : 360);
-  const panelHeight = desktop ? Math.min(520, height - 150) : Math.min(height - 120, 600);
-  const panelX = (width - panelWidth) / 2;
-  const panelY = desktop ? Math.max(126, height * 0.16) : 72;
-  const gap = desktop ? 14 : 10;
-  const seatWidth = (panelWidth - 48 - gap) / 2;
-  const seatHeight = desktop ? 88 : 72;
-  const seatY = panelY + 150;
-  const seatRects = Array.from({ length: 4 }, (_, index) => ({
-    x: panelX + 24 + (index % 2) * (seatWidth + gap),
-    y: seatY + Math.floor(index / 2) * (seatHeight + gap),
-    width: seatWidth,
-    height: seatHeight,
-  }));
-  const buttonY = panelY + panelHeight - (desktop ? 52 : 46);
-  return {
-    panelX,
-    panelY,
-    panelWidth,
-    panelHeight,
-    backButton: { x: panelX + 24, y: buttonY, width: desktop ? 120 : 104, height: desktop ? 36 : 32 },
-    copyButton: {
-      x: panelX + panelWidth - (desktop ? 178 : 154),
-      y: panelY + 28,
-      width: desktop ? 76 : 66,
-      height: desktop ? 30 : 28,
-    },
-    readyButton: {
-      x: panelX + panelWidth / 2 - (desktop ? 72 : 60),
-      y: buttonY,
-      width: desktop ? 144 : 120,
-      height: desktop ? 36 : 32,
-    },
-    startButton: {
-      x: panelX + panelWidth - (desktop ? 168 : 144),
-      y: buttonY,
-      width: desktop ? 144 : 120,
-      height: desktop ? 36 : 32,
-    },
-    seatRects,
-  };
-}
-
-// 绘制一张友人房席位卡，显示连接状态、准备状态和本地玩家标识
-function drawFriendSeatCard(
-  api: PixiApi,
-  root: Container,
-  rect: { x: number; y: number; width: number; height: number },
-  seat: FriendRoomSeat | undefined,
-  localPlayerId: string | null,
-  layout: LayoutMetrics,
-): void {
-  const { desktop } = layout;
-  const card = new api.Graphics();
-  card
-    .roundRect(rect.x, rect.y, rect.width, rect.height, 12)
-    .fill({ color: seat ? 0x376d4d : 0x2b5841, alpha: seat ? 0.94 : 0.72 })
-    .stroke({
-      width: seat?.id === localPlayerId ? 2 : 1,
-      color: seat?.id === localPlayerId ? COLORS.gold : COLORS.panelLine,
-    });
-  root.addChild(card);
-  const title = seat ? `${seat.label}${seat.id === localPlayerId ? ' · 你' : ''}` : '等待好友加入';
-  const connection = seat ? (seat.connected ? '● 已连接' : '○ 等待通信') : '○ 空席';
-  const readiness = seat ? (seat.ready ? '已准备' : '等待准备') : '—';
-  root.addChild(
-    createLabel(api, title, rect.x + 18, rect.y + (desktop ? 28 : 23), desktop ? 16 : 13, COLORS.white, 0, 0.5, '700'),
-  );
-  root.addChild(
-    createLabel(
-      api,
-      connection,
-      rect.x + 18,
-      rect.y + (desktop ? 56 : 47),
-      desktop ? 11 : 9,
-      seat?.connected ? COLORS.cyan : COLORS.muted,
-      0,
-      0.5,
-      '500',
-    ),
-  );
-  root.addChild(
-    createLabel(
-      api,
-      readiness,
-      rect.x + rect.width - 18,
-      rect.y + (desktop ? 28 : 23),
-      desktop ? 13 : 11,
-      seat?.ready ? COLORS.gold : COLORS.muted,
-      1,
-      0.5,
-      '700',
-    ),
-  );
-}
-
-// 绘制等待房间、房间码和四席准备状态
-function drawFriendRoomScene(
-  api: PixiApi,
-  root: Container,
-  layout: LayoutMetrics,
-  transportMode: MahjongFriendTransportMode,
-  room: FriendRoomSnapshot | null,
-  localPlayerId: string | null,
-  notice: string,
-  readyConfirm: boolean,
-): void {
-  drawAtmosphere(api, root, layout, 'lobby');
-  const { width, height, desktop } = layout;
-  const metrics = getFriendRoomMetrics(layout);
-  root.addChild(
-    createLabel(api, '友人房 · 等待席位', width / 2, height * 0.1, desktop ? 32 : 24, COLORS.ink, 0.5, 0.5, '700'),
-  );
-  root.addChild(
-    createLabel(
-      api,
-      transportMode === 'network' ? 'FRIEND ROOM · ONLINE SIGNAL' : 'FRIEND ROOM · SERVICE REQUIRED',
-      width / 2,
-      height * 0.1 + (desktop ? 38 : 30),
-      desktop ? 12 : 9,
-      COLORS.gold,
-      0.5,
-      0.5,
-      '600',
-    ),
-  );
-  const panel = new api.Graphics();
-  panel
-    .roundRect(metrics.panelX, metrics.panelY, metrics.panelWidth, metrics.panelHeight, 20)
-    .fill({ color: COLORS.panel, alpha: 0.94 })
-    .stroke({ width: 1, color: COLORS.panelLine });
-  root.addChild(panel);
-  addButton(
-    api,
-    root,
-    '退出房间',
-    metrics.backButton.x,
-    metrics.backButton.y,
-    metrics.backButton.width,
-    metrics.backButton.height,
-    false,
-    !desktop,
-  );
-  const code = room?.code ?? '----';
-  root.addChild(
-    createLabel(
-      api,
-      '房间码',
-      metrics.panelX + 28,
-      metrics.panelY + 38,
-      desktop ? 12 : 10,
-      COLORS.muted,
-      0,
-      0.5,
-      '500',
-    ),
-  );
-  root.addChild(
-    createLabel(api, code, metrics.panelX + 28, metrics.panelY + 78, desktop ? 34 : 28, COLORS.gold, 0, 0.5, '700'),
-  );
-  addButton(
-    api,
-    root,
-    '复制房间码',
-    metrics.copyButton.x,
-    metrics.copyButton.y,
-    metrics.copyButton.width,
-    metrics.copyButton.height,
-    false,
-    !desktop,
-  );
-  root.addChild(
-    createLabel(
-      api,
-      '分享给好友后，在任意设备输入 4 位房间码即可加入',
-      metrics.panelX + 28,
-      metrics.panelY + 108,
-      desktop ? 11 : 9,
-      COLORS.muted,
-      0,
-      0.5,
-      '500',
-    ),
-  );
-  for (let index = 0; index < 4; index += 1)
-    drawFriendSeatCard(api, root, metrics.seatRects[index]!, room?.seats[index], localPlayerId, layout);
-  const localSeat = room?.seats.find((seat) => seat.id === localPlayerId);
-  addButton(
-    api,
-    root,
-    localSeat?.ready ? '取消准备' : localSeat ? '准备' : '连接中',
-    metrics.readyButton.x,
-    metrics.readyButton.y,
-    metrics.readyButton.width,
-    metrics.readyButton.height,
-    Boolean(localSeat),
-    !desktop,
-  );
-  if (room?.hostId === localPlayerId) {
-    addButton(
-      api,
-      root,
-      room && room.seats.length === 4 && room.seats.every((seat) => seat.ready) ? '开始对局' : '等待全员准备',
-      metrics.startButton.x,
-      metrics.startButton.y,
-      metrics.startButton.width,
-      metrics.startButton.height,
-      room ? room.seats.length === 4 && room.seats.every((seat) => seat.ready) : false,
-      !desktop,
-    );
-  }
-  root.addChild(
-    createLabel(
-      api,
-      notice,
-      width / 2,
-      metrics.panelY + metrics.panelHeight + 24,
-      desktop ? 11 : 9,
-      COLORS.mutedDark,
-      0.5,
-      0.5,
-      '500',
-    ),
-  );
-  if (readyConfirm) drawFriendReadyConfirmation(api, root, layout, localSeat?.ready ?? false);
-}
-
-// 绘制准备动作的二次确认层，确认前不发送任何通信消息
-function drawFriendReadyConfirmation(
-  api: PixiApi,
-  root: Container,
-  layout: LayoutMetrics,
-  currentlyReady: boolean,
-): void {
-  const { width, height, desktop } = layout;
-  const modalWidth = Math.min(width - 32, desktop ? 460 : 320);
-  const modalHeight = desktop ? 190 : 176;
-  const modalX = (width - modalWidth) / 2;
-  const modalY = (height - modalHeight) / 2;
-  const veil = new api.Graphics();
-  veil.rect(0, 0, width, height).fill({ color: COLORS.center, alpha: 0.48 });
-  root.addChild(veil);
-  const modal = new api.Graphics();
-  modal
-    .roundRect(modalX, modalY, modalWidth, modalHeight, 16)
-    .fill(COLORS.panelRaised)
-    .stroke({ width: 2, color: COLORS.gold });
-  root.addChild(modal);
-  root.addChild(
-    createLabel(
-      api,
-      currentlyReady ? '确认取消准备？' : '确认准备并同步？',
-      width / 2,
-      modalY + 44,
-      desktop ? 20 : 17,
-      COLORS.white,
-      0.5,
-      0.5,
-      '700',
-    ),
-  );
-  root.addChild(
-    createLabel(
-      api,
-      '点击确认后会向房主发送当前准备状态。',
-      width / 2,
-      modalY + 78,
-      desktop ? 12 : 10,
-      COLORS.muted,
-      0.5,
-      0.5,
-      '500',
-    ),
-  );
-  addButton(api, root, '取消', modalX + 28, modalY + modalHeight - 50, desktop ? 116 : 96, 32, false, !desktop);
-  addButton(
-    api,
-    root,
-    '确认',
-    modalX + modalWidth - (desktop ? 144 : 124),
-    modalY + modalHeight - 50,
-    desktop ? 116 : 96,
-    32,
-    true,
-    !desktop,
-  );
-}
-
-// 绘制友人对局桌，沿用单人牌桌视觉并替换为房间席位名称
-function drawFriendGameScene(
-  api: PixiApi,
-  root: Container,
-  layout: LayoutMetrics,
-  state: MahjongState,
-  textures: TextureMap,
-  transportMode: MahjongFriendTransportMode,
-  room: FriendRoomSnapshot | null,
-  notice: string,
-): void {
-  drawAtmosphere(api, root, layout, 'table');
-  const seatLabels = room?.seats.map((seat) => seat.label);
-  drawBoard(api, root, state, layout, textures, seatLabels);
-  drawHumanControls(api, root, state, null, [], layout, textures);
-  drawTrainingPanel(api, root, state, layout, '日麻 · 友人牌局', room ? `房间 ${room.code}` : 'ONLINE ROOM');
-  root.addChild(
-    createLabel(
-      api,
-      transportMode === 'network' ? 'WSS · ONLINE ROOM' : 'SERVICE REQUIRED',
-      layout.width - layout.margin,
-      layout.desktop ? 74 : 66,
-      layout.desktop ? 10 : 8,
-      transportMode === 'network' ? COLORS.green : COLORS.red,
-      1,
-      0.5,
-      '500',
-    ),
-  );
-  addButton(
-    api,
-    root,
-    '退出友人局',
-    layout.margin,
-    layout.desktop ? 82 : 70,
-    layout.desktop ? 112 : 96,
-    layout.desktop ? 28 : 26,
-    false,
-    !layout.desktop,
-  );
-  root.addChild(
-    createLabel(
-      api,
-      notice,
-      layout.width / 2,
-      layout.height - 18,
-      layout.desktop ? 11 : 9,
-      COLORS.mutedDark,
-      0.5,
-      0.5,
-      '500',
-    ),
-  );
+  drawLobbyCard(api, root, regions[0]!, '单人模式');
 }
 
 // 绘制当前 Canvas 屏幕，状态变化时重建轻量 Pixi 场景
@@ -2319,13 +1590,6 @@ function drawScene(
   screen: MahjongScreen,
   utilityPanel: MahjongUtilityPanel,
   utilityScroll: number,
-  friendView: MahjongFriendView,
-  friendTransportMode: MahjongFriendTransportMode,
-  friendRoom: FriendRoomSnapshot | null,
-  friendLocalPlayerId: string | null,
-  friendCodeInput: string,
-  friendNotice: string,
-  friendReadyConfirm: boolean,
   state: MahjongState,
   selectedTileId: number | null,
   legalActions: readonly LegalAction[],
@@ -2343,25 +1607,6 @@ function drawScene(
     drawLobbyScene(api, root, layout);
     return;
   }
-  if (screen === 'friends') {
-    if (friendView === 'entry') {
-      drawFriendsEntryScene(api, root, layout, friendTransportMode, friendCodeInput, friendNotice);
-    } else if (friendView === 'room') {
-      drawFriendRoomScene(
-        api,
-        root,
-        layout,
-        friendTransportMode,
-        friendRoom,
-        friendLocalPlayerId,
-        friendNotice,
-        friendReadyConfirm,
-      );
-    } else {
-      drawFriendGameScene(api, root, layout, state, textures, friendTransportMode, friendRoom, friendNotice);
-    }
-    return;
-  }
   drawAtmosphere(api, root, layout, 'table');
   drawBoard(api, root, state, layout, textures);
   drawHumanControls(api, root, state, selectedTileId, legalActions, layout, textures);
@@ -2372,71 +1617,10 @@ function drawScene(
   }
 }
 
-// 计算友人房入口的 Canvas 命中区域
-function getFriendEntryHitRegions(layout: LayoutMetrics, handlers: SceneHandlers): HitRegion[] {
-  const metrics = getFriendEntryMetrics(layout);
-  return [
-    { ...metrics.backButton, onClick: () => handlers.onFriendAction({ type: 'back' }) },
-    { ...metrics.createButton, onClick: () => handlers.onFriendAction({ type: 'create-room' }) },
-    { ...metrics.joinButton, onClick: () => handlers.onFriendAction({ type: 'join-room' }) },
-    ...metrics.digitRects.map((rect) => ({
-      ...rect,
-      onClick: () => handlers.onFriendAction({ type: 'digit', digit: rect.digit }),
-    })),
-    { ...metrics.backspaceRect, onClick: () => handlers.onFriendAction({ type: 'backspace' }) },
-  ];
-}
-
-// 计算友人房等待页和准备确认层的 Canvas 命中区域
-function getFriendRoomHitRegions(
-  layout: LayoutMetrics,
-  room: FriendRoomSnapshot | null,
-  localPlayerId: string | null,
-  readyConfirm: boolean,
-  handlers: SceneHandlers,
-): HitRegion[] {
-  const metrics = getFriendRoomMetrics(layout);
-  if (readyConfirm) {
-    const modalWidth = Math.min(layout.width - 32, layout.desktop ? 460 : 320);
-    const modalHeight = layout.desktop ? 190 : 176;
-    const modalX = (layout.width - modalWidth) / 2;
-    const modalY = (layout.height - modalHeight) / 2;
-    return [
-      {
-        x: modalX + 28,
-        y: modalY + modalHeight - 50,
-        width: layout.desktop ? 116 : 96,
-        height: 32,
-        onClick: () => handlers.onFriendAction({ type: 'cancel-ready' }),
-      },
-      {
-        x: modalX + modalWidth - (layout.desktop ? 144 : 124),
-        y: modalY + modalHeight - 50,
-        width: layout.desktop ? 116 : 96,
-        height: 32,
-        onClick: () => handlers.onFriendAction({ type: 'confirm-ready' }),
-      },
-    ];
-  }
-  const regions: HitRegion[] = [
-    { ...metrics.backButton, onClick: () => handlers.onFriendAction({ type: 'back' }) },
-    { ...metrics.copyButton, onClick: () => handlers.onFriendAction({ type: 'copy-code' }) },
-    { ...metrics.readyButton, onClick: () => handlers.onFriendAction({ type: 'request-ready' }) },
-  ];
-  if (room?.hostId === localPlayerId) {
-    regions.push({ ...metrics.startButton, onClick: () => handlers.onFriendAction({ type: 'start-game' }) });
-  }
-  return regions;
-}
-
-// 计算 Canvas 指针命中区域，确保模式选择与牌局动作共用坐标
+// 计算 Canvas 指针命中区域，确保模式入口与牌局动作共用坐标
 function getCanvasHitRegions(
   screen: MahjongScreen,
   utilityPanel: MahjongUtilityPanel,
-  friendView: MahjongFriendView,
-  friendRoom: FriendRoomSnapshot | null,
-  friendLocalPlayerId: string | null,
-  friendReadyConfirm: boolean,
   state: MahjongState,
   selectedTileId: number | null,
   legalActions: readonly LegalAction[],
@@ -2444,25 +1628,8 @@ function getCanvasHitRegions(
   handlers: SceneHandlers,
 ): HitRegion[] {
   if (screen === 'lobby') {
-    const [single, friends] = getLobbyModeRegions(layout);
-    return [
-      { ...single!, onClick: () => handlers.onChooseMode('single') },
-      { ...friends!, onClick: () => handlers.onChooseMode('friends') },
-    ];
-  }
-  if (screen === 'friends') {
-    if (friendView === 'entry') return getFriendEntryHitRegions(layout, handlers);
-    if (friendView === 'room')
-      return getFriendRoomHitRegions(layout, friendRoom, friendLocalPlayerId, friendReadyConfirm, handlers);
-    return [
-      {
-        x: layout.margin,
-        y: layout.desktop ? 82 : 70,
-        width: layout.desktop ? 112 : 96,
-        height: layout.desktop ? 28 : 26,
-        onClick: () => handlers.onFriendAction({ type: 'back' }),
-      },
-    ];
+    const single = getLobbyModeRegions(layout)[0];
+    return single ? [{ ...single, onClick: () => handlers.onChooseMode('single') }] : [];
   }
   if (utilityPanel !== 'none' && state.phase !== 'round-over' && state.phase !== 'match-over') {
     const metrics = getUtilityPanelMetrics(layout, utilityPanel);
@@ -2589,10 +1756,10 @@ function drawCanvasFallback(canvas: HTMLCanvasElement): void {
   context.fillRect(0, 0, width, height);
   context.fillStyle = '#386b4d';
   context.font = '700 24px Inter, sans-serif';
-  context.fillText('日麻', 24, 48);
+  context.fillText('日本麻将', 24, 48);
   context.fillStyle = '#244b36';
   context.font = '500 16px Inter, sans-serif';
-  context.fillText('WebGL2 初始化失败，请检查浏览器硬件加速设置。', 24, 88);
+  context.fillText('渲染初始化失败，请检查浏览器硬件加速设置。', 24, 88);
 }
 
 // 创建单一 Pixi Canvas，并在路由离开时释放 WebGL 资源
@@ -2600,13 +1767,6 @@ export function PixiMahjongSurface({
   screen,
   utilityPanel,
   utilityScroll,
-  friendView,
-  friendTransportMode,
-  friendRoom,
-  friendLocalPlayerId,
-  friendCodeInput,
-  friendNotice,
-  friendReadyConfirm,
   state,
   selectedTileId,
   legalActions,
@@ -2618,8 +1778,6 @@ export function PixiMahjongSurface({
   onBackToLobby,
   onToggleUtilityPanel,
   onScrollUtility,
-  onFriendAction,
-  onFriendKey,
 }: PixiMahjongSurfaceProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const appRef = useRef<Application | null>(null);
@@ -2630,13 +1788,6 @@ export function PixiMahjongSurface({
   const screenRef = useRef(screen);
   const utilityPanelRef = useRef(utilityPanel);
   const utilityScrollRef = useRef(utilityScroll);
-  const friendViewRef = useRef(friendView);
-  const friendTransportModeRef = useRef(friendTransportMode);
-  const friendRoomRef = useRef(friendRoom);
-  const friendLocalPlayerIdRef = useRef(friendLocalPlayerId);
-  const friendCodeInputRef = useRef(friendCodeInput);
-  const friendNoticeRef = useRef(friendNotice);
-  const friendReadyConfirmRef = useRef(friendReadyConfirm);
   const texturesRef = useRef<TextureMap>(new Map());
   const hitRegionsRef = useRef<readonly HitRegion[]>([]);
   const handlersRef = useRef<SceneHandlers>({
@@ -2648,8 +1799,6 @@ export function PixiMahjongSurface({
     onBackToLobby,
     onToggleUtilityPanel,
     onScrollUtility,
-    onFriendAction,
-    onFriendKey,
   });
 
   // 同步最新的 React 状态，避免异步 Pixi 初始化读取旧牌局
@@ -2660,13 +1809,6 @@ export function PixiMahjongSurface({
     screenRef.current = screen;
     utilityPanelRef.current = utilityPanel;
     utilityScrollRef.current = utilityScroll;
-    friendViewRef.current = friendView;
-    friendTransportModeRef.current = friendTransportMode;
-    friendRoomRef.current = friendRoom;
-    friendLocalPlayerIdRef.current = friendLocalPlayerId;
-    friendCodeInputRef.current = friendCodeInput;
-    friendNoticeRef.current = friendNotice;
-    friendReadyConfirmRef.current = friendReadyConfirm;
     handlersRef.current = {
       onSelectTile,
       onAction,
@@ -2676,20 +1818,11 @@ export function PixiMahjongSurface({
       onBackToLobby,
       onToggleUtilityPanel,
       onScrollUtility,
-      onFriendAction,
-      onFriendKey,
     };
   }, [
     screen,
     utilityPanel,
     utilityScroll,
-    friendView,
-    friendTransportMode,
-    friendRoom,
-    friendLocalPlayerId,
-    friendCodeInput,
-    friendNotice,
-    friendReadyConfirm,
     state,
     selectedTileId,
     legalActions,
@@ -2701,8 +1834,6 @@ export function PixiMahjongSurface({
     onBackToLobby,
     onToggleUtilityPanel,
     onScrollUtility,
-    onFriendAction,
-    onFriendKey,
   ]);
 
   // 进入训练桌时隐藏站点壳层，保证可视页面只有游戏 Canvas
@@ -2745,13 +1876,6 @@ export function PixiMahjongSurface({
           screenRef.current,
           utilityPanelRef.current,
           utilityScrollRef.current,
-          friendViewRef.current,
-          friendTransportModeRef.current,
-          friendRoomRef.current,
-          friendLocalPlayerIdRef.current,
-          friendCodeInputRef.current,
-          friendNoticeRef.current,
-          friendReadyConfirmRef.current,
           stateRef.current,
           selectedTileRef.current,
           legalActionsRef.current,
@@ -2760,10 +1884,6 @@ export function PixiMahjongSurface({
         hitRegionsRef.current = getCanvasHitRegions(
           screenRef.current,
           utilityPanelRef.current,
-          friendViewRef.current,
-          friendRoomRef.current,
-          friendLocalPlayerIdRef.current,
-          friendReadyConfirmRef.current,
           stateRef.current,
           selectedTileRef.current,
           legalActionsRef.current,
@@ -2808,7 +1928,10 @@ export function PixiMahjongSurface({
           utilityPointerStartY = event.clientY;
           utilityPointerDragged = true;
           event.preventDefault();
-          handlersRef.current.onScrollUtility(delta);
+          handlersRef.current.onScrollUtility(
+            delta,
+            getUtilityScrollLimit(getLayout(app.screen.width, app.screen.height), 'yaku'),
+          );
         };
         // 用指针抬起事件提供低延迟的鼠标和触摸反馈
         const handlePointerUp = (event: PointerEvent) => {
@@ -2829,29 +1952,34 @@ export function PixiMahjongSurface({
         const handleWheel = (event: WheelEvent) => {
           if (utilityPanelRef.current !== 'yaku') return;
           event.preventDefault();
-          handlersRef.current.onScrollUtility(event.deltaY);
+          handlersRef.current.onScrollUtility(
+            event.deltaY,
+            getUtilityScrollLimit(getLayout(app.screen.width, app.screen.height), 'yaku'),
+          );
         };
         // 某些浏览器只派发 click 时仍保持 Canvas 交互可用
         const handleClick = (event: MouseEvent) => {
           if (performance.now() - lastPointerDispatch < 400) return;
           dispatchCanvasPoint(event.clientX, event.clientY);
         };
-        // 键盘输入驱动友人房数字码，并保留单人牌局的 Escape 行为
+        // 键盘输入保留图鉴滚动和单人牌局的 Escape 行为
         const handleKeyDown = (event: KeyboardEvent) => {
-          if (screenRef.current === 'friends') {
-            handlersRef.current.onFriendKey(event.key);
-            return;
-          }
           if (utilityPanelRef.current === 'yaku') {
             const pageStep = Math.max(160, window.innerHeight * 0.55);
             if (event.key === 'ArrowDown' || event.key === 'PageDown') {
               event.preventDefault();
-              handlersRef.current.onScrollUtility(event.key === 'PageDown' ? pageStep : 64);
+              handlersRef.current.onScrollUtility(
+                event.key === 'PageDown' ? pageStep : 64,
+                getUtilityScrollLimit(getLayout(app.screen.width, app.screen.height), 'yaku'),
+              );
               return;
             }
             if (event.key === 'ArrowUp' || event.key === 'PageUp') {
               event.preventDefault();
-              handlersRef.current.onScrollUtility(event.key === 'PageUp' ? -pageStep : -64);
+              handlersRef.current.onScrollUtility(
+                event.key === 'PageUp' ? -pageStep : -64,
+                getUtilityScrollLimit(getLayout(app.screen.width, app.screen.height), 'yaku'),
+              );
               return;
             }
           }
@@ -2888,13 +2016,6 @@ export function PixiMahjongSurface({
               screenRef.current,
               utilityPanelRef.current,
               utilityScrollRef.current,
-              friendViewRef.current,
-              friendTransportModeRef.current,
-              friendRoomRef.current,
-              friendLocalPlayerIdRef.current,
-              friendCodeInputRef.current,
-              friendNoticeRef.current,
-              friendReadyConfirmRef.current,
               stateRef.current,
               selectedTileRef.current,
               legalActionsRef.current,
@@ -2903,10 +2024,6 @@ export function PixiMahjongSurface({
             hitRegionsRef.current = getCanvasHitRegions(
               screenRef.current,
               utilityPanelRef.current,
-              friendViewRef.current,
-              friendRoomRef.current,
-              friendLocalPlayerIdRef.current,
-              friendReadyConfirmRef.current,
               stateRef.current,
               selectedTileRef.current,
               legalActionsRef.current,
@@ -2925,13 +2042,6 @@ export function PixiMahjongSurface({
             screenRef.current,
             utilityPanelRef.current,
             utilityScrollRef.current,
-            friendViewRef.current,
-            friendTransportModeRef.current,
-            friendRoomRef.current,
-            friendLocalPlayerIdRef.current,
-            friendCodeInputRef.current,
-            friendNoticeRef.current,
-            friendReadyConfirmRef.current,
             stateRef.current,
             selectedTileRef.current,
             legalActionsRef.current,
@@ -2940,10 +2050,6 @@ export function PixiMahjongSurface({
           hitRegionsRef.current = getCanvasHitRegions(
             screenRef.current,
             utilityPanelRef.current,
-            friendViewRef.current,
-            friendRoomRef.current,
-            friendLocalPlayerIdRef.current,
-            friendReadyConfirmRef.current,
             stateRef.current,
             selectedTileRef.current,
             legalActionsRef.current,
@@ -2979,13 +2085,6 @@ export function PixiMahjongSurface({
         screen,
         utilityPanel,
         utilityScroll,
-        friendView,
-        friendTransportMode,
-        friendRoom,
-        friendLocalPlayerId,
-        friendCodeInput,
-        friendNotice,
-        friendReadyConfirm,
         state,
         selectedTileId,
         legalActions,
@@ -2994,10 +2093,6 @@ export function PixiMahjongSurface({
       hitRegionsRef.current = getCanvasHitRegions(
         screen,
         utilityPanel,
-        friendView,
-        friendRoom,
-        friendLocalPlayerId,
-        friendReadyConfirm,
         state,
         selectedTileId,
         legalActions,
@@ -3011,8 +2106,6 @@ export function PixiMahjongSurface({
           onBackToLobby,
           onToggleUtilityPanel,
           onScrollUtility,
-          onFriendAction,
-          onFriendKey,
         },
       );
     }
@@ -3020,13 +2113,6 @@ export function PixiMahjongSurface({
     screen,
     utilityPanel,
     utilityScroll,
-    friendView,
-    friendTransportMode,
-    friendRoom,
-    friendLocalPlayerId,
-    friendCodeInput,
-    friendNotice,
-    friendReadyConfirm,
     state,
     selectedTileId,
     legalActions,
@@ -3038,17 +2124,9 @@ export function PixiMahjongSurface({
     onBackToLobby,
     onToggleUtilityPanel,
     onScrollUtility,
-    onFriendAction,
-    onFriendKey,
   ]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className={styles.canvas}
-      tabIndex={0}
-      role="application"
-      aria-label="日麻 WebGL2 训练牌桌"
-    />
+    <canvas ref={canvasRef} className={styles.canvas} tabIndex={0} role="application" aria-label="日本麻将训练牌桌" />
   );
 }
