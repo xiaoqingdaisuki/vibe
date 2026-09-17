@@ -97,7 +97,7 @@ const registeredLabApps: LabApp[] = [
     description: '文字挂机冒险RPG游戏，选择职业，自动战斗，收集装备！',
     category: 'game',
     tags: ['game', 'rpg', 'idle'],
-    href: '/game',
+    href: '/lab/rpg',
     featured: true,
     dataSource: 'local',
   },

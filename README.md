@@ -9,7 +9,7 @@ Live site: [vibe-xiaoqingdaisuki.vercel.app](https://vibe-xiaoqingdaisuki.vercel
 | App            | Route              | Description                                                                |
 | -------------- | ------------------ | -------------------------------------------------------------------------- |
 | AI助手         | `/lab/agent`       | 通过 API 调用模型，支持流式对话、Markdown 回复、历史会话与文本生成图片。    |
-| 日本麻将       | `/lab/mahjong`     | 纯前端日本麻将训练游戏，支持本地人机对局、牌型图鉴与牌局复盘。               |
+| 日本麻将       | `/lab/mahjong`     | 日本麻将游戏基于canvas绘制，支持本地人机对局、牌型图鉴与牌局复盘。              |
 | 笔记           | `/lab/note`        | 记录临时备忘与常用指令，支持编辑、删除和代码块复制，内容只保存在本地浏览器。 |
 | 代码编辑器     | `/lab/editor`      | 在线编辑 React 与 HTML、CSS、JavaScript，支持代码格式化和实时预览。          |
 | 时区工具       | `/lab/timezone`    | 根据设备时区实时显示本地与世界时间，一键复制常用代码时间格式。               |
@@ -17,7 +17,7 @@ Live site: [vibe-xiaoqingdaisuki.vercel.app](https://vibe-xiaoqingdaisuki.vercel
 | 数独           | `/lab/sudoku`      | 数独游戏，支持五级难度与键盘操作。                                           |
 | RSS Reader     | `/lab/rss`         | 管理并持久化 RSS/Atom 订阅，通过服务端代理获取和解析订阅内容。               |
 | 扫雷           | `/lab/minesweeper` | 经典扫雷游戏，支持预设与自定义难度。                                         |
-| Adventure      | `/game`            | 文字挂机冒险 RPG，支持职业选择、自动战斗、技能、装备、离线收益与本地存档。   |
+| Adventure      | `/lab/rpg`         | 文字挂机冒险 RPG，支持职业选择、自动战斗、技能、装备、离线收益与本地存档。   |
 | Skill          | `/lab/skill`       | AI 编程助手技能、工具与知识资源合集。                                        |
 
 Lab apps are registered in `src/features/lab/registry.ts` and loaded on demand through the explicit import map in `src/features/apps/loaders.ts`. Technical writing is available at `/blog` and sourced from local Markdown and MDX files under `src/content/blog/`.
