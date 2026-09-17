@@ -5,7 +5,7 @@ import type { Application, Container, Graphics, Rectangle, Sprite, Text, Texture
 import type { FriendRoomSeat, FriendRoomSnapshot } from '../friend-room';
 import type { LegalAction, MahjongState, Seat, Tile } from '../core/types';
 import { getTenpaiWaits } from '../core/scoring';
-import { tileLabel } from '../core/tiles';
+import { createTileSet, tileLabel } from '../core/tiles';
 import styles from '../styles/Mahjong.module.css';
 
 export type MahjongScreen = 'lobby' | 'single' | 'friends';
@@ -27,6 +27,7 @@ export type MahjongFriendAction =
 interface PixiMahjongSurfaceProps {
   screen: MahjongScreen;
   utilityPanel: MahjongUtilityPanel;
+  utilityScroll: number;
   friendView: MahjongFriendView;
   friendTransportMode: MahjongFriendTransportMode;
   friendRoom: FriendRoomSnapshot | null;
@@ -44,6 +45,7 @@ interface PixiMahjongSurfaceProps {
   onChooseMode: (mode: 'single' | 'friends') => void;
   onBackToLobby: () => void;
   onToggleUtilityPanel: (panel: Exclude<MahjongUtilityPanel, 'none'>) => void;
+  onScrollUtility: (delta: number) => void;
   onFriendAction: (action: MahjongFriendAction) => void;
   onFriendKey: (key: string) => void;
 }
@@ -79,6 +81,7 @@ interface SceneHandlers {
   onChooseMode: (mode: 'single' | 'friends') => void;
   onBackToLobby: () => void;
   onToggleUtilityPanel: (panel: Exclude<MahjongUtilityPanel, 'none'>) => void;
+  onScrollUtility: (delta: number) => void;
   onFriendAction: (action: MahjongFriendAction) => void;
   onFriendKey: (key: string) => void;
 }
@@ -151,13 +154,275 @@ const TILE_ASSET_FILES = [
   'Chun.png',
 ] as const;
 
+interface YakuReference {
+  name: string;
+  han: string;
+  detail: string;
+  sample: readonly number[];
+}
+
+const YAKU_REFERENCE_TILES = createTileSet(false);
+const YAKU_TILE_BY_KIND = new Map(YAKU_REFERENCE_TILES.map((tile) => [tile.kind, tile]));
+const YAKU_REFERENCES: readonly YakuReference[] = [
+  {
+    name: '立直',
+    han: '1 番',
+    detail: '门清状态宣言立直并支付 1000 点。',
+    sample: [0, 1, 2, 9, 10, 11, 18, 19, 20, 27, 27, 31, 32, 33],
+  },
+  {
+    name: '一发',
+    han: '1 番',
+    detail: '立直后一巡内和牌，期间没有鸣牌。',
+    sample: [0, 1, 2, 3, 4, 5, 9, 10, 11, 18, 19, 20, 27, 27],
+  },
+  {
+    name: '门前清自摸和',
+    han: '1 番',
+    detail: '门清状态下以自摸方式和牌。',
+    sample: [0, 1, 2, 9, 10, 11, 18, 19, 20, 27, 28, 29, 4, 4],
+  },
+  {
+    name: '平和',
+    han: '1 番',
+    detail: '四组顺子、非役牌雀头，并以两面听和牌。',
+    sample: [0, 1, 2, 3, 4, 5, 9, 10, 11, 18, 19, 20, 6, 6],
+  },
+  {
+    name: '断幺九',
+    han: '1 番',
+    detail: '只使用 2 至 8 的数牌，不含幺九牌和字牌。',
+    sample: [1, 2, 3, 4, 5, 6, 10, 11, 12, 19, 20, 21, 13, 13],
+  },
+  {
+    name: '一盃口',
+    han: '1 番',
+    detail: '门清状态下拥有两组完全相同的顺子。',
+    sample: [0, 1, 2, 0, 1, 2, 9, 10, 11, 18, 19, 20, 6, 6],
+  },
+  {
+    name: '役牌',
+    han: '1 番 / 刻',
+    detail: '自风、场风、三元牌组成刻子或杠子。',
+    sample: [27, 27, 27, 28, 28, 28, 31, 31, 31, 0, 1, 2, 9, 9],
+  },
+  {
+    name: '海底摸月',
+    han: '1 番',
+    detail: '摸到牌山最后一张牌后自摸和牌。',
+    sample: [0, 1, 2, 9, 10, 11, 18, 19, 20, 27, 28, 29, 4, 4],
+  },
+  {
+    name: '河底捞鱼',
+    han: '1 番',
+    detail: '牌山最后一张牌打出后，以荣和结束。',
+    sample: [0, 1, 2, 3, 4, 5, 9, 10, 11, 18, 19, 20, 27, 27],
+  },
+  {
+    name: '岭上开花',
+    han: '1 番',
+    detail: '杠后从岭上摸牌并自摸和牌。',
+    sample: [0, 1, 2, 3, 4, 5, 9, 10, 11, 18, 19, 20, 28, 28],
+  },
+  {
+    name: '抢杠和',
+    han: '1 番',
+    detail: '他家加杠时荣和该张牌。',
+    sample: [0, 1, 2, 3, 4, 5, 9, 10, 11, 18, 19, 20, 27, 27],
+  },
+  {
+    name: '双立直',
+    han: '2 番',
+    detail: '第一巡无人鸣牌时宣言立直。',
+    sample: [0, 1, 2, 3, 4, 5, 9, 10, 11, 18, 19, 20, 27, 27],
+  },
+  {
+    name: '七对子',
+    han: '2 番',
+    detail: '七组不同的对子组成特殊和牌形。',
+    sample: [0, 0, 3, 3, 9, 9, 12, 12, 18, 18, 27, 27, 31, 31],
+  },
+  {
+    name: '对对和',
+    han: '2 番',
+    detail: '四组刻子或杠子加一组雀头。',
+    sample: [0, 0, 0, 9, 9, 9, 18, 18, 18, 27, 27, 27, 4, 4],
+  },
+  {
+    name: '三暗刻',
+    han: '2 番',
+    detail: '拥有三组没有鸣出的暗刻或暗杠。',
+    sample: [0, 0, 0, 9, 9, 9, 18, 18, 18, 1, 2, 3, 27, 27],
+  },
+  {
+    name: '三色同顺',
+    han: '2 番 / 1 番',
+    detail: '万、筒、索各有一组相同数字的顺子。',
+    sample: [0, 1, 2, 9, 10, 11, 18, 19, 20, 27, 28, 29, 4, 4],
+  },
+  {
+    name: '三色同刻',
+    han: '2 番',
+    detail: '万、筒、索各有一组相同数字的刻子。',
+    sample: [0, 0, 0, 9, 9, 9, 18, 18, 18, 27, 27, 27, 4, 4],
+  },
+  {
+    name: '一气通贯',
+    han: '2 番 / 1 番',
+    detail: '同一门完成 123、456、789 三组顺子。',
+    sample: [0, 1, 2, 3, 4, 5, 6, 7, 8, 27, 28, 29, 4, 4],
+  },
+  {
+    name: '混全带幺九',
+    han: '2 番 / 1 番',
+    detail: '每组面子和雀头都含幺九牌或字牌。',
+    sample: [0, 1, 2, 6, 7, 8, 9, 10, 11, 27, 27, 31, 31, 8],
+  },
+  {
+    name: '混老头',
+    han: '2 番',
+    detail: '只由幺九牌和字牌组成。',
+    sample: [0, 0, 0, 8, 8, 8, 9, 9, 9, 27, 27, 27, 33, 33],
+  },
+  {
+    name: '小三元',
+    han: '2 番',
+    detail: '两组三元牌刻子加另一组三元牌雀头。',
+    sample: [27, 27, 27, 28, 28, 28, 29, 29, 0, 1, 2, 9, 9, 9],
+  },
+  { name: '三杠子', han: '2 番', detail: '拥有三组杠子。', sample: [0, 0, 0, 0, 9, 9, 9, 9, 18, 18, 18, 18, 27, 27] },
+  {
+    name: '混一色',
+    han: '3 番 / 2 番',
+    detail: '同一门数牌与字牌组成，门清 3 番、鸣牌 2 番。',
+    sample: [0, 1, 2, 3, 4, 5, 6, 7, 8, 27, 28, 29, 27, 27],
+  },
+  {
+    name: '纯全带幺九',
+    han: '3 番 / 2 番',
+    detail: '每组面子和雀头都含幺九牌，不含字牌。',
+    sample: [0, 1, 2, 6, 7, 8, 9, 10, 11, 15, 16, 17, 8, 8],
+  },
+  {
+    name: '二盃口',
+    han: '3 番',
+    detail: '门清状态下拥有两组一盃口。',
+    sample: [0, 1, 2, 0, 1, 2, 3, 4, 5, 3, 4, 5, 6, 6],
+  },
+  {
+    name: '清一色',
+    han: '6 番 / 5 番',
+    detail: '只使用万、筒或索其中一门数牌。',
+    sample: [0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1, 2, 6, 6],
+  },
+  {
+    name: '国士无双',
+    han: '役满',
+    detail: '十三种幺九牌和字牌各一张，并有一张重复。',
+    sample: [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33, 0],
+  },
+  {
+    name: '四暗刻',
+    han: '役满',
+    detail: '四组暗刻或暗杠，门清状态下完成。',
+    sample: [0, 0, 0, 9, 9, 9, 18, 18, 18, 27, 27, 27, 4, 4],
+  },
+  {
+    name: '大三元',
+    han: '役满',
+    detail: '白、发、中三组三元牌刻子或杠子。',
+    sample: [29, 29, 29, 31, 31, 31, 32, 32, 32, 0, 1, 2, 4, 4],
+  },
+  {
+    name: '小四喜',
+    han: '役满',
+    detail: '东南西北中三组刻子，另一个作雀头。',
+    sample: [27, 27, 27, 28, 28, 28, 29, 29, 29, 30, 30, 0, 1, 2],
+  },
+  {
+    name: '大四喜',
+    han: '役满',
+    detail: '东南西北四组风牌刻子或杠子。',
+    sample: [27, 27, 27, 28, 28, 28, 29, 29, 29, 30, 30, 30, 27, 28],
+  },
+  {
+    name: '字一色',
+    han: '役满',
+    detail: '全部由七种字牌组成。',
+    sample: [27, 27, 27, 28, 28, 28, 29, 29, 29, 31, 31, 31, 32, 32],
+  },
+  {
+    name: '清老头',
+    han: '役满',
+    detail: '全部由一、九数牌组成。',
+    sample: [0, 0, 0, 8, 8, 8, 9, 9, 9, 17, 17, 17, 18, 18],
+  },
+  {
+    name: '绿一色',
+    han: '役满',
+    detail: '只使用索子二、三、四、六、八及发牌。',
+    sample: [19, 20, 21, 23, 25, 25, 19, 20, 21, 23, 25, 25, 31, 31],
+  },
+  {
+    name: '九莲宝灯',
+    han: '役满',
+    detail: '门清同一门 1112345678999 加任意同门牌。',
+    sample: [0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 8, 8, 4],
+  },
+  {
+    name: '四杠子',
+    han: '役满',
+    detail: '四组杠子组成和牌。',
+    sample: [0, 0, 0, 0, 9, 9, 9, 9, 18, 18, 18, 18, 27, 27],
+  },
+  {
+    name: '天和',
+    han: '役满',
+    detail: '庄家在配牌后第一次摸牌前自摸和牌。',
+    sample: [0, 1, 2, 3, 4, 5, 9, 10, 11, 18, 19, 20, 27, 27],
+  },
+  {
+    name: '地和',
+    han: '役满',
+    detail: '闲家在第一巡第一次摸牌时自摸和牌。',
+    sample: [0, 1, 2, 3, 4, 5, 9, 10, 11, 18, 19, 20, 27, 27],
+  },
+  {
+    name: '四暗刻单骑',
+    han: '双倍役满',
+    detail: '四暗刻以单骑听牌形式完成。',
+    sample: [0, 0, 0, 9, 9, 9, 18, 18, 18, 27, 27, 27, 4, 4],
+  },
+  {
+    name: '国士无双十三面',
+    han: '双倍役满',
+    detail: '国士无双十三种幺九牌全部听牌。',
+    sample: [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33, 0],
+  },
+  {
+    name: '大四喜单骑',
+    han: '双倍役满',
+    detail: '大四喜以单骑形式完成，部分规则计双倍役满。',
+    sample: [27, 27, 27, 28, 28, 28, 29, 29, 29, 30, 30, 30, 4, 4],
+  },
+  {
+    name: '流し满贯',
+    han: '特殊役',
+    detail: '流局时只打出幺九牌和字牌且无人鸣取。',
+    sample: [0, 8, 9, 17, 18, 26, 27, 28, 29, 30, 31, 32, 33],
+  },
+];
+
 // 根据实际 Canvas 尺寸计算全屏牌桌与底部手牌的绘制区域
 function getLayout(width: number, height: number): LayoutMetrics {
   const desktop = width >= 900;
   const margin = desktop ? 24 : 12;
   const handHeight = desktop ? 112 : 82;
   const boardY = desktop ? 82 : 58;
-  const boardHeight = Math.max(300, height - boardY - handHeight - (desktop ? 24 : 16));
+  const availableBoardHeight = height - boardY - handHeight - (desktop ? 24 : 16);
+  const boardHeight = desktop
+    ? Math.max(240, availableBoardHeight)
+    : Math.max(220, Math.min(availableBoardHeight, height * 0.58));
   const boardWidth = Math.min(width - margin * 2, desktop ? 1420 : width - margin * 2);
   const boardX = (width - boardWidth) / 2;
   const handY = height - handHeight - (desktop ? 12 : 8);
@@ -485,7 +750,7 @@ function drawWall(
   }
 }
 
-// 绘制中央八边形局况牌，集中展示风圈、余牌和带素材的宝牌
+// 绘制中央方形局况牌，集中展示风圈、余牌和带素材的宝牌
 function drawCenterScore(
   api: PixiApi,
   root: Container,
@@ -494,31 +759,23 @@ function drawCenterScore(
   textures: TextureMap,
 ): void {
   const { boardX, boardY, boardWidth, boardHeight, desktop } = layout;
-  const centerWidth = Math.min(boardWidth * 0.34, desktop ? 440 : 280);
-  const centerHeight = Math.min(boardHeight * 0.34, desktop ? 194 : 132);
+  const centerSize = Math.min(boardWidth * 0.25, boardHeight * 0.44, desktop ? 286 : 180);
+  const centerWidth = centerSize;
+  const centerHeight = centerSize;
   const centerX = boardX + (boardWidth - centerWidth) / 2;
   const centerY = boardY + (boardHeight - centerHeight) / 2;
-  const octagon = new api.Graphics();
-  const cut = Math.min(28, centerWidth * 0.12);
-  octagon
-    .moveTo(centerX + cut, centerY)
-    .lineTo(centerX + centerWidth - cut, centerY)
-    .lineTo(centerX + centerWidth, centerY + cut)
-    .lineTo(centerX + centerWidth, centerY + centerHeight - cut)
-    .lineTo(centerX + centerWidth - cut, centerY + centerHeight)
-    .lineTo(centerX + cut, centerY + centerHeight)
-    .lineTo(centerX, centerY + centerHeight - cut)
-    .lineTo(centerX, centerY + cut)
-    .closePath()
+  const square = new api.Graphics();
+  square
+    .roundRect(centerX, centerY, centerSize, centerSize, desktop ? 18 : 12)
     .fill(COLORS.center)
     .stroke({ width: 2, color: COLORS.centerLine });
-  root.addChild(octagon);
+  root.addChild(square);
   root.addChild(
     createLabel(
       api,
       `东${state.roundNumber}局`,
       centerX + centerWidth / 2,
-      centerY + centerHeight * 0.29,
+      centerY + centerHeight * 0.22,
       desktop ? 23 : 17,
       COLORS.cyan,
       0.5,
@@ -531,7 +788,7 @@ function drawCenterScore(
       api,
       `余 ${state.wall.length}`,
       centerX + centerWidth / 2,
-      centerY + centerHeight * 0.55,
+      centerY + centerHeight * 0.42,
       desktop ? 18 : 14,
       COLORS.white,
       0.5,
@@ -544,7 +801,7 @@ function drawCenterScore(
       api,
       `${state.players[0].score.toLocaleString()} 点`,
       centerX + centerWidth / 2,
-      centerY + centerHeight * 0.8,
+      centerY + centerHeight * 0.59,
       desktop ? 13 : 11,
       COLORS.gold,
       0.5,
@@ -560,7 +817,7 @@ function drawCenterScore(
   const doraStripWidth =
     doraTextWidth + doraGap + doraTiles.length * doraTileWidth + Math.max(0, doraTiles.length - 1) * doraGap;
   const doraStripX = centerX + centerWidth / 2 - doraStripWidth / 2;
-  const doraStripY = centerY + centerHeight - doraTileHeight - (desktop ? 6 : 4);
+  const doraStripY = centerY + centerHeight * 0.7;
   const doraStrip = new api.Graphics();
   doraStrip
     .roundRect(doraStripX - 7, doraStripY - 4, doraStripWidth + 14, doraTileHeight + 8, 7)
@@ -672,9 +929,9 @@ function drawSeatBadge(
   const boxWidth = desktop ? 168 : 132;
   const boxHeight = desktop ? 54 : 44;
   const positions: Record<Seat, { x: number; y: number }> = {
-    0: { x: boardX + 42, y: boardY + boardHeight - boxHeight - 10 },
+    0: { x: boardX + boardWidth / 2 - boxWidth / 2, y: boardY + boardHeight - boxHeight - 10 },
     1: { x: boardX + boardWidth - boxWidth - 12, y: boardY + boardHeight / 2 - boxHeight / 2 },
-    2: { x: boardX + boardWidth - boxWidth - 42, y: boardY + 8 },
+    2: { x: boardX + boardWidth / 2 - boxWidth / 2, y: boardY + 8 },
     3: { x: boardX + 12, y: boardY + boardHeight / 2 - boxHeight / 2 },
   };
   const position = positions[player.seat];
@@ -749,7 +1006,8 @@ function drawBoard(
   root.addChild(lane);
   const wallWidth = desktop ? 34 : 22;
   const wallHeight = desktop ? 22 : 16;
-  drawWall(api, root, boardX + boardWidth * 0.2, boardY + 25, 12, wallWidth, wallHeight, 'horizontal');
+  drawWall(api, root, boardX + boardWidth * 0.12, boardY + 25, 7, wallWidth, wallHeight, 'horizontal');
+  drawWall(api, root, boardX + boardWidth * 0.72, boardY + 25, 5, wallWidth, wallHeight, 'horizontal');
   drawWall(api, root, boardX + 23, boardY + boardHeight * 0.22, 7, wallHeight, wallWidth, 'vertical');
   drawWall(
     api,
@@ -761,17 +1019,17 @@ function drawBoard(
     wallWidth,
     'vertical',
   );
-  const centerWidth = Math.min(boardWidth * 0.34, desktop ? 440 : 280);
-  const centerHeight = Math.min(boardHeight * 0.34, desktop ? 194 : 132);
+  const centerSize = Math.min(boardWidth * 0.25, boardHeight * 0.44, desktop ? 286 : 180);
+  const centerWidth = centerSize;
+  const centerHeight = centerSize;
   const centerX = boardX + (boardWidth - centerWidth) / 2;
   const centerY = boardY + (boardHeight - centerHeight) / 2;
-  const riverWidth = Math.min(centerWidth + (desktop ? 20 : 12), boardWidth * (desktop ? 0.36 : 0.62));
-  const riverHeight = desktop ? 122 : 88;
-  const topRiverY = Math.max(boardY + (desktop ? 98 : 48), centerY - (desktop ? 138 : 90));
-  const bottomRiverY = Math.min(
-    boardY + boardHeight - riverHeight - (desktop ? 4 : 8),
-    centerY + centerHeight + (desktop ? 8 : 16),
-  );
+  const riverGap = desktop ? 16 : 10;
+  const riverWidth = Math.min(boardWidth * (desktop ? 0.36 : 0.62), centerSize * (desktop ? 1.72 : 1.5));
+  const riverHeight = desktop ? 84 : 68;
+  const seatClearance = desktop ? 78 : 62;
+  const topRiverY = Math.max(boardY + seatClearance, centerY - riverHeight - riverGap);
+  const bottomRiverY = Math.min(boardY + boardHeight - seatClearance - riverHeight, centerY + centerHeight + riverGap);
   addRiverTiles(
     api,
     root,
@@ -794,14 +1052,14 @@ function drawBoard(
     'horizontal',
     riverHeight,
   );
-  const sideWidth = Math.min(desktop ? 150 : 88, Math.max(desktop ? 132 : 72, centerWidth * 0.34));
-  const sideHeight = Math.min(desktop ? 360 : 224, boardHeight - (desktop ? 110 : 76));
+  const sideWidth = desktop ? 126 : 78;
+  const sideHeight = Math.min(boardHeight * (desktop ? 0.56 : 0.5), centerSize * (desktop ? 1.45 : 1.25));
   const sideY = centerY + centerHeight / 2 - sideHeight / 2;
   addRiverTiles(
     api,
     root,
     state.players[3]?.discards ?? [],
-    centerX - sideWidth - (desktop ? 10 : 6),
+    centerX - sideWidth - riverGap,
     sideY,
     sideWidth,
     textures,
@@ -812,7 +1070,7 @@ function drawBoard(
     api,
     root,
     state.players[1]?.discards ?? [],
-    centerX + centerWidth + (desktop ? 10 : 6),
+    centerX + centerWidth + riverGap,
     sideY,
     sideWidth,
     textures,
@@ -829,24 +1087,6 @@ function drawBoard(
       player.seat === state.currentPlayer && state.phase !== 'round-over' && state.phase !== 'match-over',
       seatLabels?.[player.seat] ?? player.name,
     );
-  if (state.lastDiscard) {
-    const discardWidth = desktop ? 42 : 30;
-    const discardHeight = desktop ? 54 : 40;
-    const x = centerX + centerWidth / 2 - discardWidth / 2;
-    const y = centerY + centerHeight / 2 - discardHeight / 2;
-    const discard = new api.Graphics();
-    discard.roundRect(x, y, discardWidth, discardHeight, 5).fill(COLORS.cream).stroke({ width: 2, color: COLORS.red });
-    root.addChild(discard);
-    const texture = textures.get(tileAssetKey(state.lastDiscard));
-    if (texture) {
-      const sprite = new api.Sprite(texture);
-      sprite.anchor.set(0.5);
-      sprite.position.set(x + discardWidth / 2, y + discardHeight / 2);
-      sprite.width = discardWidth * 0.82;
-      sprite.height = discardHeight * 0.84;
-      root.addChild(sprite);
-    }
-  }
 }
 
 // 绘制底部手牌轨道、动作按钮和训练状态提示
@@ -879,8 +1119,8 @@ function drawHumanControls(
       Math.min(handHeight, tileHeight + 28),
       desktop ? 14 : 10,
     )
-    .fill({ color: 0x101b2c, alpha: 0.9 })
-    .stroke({ width: 1, color: COLORS.panelLine });
+    .fill({ color: COLORS.panel, alpha: 0.94 })
+    .stroke({ width: 1, color: COLORS.centerLine });
   root.addChild(rail);
   human.hand.forEach((tile, index) =>
     addHandTile(
@@ -1049,16 +1289,34 @@ function getUtilityPanelMetrics(
   panel: Exclude<MahjongUtilityPanel, 'none'>,
 ): { x: number; y: number; width: number; height: number } {
   const width = Math.min(layout.width - 32, layout.desktop ? 760 : 348);
-  const height = panel === 'yaku' ? 430 : layout.desktop ? 336 : 320;
+  const height =
+    panel === 'yaku'
+      ? Math.min(layout.height - 48, layout.desktop ? 650 : Math.max(420, layout.height - 48))
+      : layout.desktop
+        ? 250
+        : 224;
   return { x: (layout.width - width) / 2, y: (layout.height - height) / 2, width, height };
 }
 
-// 绘制胡牌牌型或牌局配置面板，所有内容继续留在 Pixi Canvas 内
+// 计算胡牌图鉴内容超出视口时允许滚动的最大距离
+function getUtilityScrollLimit(layout: LayoutMetrics, panel: Exclude<MahjongUtilityPanel, 'none'>): number {
+  if (panel !== 'yaku') return 0;
+  const metrics = getUtilityPanelMetrics(layout, panel);
+  const cardHeight = layout.desktop ? 150 : 142;
+  const gap = layout.desktop ? 12 : 8;
+  const viewportHeight = metrics.height - (layout.desktop ? 116 : 110);
+  const contentHeight = YAKU_REFERENCES.length * (cardHeight + gap) - gap;
+  return Math.max(0, contentHeight - viewportHeight);
+}
+
+// 绘制胡牌牌型图鉴或真实的返回主页配置面板
 function drawUtilityPanel(
   api: PixiApi,
   root: Container,
   panel: Exclude<MahjongUtilityPanel, 'none'>,
   layout: LayoutMetrics,
+  textures: TextureMap,
+  utilityScroll: number,
 ): void {
   const { desktop } = layout;
   const metrics = getUtilityPanelMetrics(layout, panel);
@@ -1072,7 +1330,7 @@ function drawUtilityPanel(
     .stroke({ width: 2, color: COLORS.gold });
   root.addChild(modal);
   const title = panel === 'yaku' ? '胡牌牌型图鉴' : '牌局配置';
-  const subtitle = panel === 'yaku' ? '常用役种 · 训练时快速查阅' : '本地训练偏好 · 当前版本即时生效';
+  const subtitle = panel === 'yaku' ? '役种与牌面参考 · 滚动浏览完整列表' : '牌局菜单';
   root.addChild(
     createLabel(api, title, metrics.x + 28, metrics.y + 30, desktop ? 22 : 18, COLORS.white, 0, 0.5, '700'),
   );
@@ -1091,55 +1349,81 @@ function drawUtilityPanel(
     !desktop,
   );
   if (panel === 'yaku') {
-    const yaku = [
-      ['立直', '门清宣言后和牌 · 1 番', '门清'],
-      ['断幺九', '只用 2–8 数牌，不含字牌 · 1 番', '断幺'],
-      ['平和', '四组顺子、两面听，雀头非役牌 · 1 番', '门清'],
-      ['一盃口', '同一顺子组合出现两次 · 1 番', '门清'],
-      ['混一色', '同一门数牌与字牌组成 · 3 番 / 2 番', '染手'],
-      ['清一色', '只使用同一门数牌 · 6 番 / 5 番', '染手'],
-    ];
-    const columns = desktop ? 2 : 1;
+    const cardHeight = desktop ? 150 : 142;
     const gap = desktop ? 12 : 8;
-    const rowHeight = desktop ? 72 : 54;
-    const rowWidth = (metrics.width - 56 - gap * (columns - 1)) / columns;
-    yaku.forEach(([name, detail, tag], index) => {
-      const column = index % columns;
-      const row = Math.floor(index / columns);
-      const x = metrics.x + 28 + column * (rowWidth + gap);
-      const y = metrics.y + 92 + row * (rowHeight + gap);
+    const viewportX = metrics.x + 28;
+    const viewportY = metrics.y + 88;
+    const viewportWidth = metrics.width - 56;
+    const viewportHeight = metrics.height - (desktop ? 116 : 110);
+    const limit = getUtilityScrollLimit(layout, panel);
+    const scroll = Math.max(0, Math.min(limit, utilityScroll));
+    const clip = new api.Graphics();
+    clip.rect(viewportX, viewportY, viewportWidth, viewportHeight).fill({ color: 0xffffff, alpha: 0.01 });
+    root.addChild(clip);
+    const content = new api.Container();
+    content.mask = clip;
+    root.addChild(content);
+    YAKU_REFERENCES.forEach((entry, index) => {
+      const x = viewportX;
+      const y = viewportY + index * (cardHeight + gap) - scroll;
       const card = new api.Graphics();
       card
-        .roundRect(x, y, rowWidth, rowHeight, 10)
+        .roundRect(x, y, viewportWidth, cardHeight, 10)
         .fill({ color: 0x376d4d, alpha: 0.9 })
         .stroke({ width: 1, color: COLORS.panelLine });
-      root.addChild(card);
-      root.addChild(createLabel(api, name, x + 14, y + 21, desktop ? 16 : 14, COLORS.gold, 0, 0.5, '700'));
-      root.addChild(createLabel(api, tag, x + rowWidth - 14, y + 21, desktop ? 10 : 9, COLORS.cyan, 1, 0.5, '600'));
-      root.addChild(createLabel(api, detail, x + 14, y + 47, desktop ? 11 : 10, COLORS.white, 0, 0.5, '500'));
-    });
-  } else {
-    const settings = [
-      ['提示等级', '标准 · 在确认出牌前显示提醒'],
-      ['AI 思考速度', '0.42 秒 · 保留观察节奏'],
-      ['牌桌主题', '绿幕 · 柔和绒面与木色边框'],
-      ['音效', '关闭 · 音频开关将在后续加入'],
-    ];
-    settings.forEach(([name, detail], index) => {
-      const y = metrics.y + 94 + index * (desktop ? 48 : 44);
-      const row = new api.Graphics();
-      row.roundRect(metrics.x + 28, y, metrics.width - 56, desktop ? 38 : 36, 8).fill({ color: 0x376d4d, alpha: 0.86 });
-      root.addChild(row);
-      root.addChild(
-        createLabel(api, name, metrics.x + 42, y + (desktop ? 19 : 18), desktop ? 13 : 11, COLORS.gold, 0, 0.5, '700'),
+      content.addChild(card);
+      content.addChild(createLabel(api, entry.name, x + 14, y + 21, desktop ? 16 : 14, COLORS.gold, 0, 0.5, '700'));
+      content.addChild(
+        createLabel(api, entry.han, x + viewportWidth - 14, y + 21, desktop ? 10 : 9, COLORS.cyan, 1, 0.5, '600'),
       );
-      root.addChild(
+      const tileY = y + (desktop ? 54 : 50);
+      const tileGap = desktop ? 4 : 3;
+      const tileWidth = Math.max(
+        desktop ? 12 : 8,
+        Math.min(desktop ? 26 : 20, (viewportWidth - 28 - tileGap * (entry.sample.length - 1)) / entry.sample.length),
+      );
+      const tileHeight = tileWidth * 1.28;
+      entry.sample.forEach((kind, tileIndex) => {
+        const tile = YAKU_TILE_BY_KIND.get(kind);
+        if (!tile) return;
+        const tileX = x + 14 + tileIndex * (tileWidth + tileGap);
+        const tileBackground = new api.Graphics();
+        tileBackground
+          .roundRect(tileX, tileY, tileWidth, tileHeight, 3)
+          .fill(COLORS.cream)
+          .stroke({ width: 1, color: COLORS.creamEdge });
+        content.addChild(tileBackground);
+        const texture = textures.get(tileAssetKey(tile));
+        if (texture) {
+          const sprite = new api.Sprite(texture);
+          sprite.anchor.set(0.5);
+          sprite.position.set(tileX + tileWidth / 2, tileY + tileHeight / 2);
+          sprite.width = tileWidth * 0.84;
+          sprite.height = tileHeight * 0.86;
+          content.addChild(sprite);
+        } else {
+          content.addChild(
+            createLabel(
+              api,
+              compactTileLabel(tile),
+              tileX + tileWidth / 2,
+              tileY + tileHeight / 2,
+              Math.max(7, tileWidth * 0.32),
+              tileTextColor(tile),
+              0.5,
+              0.5,
+              '700',
+            ),
+          );
+        }
+      });
+      content.addChild(
         createLabel(
           api,
-          detail,
-          metrics.x + (desktop ? 180 : 124),
-          y + (desktop ? 19 : 18),
-          desktop ? 11 : 9,
+          entry.detail,
+          x + 14,
+          y + cardHeight - (desktop ? 16 : 14),
+          desktop ? 11 : 10,
           COLORS.white,
           0,
           0.5,
@@ -1147,12 +1431,24 @@ function drawUtilityPanel(
         ),
       );
     });
+    if (limit > 0) {
+      const track = new api.Graphics();
+      const trackX = metrics.x + metrics.width - 18;
+      track.roundRect(trackX, viewportY, 5, viewportHeight, 3).fill({ color: COLORS.panel, alpha: 0.6 });
+      const thumbHeight = Math.max(34, (viewportHeight / (viewportHeight + limit)) * viewportHeight);
+      const thumbY = viewportY + (scroll / limit) * (viewportHeight - thumbHeight);
+      track.roundRect(trackX, thumbY, 5, thumbHeight, 3).fill(COLORS.gold);
+      root.addChild(track);
+    }
+  } else {
+    const actionY = metrics.y + 98;
+    addButton(api, root, '返回主页', metrics.x + 28, actionY, metrics.width - 56, desktop ? 46 : 42, true, !desktop);
     root.addChild(
       createLabel(
         api,
-        '配置保存在当前浏览器会话中，不需要服务器。',
+        '结束当前牌局，返回单人 / 友人模式选择。',
         metrics.x + 28,
-        metrics.y + metrics.height - 24,
+        metrics.y + metrics.height - 28,
         desktop ? 11 : 9,
         COLORS.muted,
         0,
@@ -1982,6 +2278,7 @@ function drawScene(
   app: Application,
   screen: MahjongScreen,
   utilityPanel: MahjongUtilityPanel,
+  utilityScroll: number,
   friendView: MahjongFriendView,
   friendTransportMode: MahjongFriendTransportMode,
   friendRoom: FriendRoomSnapshot | null,
@@ -2031,7 +2328,7 @@ function drawScene(
   drawTrainingPanel(api, root, state, layout);
   drawRoundOverlay(api, root, state, layout);
   if (utilityPanel !== 'none' && state.phase !== 'round-over' && state.phase !== 'match-over') {
-    drawUtilityPanel(api, root, utilityPanel, layout);
+    drawUtilityPanel(api, root, utilityPanel, layout, textures, utilityScroll);
   }
 }
 
@@ -2131,7 +2428,7 @@ function getCanvasHitRegions(
     const metrics = getUtilityPanelMetrics(layout, utilityPanel);
     const closeWidth = layout.desktop ? 76 : 64;
     const closeHeight = layout.desktop ? 30 : 28;
-    return [
+    const regions: HitRegion[] = [
       {
         x: metrics.x + metrics.width - (layout.desktop ? 104 : 86),
         y: metrics.y + 18,
@@ -2140,6 +2437,16 @@ function getCanvasHitRegions(
         onClick: () => handlers.onToggleUtilityPanel(utilityPanel),
       },
     ];
+    if (utilityPanel === 'settings') {
+      regions.push({
+        x: metrics.x + 28,
+        y: metrics.y + 98,
+        width: metrics.width - 56,
+        height: layout.desktop ? 46 : 42,
+        onClick: handlers.onBackToLobby,
+      });
+    }
+    return regions;
   }
   if ((state.phase === 'round-over' || state.phase === 'match-over') && state.result) {
     const modalWidth = Math.min(layout.width - 32, layout.desktop ? 500 : 340);
@@ -2252,6 +2559,7 @@ function drawCanvasFallback(canvas: HTMLCanvasElement): void {
 export function PixiMahjongSurface({
   screen,
   utilityPanel,
+  utilityScroll,
   friendView,
   friendTransportMode,
   friendRoom,
@@ -2269,6 +2577,7 @@ export function PixiMahjongSurface({
   onChooseMode,
   onBackToLobby,
   onToggleUtilityPanel,
+  onScrollUtility,
   onFriendAction,
   onFriendKey,
 }: PixiMahjongSurfaceProps) {
@@ -2280,6 +2589,7 @@ export function PixiMahjongSurface({
   const legalActionsRef = useRef(legalActions);
   const screenRef = useRef(screen);
   const utilityPanelRef = useRef(utilityPanel);
+  const utilityScrollRef = useRef(utilityScroll);
   const friendViewRef = useRef(friendView);
   const friendTransportModeRef = useRef(friendTransportMode);
   const friendRoomRef = useRef(friendRoom);
@@ -2297,6 +2607,7 @@ export function PixiMahjongSurface({
     onChooseMode,
     onBackToLobby,
     onToggleUtilityPanel,
+    onScrollUtility,
     onFriendAction,
     onFriendKey,
   });
@@ -2308,6 +2619,7 @@ export function PixiMahjongSurface({
     legalActionsRef.current = legalActions;
     screenRef.current = screen;
     utilityPanelRef.current = utilityPanel;
+    utilityScrollRef.current = utilityScroll;
     friendViewRef.current = friendView;
     friendTransportModeRef.current = friendTransportMode;
     friendRoomRef.current = friendRoom;
@@ -2323,12 +2635,14 @@ export function PixiMahjongSurface({
       onChooseMode,
       onBackToLobby,
       onToggleUtilityPanel,
+      onScrollUtility,
       onFriendAction,
       onFriendKey,
     };
   }, [
     screen,
     utilityPanel,
+    utilityScroll,
     friendView,
     friendTransportMode,
     friendRoom,
@@ -2346,6 +2660,7 @@ export function PixiMahjongSurface({
     onChooseMode,
     onBackToLobby,
     onToggleUtilityPanel,
+    onScrollUtility,
     onFriendAction,
     onFriendKey,
   ]);
@@ -2389,6 +2704,7 @@ export function PixiMahjongSurface({
           app,
           screenRef.current,
           utilityPanelRef.current,
+          utilityScrollRef.current,
           friendViewRef.current,
           friendTransportModeRef.current,
           friendRoomRef.current,
@@ -2416,6 +2732,8 @@ export function PixiMahjongSurface({
         );
 
         let lastPointerDispatch = 0;
+        let utilityPointerStartY: number | null = null;
+        let utilityPointerDragged = false;
         // 把浏览器坐标转换为 Canvas 命中区域并执行动作
         const dispatchCanvasPoint = (clientX: number, clientY: number) => {
           const rect = canvas.getBoundingClientRect();
@@ -2436,11 +2754,42 @@ export function PixiMahjongSurface({
             region.onClick();
           }
         };
+        // 记录图鉴拖拽起点，避免滚动时误触关闭或返回按钮
+        const handlePointerDown = (event: PointerEvent) => {
+          if (utilityPanelRef.current !== 'yaku') return;
+          utilityPointerStartY = event.clientY;
+          utilityPointerDragged = false;
+        };
+        // 拖拽胡牌图鉴时按指针位移更新滚动距离
+        const handlePointerMove = (event: PointerEvent) => {
+          if (utilityPanelRef.current !== 'yaku' || utilityPointerStartY === null) return;
+          const delta = utilityPointerStartY - event.clientY;
+          if (Math.abs(delta) < 1) return;
+          utilityPointerStartY = event.clientY;
+          utilityPointerDragged = true;
+          event.preventDefault();
+          handlersRef.current.onScrollUtility(delta);
+        };
         // 用指针抬起事件提供低延迟的鼠标和触摸反馈
         const handlePointerUp = (event: PointerEvent) => {
+          if (utilityPointerStartY !== null) {
+            const dragged = utilityPointerDragged;
+            utilityPointerStartY = null;
+            utilityPointerDragged = false;
+            if (dragged) {
+              event.preventDefault();
+              return;
+            }
+          }
           event.preventDefault();
           lastPointerDispatch = performance.now();
           dispatchCanvasPoint(event.clientX, event.clientY);
+        };
+        // 允许鼠标滚轮和触控板在图鉴视口内连续浏览所有牌型
+        const handleWheel = (event: WheelEvent) => {
+          if (utilityPanelRef.current !== 'yaku') return;
+          event.preventDefault();
+          handlersRef.current.onScrollUtility(event.deltaY);
         };
         // 某些浏览器只派发 click 时仍保持 Canvas 交互可用
         const handleClick = (event: MouseEvent) => {
@@ -2453,6 +2802,19 @@ export function PixiMahjongSurface({
             handlersRef.current.onFriendKey(event.key);
             return;
           }
+          if (utilityPanelRef.current === 'yaku') {
+            const pageStep = Math.max(160, window.innerHeight * 0.55);
+            if (event.key === 'ArrowDown' || event.key === 'PageDown') {
+              event.preventDefault();
+              handlersRef.current.onScrollUtility(event.key === 'PageDown' ? pageStep : 64);
+              return;
+            }
+            if (event.key === 'ArrowUp' || event.key === 'PageUp') {
+              event.preventDefault();
+              handlersRef.current.onScrollUtility(event.key === 'PageUp' ? -pageStep : -64);
+              return;
+            }
+          }
           if (event.key === 'Escape' && utilityPanelRef.current !== 'none') {
             handlersRef.current.onToggleUtilityPanel(utilityPanelRef.current);
             return;
@@ -2461,13 +2823,19 @@ export function PixiMahjongSurface({
             handlersRef.current.onSelectTile(selectedTileRef.current);
           }
         };
+        canvas.addEventListener('pointerdown', handlePointerDown);
+        canvas.addEventListener('pointermove', handlePointerMove);
         canvas.addEventListener('pointerup', handlePointerUp);
         canvas.addEventListener('click', handleClick);
         canvas.addEventListener('keydown', handleKeyDown);
+        canvas.addEventListener('wheel', handleWheel, { passive: false });
         removeCanvasListeners = () => {
+          canvas.removeEventListener('pointerdown', handlePointerDown);
+          canvas.removeEventListener('pointermove', handlePointerMove);
           canvas.removeEventListener('pointerup', handlePointerUp);
           canvas.removeEventListener('click', handleClick);
           canvas.removeEventListener('keydown', handleKeyDown);
+          canvas.removeEventListener('wheel', handleWheel);
         };
 
         void loadTileTextures(pixiModule)
@@ -2479,6 +2847,7 @@ export function PixiMahjongSurface({
               appRef.current,
               screenRef.current,
               utilityPanelRef.current,
+              utilityScrollRef.current,
               friendViewRef.current,
               friendTransportModeRef.current,
               friendRoomRef.current,
@@ -2515,6 +2884,7 @@ export function PixiMahjongSurface({
             appRef.current,
             screenRef.current,
             utilityPanelRef.current,
+            utilityScrollRef.current,
             friendViewRef.current,
             friendTransportModeRef.current,
             friendRoomRef.current,
@@ -2568,6 +2938,7 @@ export function PixiMahjongSurface({
         appRef.current,
         screen,
         utilityPanel,
+        utilityScroll,
         friendView,
         friendTransportMode,
         friendRoom,
@@ -2599,6 +2970,7 @@ export function PixiMahjongSurface({
           onChooseMode,
           onBackToLobby,
           onToggleUtilityPanel,
+          onScrollUtility,
           onFriendAction,
           onFriendKey,
         },
@@ -2607,6 +2979,7 @@ export function PixiMahjongSurface({
   }, [
     screen,
     utilityPanel,
+    utilityScroll,
     friendView,
     friendTransportMode,
     friendRoom,
@@ -2624,6 +2997,7 @@ export function PixiMahjongSurface({
     onChooseMode,
     onBackToLobby,
     onToggleUtilityPanel,
+    onScrollUtility,
     onFriendAction,
     onFriendKey,
   ]);

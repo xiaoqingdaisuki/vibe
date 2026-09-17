@@ -35,6 +35,7 @@ const INITIAL_SEED = 3903255371;
 export default function Mahjong() {
   const [screen, setScreen] = useState<MahjongScreen>('lobby');
   const [utilityPanel, setUtilityPanel] = useState<MahjongUtilityPanel>('none');
+  const [utilityScroll, setUtilityScroll] = useState(0);
   const [state, setState] = useState<MahjongState>(() => createMatch(INITIAL_SEED));
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
   const [friendView, setFriendView] = useState<MahjongFriendView>('entry');
@@ -203,7 +204,7 @@ export default function Mahjong() {
   const connectFriendTransport = (code: string, role: 'host' | 'guest', memberId: string) => {
     transportRef.current?.close();
     if (!friendSignalUrl) {
-      setFriendNotice('远程友人房服务未配置，暂时无法创建或加入跨设备房间。');
+      setFriendNotice('跨设备友人房需要公网 WSS 信令地址，当前未配置。');
       return;
     }
     transportRef.current = openNetworkFriendRoomTransport({
@@ -250,6 +251,7 @@ export default function Mahjong() {
   const handleChooseMode = (mode: 'single' | 'friends') => {
     setScreen(mode);
     setUtilityPanel('none');
+    setUtilityScroll(0);
     setSelectedTileId(null);
     if (mode === 'friends') {
       setFriendView('entry');
@@ -257,7 +259,7 @@ export default function Mahjong() {
       setFriendNotice(
         friendTransportMode === 'network'
           ? '输入房主分享的 4 位房间码即可跨设备加入。'
-          : '远程友人房服务未配置，请先启动房间服务。',
+          : '单人模式纯前端；跨设备友人房还需要公网 WSS 信令地址。',
       );
     }
   };
@@ -267,6 +269,7 @@ export default function Mahjong() {
     if (screen === 'friends') leaveFriendRoom();
     setScreen('lobby');
     setUtilityPanel('none');
+    setUtilityScroll(0);
     setSelectedTileId(null);
     setFriendView('entry');
     setFriendCodeInput('');
@@ -300,14 +303,20 @@ export default function Mahjong() {
 
   // 打开或关闭牌型说明与配置面板，面板仍由同一张 Canvas 绘制
   const handleToggleUtilityPanel = (panel: Exclude<MahjongUtilityPanel, 'none'>) => {
+    setUtilityScroll(0);
     setUtilityPanel((current) => (current === panel ? 'none' : panel));
+  };
+
+  // 根据滚轮或拖拽移动胡牌图鉴，始终把距离限制在内容范围内
+  const handleScrollUtility = (delta: number) => {
+    setUtilityScroll((current) => Math.max(0, Math.min(6000, current + delta)));
   };
 
   // 执行创建、加入、准备和开始等友人房动作
   const handleFriendAction = (action: MahjongFriendAction) => {
     if (action.type === 'create-room') {
       if (friendTransportMode !== 'network') {
-        setFriendNotice('远程友人房服务未配置，暂时无法创建跨设备房间。');
+        setFriendNotice('未配置公网 WSS，无法创建跨设备房间。');
         return;
       }
       const code = createFriendRoomCode();
@@ -326,7 +335,7 @@ export default function Mahjong() {
     }
     if (action.type === 'join-room') {
       if (friendTransportMode !== 'network') {
-        setFriendNotice('远程友人房服务未配置，暂时无法加入跨设备房间。');
+        setFriendNotice('未配置公网 WSS，无法加入跨设备房间。');
         return;
       }
       const code = friendCodeInput;
@@ -362,7 +371,7 @@ export default function Mahjong() {
       setFriendNotice(
         friendTransportMode === 'network'
           ? '输入房主分享的 4 位房间码即可跨设备加入。'
-          : '远程友人房服务未配置，请先启动房间服务。',
+          : '单人模式纯前端；跨设备友人房还需要公网 WSS 信令地址。',
       );
       return;
     }
@@ -445,6 +454,7 @@ export default function Mahjong() {
     <PixiMahjongSurface
       screen={screen}
       utilityPanel={utilityPanel}
+      utilityScroll={utilityScroll}
       friendView={friendView}
       friendTransportMode={friendTransportMode}
       friendRoom={friendRoom}
@@ -462,6 +472,7 @@ export default function Mahjong() {
       onChooseMode={handleChooseMode}
       onBackToLobby={handleBackToLobby}
       onToggleUtilityPanel={handleToggleUtilityPanel}
+      onScrollUtility={handleScrollUtility}
       onFriendAction={handleFriendAction}
       onFriendKey={handleFriendKey}
     />
