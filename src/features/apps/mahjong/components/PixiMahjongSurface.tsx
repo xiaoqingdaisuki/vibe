@@ -440,6 +440,14 @@ function getLayout(width: number, height: number): LayoutMetrics {
   };
 }
 
+// 根据牌桌高度限制中央提示区，给上下牌河保留稳定的呼吸空间
+function getCenterSize(layout: LayoutMetrics): number {
+  if (layout.desktop) {
+    return Math.min(layout.boardWidth * 0.22, layout.boardHeight * 0.38, 240);
+  }
+  return Math.min(layout.boardWidth * 0.4, layout.boardHeight * 0.44, 170);
+}
+
 // 从本地 public 目录加载公有领域牌面，失败时保留矢量文字后备绘制
 async function loadTileTextures(api: PixiApi): Promise<TextureMap> {
   const entries = await Promise.all(
@@ -649,6 +657,26 @@ function addRiverTiles(
   });
 }
 
+// 将与上下牌河相同的横向网格旋转到左右两侧，保持四边结构一致
+function addRotatedRiverTiles(
+  api: PixiApi,
+  parent: Container,
+  tiles: readonly Tile[],
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  textures: TextureMap,
+  rotation: number,
+): void {
+  const river = new api.Container();
+  river.position.set(x + width / 2, y + height / 2);
+  river.pivot.set(height / 2, width / 2);
+  river.rotation = rotation;
+  addRiverTiles(api, river, tiles, 0, 0, height, textures, 'horizontal', width);
+  parent.addChild(river);
+}
+
 // 根据当前阶段整理 Canvas 需要展示的动作按钮
 function getHumanActionItems(
   state: MahjongState,
@@ -759,7 +787,7 @@ function drawCenterScore(
   textures: TextureMap,
 ): void {
   const { boardX, boardY, boardWidth, boardHeight, desktop } = layout;
-  const centerSize = Math.min(boardWidth * 0.25, boardHeight * 0.44, desktop ? 286 : 180);
+  const centerSize = getCenterSize(layout);
   const centerWidth = centerSize;
   const centerHeight = centerSize;
   const centerX = boardX + (boardWidth - centerWidth) / 2;
@@ -786,7 +814,7 @@ function drawCenterScore(
   root.addChild(
     createLabel(
       api,
-      `余 ${state.wall.length}`,
+      `剩余 ${state.wall.length}`,
       centerX + centerWidth / 2,
       centerY + centerHeight * 0.42,
       desktop ? 18 : 14,
@@ -1019,12 +1047,12 @@ function drawBoard(
     wallWidth,
     'vertical',
   );
-  const centerSize = Math.min(boardWidth * 0.25, boardHeight * 0.44, desktop ? 286 : 180);
+  const centerSize = getCenterSize(layout);
   const centerWidth = centerSize;
   const centerHeight = centerSize;
   const centerX = boardX + (boardWidth - centerWidth) / 2;
   const centerY = boardY + (boardHeight - centerHeight) / 2;
-  const riverGap = desktop ? 16 : 10;
+  const riverGap = desktop ? 32 : 14;
   const riverWidth = Math.min(boardWidth * (desktop ? 0.36 : 0.62), centerSize * (desktop ? 1.72 : 1.5));
   const riverHeight = desktop ? 84 : 68;
   const seatClearance = desktop ? 78 : 62;
@@ -1055,27 +1083,27 @@ function drawBoard(
   const sideWidth = desktop ? 126 : 78;
   const sideHeight = Math.min(boardHeight * (desktop ? 0.56 : 0.5), centerSize * (desktop ? 1.45 : 1.25));
   const sideY = centerY + centerHeight / 2 - sideHeight / 2;
-  addRiverTiles(
+  addRotatedRiverTiles(
     api,
     root,
     state.players[3]?.discards ?? [],
     centerX - sideWidth - riverGap,
     sideY,
     sideWidth,
-    textures,
-    'vertical',
     sideHeight,
+    textures,
+    Math.PI / 2,
   );
-  addRiverTiles(
+  addRotatedRiverTiles(
     api,
     root,
     state.players[1]?.discards ?? [],
     centerX + centerWidth + riverGap,
     sideY,
     sideWidth,
-    textures,
-    'vertical',
     sideHeight,
+    textures,
+    -Math.PI / 2,
   );
   drawCenterScore(api, root, state, layout, textures);
   for (const player of state.players)
@@ -1196,15 +1224,27 @@ function drawHumanControls(
                 .map((wait) => compactTileLabel(wait))
                 .join('、')}`
             : state.phase === 'player-turn'
-              ? '选择手牌 · 点击后再确认打出'
+              ? ''
               : state.phase === 'ai-turn'
                 ? 'AI 正在读取牌河与向听数…'
                 : state.phase === 'match-over'
                   ? '半庄完成 · 可重新开局'
                   : '等待结算';
-    root.addChild(
-      createLabel(api, hint, width / 2, handY - (desktop ? 28 : 20), desktop ? 13 : 11, COLORS.muted, 0.5, 0.5, '500'),
-    );
+    if (hint) {
+      root.addChild(
+        createLabel(
+          api,
+          hint,
+          width / 2,
+          handY - (desktop ? 28 : 20),
+          desktop ? 13 : 11,
+          COLORS.muted,
+          0.5,
+          0.5,
+          '500',
+        ),
+      );
+    }
   }
   root.addChild(
     createLabel(
