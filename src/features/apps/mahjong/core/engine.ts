@@ -20,7 +20,7 @@ export const DEFAULT_RULES: RulesConfig = {
   roundCount: 4,
 };
 
-const PLAYER_NAMES = ['小青', '林悠', '森川葵', '白石澪'] as const;
+const PLAYER_NAMES = ['玩家', '林悠', '森川葵', '白石澪'] as const;
 
 // 使用安全随机源生成一局可回放的初始种子
 export function createSeed(): number {

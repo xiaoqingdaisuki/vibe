@@ -14,6 +14,7 @@ export default function Mahjong() {
   const [utilityScroll, setUtilityScroll] = useState(0);
   const [state, setState] = useState<MahjongState>(() => createMatch(INITIAL_SEED));
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
+  const [reviewMode, setReviewMode] = useState(false);
 
   const legalActions = getLegalActions(state, 0);
   const humanRiichi = state.players[0]?.riichi ?? false;
@@ -63,6 +64,7 @@ export default function Mahjong() {
     setUtilityPanel('none');
     setUtilityScroll(0);
     setSelectedTileId(null);
+    setReviewMode(false);
   };
 
   // 从牌局返回主页并关闭所有 Canvas 面板
@@ -71,6 +73,7 @@ export default function Mahjong() {
     setUtilityPanel('none');
     setUtilityScroll(0);
     setSelectedTileId(null);
+    setReviewMode(false);
   };
 
   // 选中或取消选中一张手牌，实际绘制和点击区域由 Canvas 管理
@@ -91,12 +94,25 @@ export default function Mahjong() {
   const handleRestart = () => {
     setState(createMatch());
     setSelectedTileId(null);
+    setReviewMode(false);
   };
 
   // 根据上一局结果进入下一局并沿用累计分数
   const handleNextRound = () => {
     setState((current) => startNextRound(current));
     setSelectedTileId(null);
+    setReviewMode(false);
+  };
+
+  // 打开当前牌局的真实状态回顾，不重新生成牌面或修改结算结果
+  const handleOpenReview = () => {
+    if (state.phase !== 'round-over' && state.phase !== 'match-over') return;
+    setReviewMode(true);
+  };
+
+  // 关闭回顾层并回到当前局结算，不丢失原始牌局状态
+  const handleCloseReview = () => {
+    setReviewMode(false);
   };
 
   // 打开或关闭牌型说明与配置面板，面板仍由同一张 Canvas 绘制
@@ -119,12 +135,15 @@ export default function Mahjong() {
       utilityPanel={utilityPanel}
       utilityScroll={utilityScroll}
       state={state}
+      reviewMode={reviewMode}
       selectedTileId={selectedTileId}
       legalActions={legalActions}
       onSelectTile={handleTileSelect}
       onAction={handleAction}
       onRestart={handleRestart}
       onNextRound={handleNextRound}
+      onOpenReview={handleOpenReview}
+      onCloseReview={handleCloseReview}
       onChooseMode={handleChooseMode}
       onBackToLobby={handleBackToLobby}
       onToggleUtilityPanel={handleToggleUtilityPanel}

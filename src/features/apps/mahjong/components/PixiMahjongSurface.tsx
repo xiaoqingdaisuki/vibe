@@ -15,12 +15,15 @@ interface PixiMahjongSurfaceProps {
   utilityPanel: MahjongUtilityPanel;
   utilityScroll: number;
   state: MahjongState;
+  reviewMode: boolean;
   selectedTileId: number | null;
   legalActions: readonly LegalAction[];
   onSelectTile: (tileId: number) => void;
   onAction: (action: LegalAction) => void;
   onRestart: () => void;
   onNextRound: () => void;
+  onOpenReview: () => void;
+  onCloseReview: () => void;
   onChooseMode: (mode: 'single') => void;
   onBackToLobby: () => void;
   onToggleUtilityPanel: (panel: Exclude<MahjongUtilityPanel, 'none'>) => void;
@@ -55,6 +58,8 @@ interface SceneHandlers {
   onAction: (action: LegalAction) => void;
   onRestart: () => void;
   onNextRound: () => void;
+  onOpenReview: () => void;
+  onCloseReview: () => void;
   onChooseMode: (mode: 'single') => void;
   onBackToLobby: () => void;
   onToggleUtilityPanel: (panel: Exclude<MahjongUtilityPanel, 'none'>) => void;
@@ -78,6 +83,35 @@ interface HumanActionItem {
 }
 
 type RiverDirection = 'horizontal' | 'vertical';
+
+type ResultAction = 'review' | 'next' | 'restart';
+type ReviewAction = 'close' | 'next' | 'restart';
+
+interface PositionedActionButton {
+  action: ResultAction | ReviewAction;
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  primary: boolean;
+}
+
+interface ReviewPanelMetrics {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  headerHeight: number;
+  footerHeight: number;
+  contentX: number;
+  contentY: number;
+  contentWidth: number;
+  cardGap: number;
+  cardWidth: number;
+  cardHeight: number;
+  columns: number;
+}
 
 const COLORS = {
   background: 0xc8dac8,
@@ -423,6 +457,104 @@ function getCenterSize(layout: LayoutMetrics): number {
   return Math.min(layout.boardWidth * 0.4, layout.boardHeight * 0.44, 170);
 }
 
+// 计算结算层尺寸，确保绘制按钮与 Canvas 命中区域保持一致
+function getRoundOverlayMetrics(layout: LayoutMetrics): {
+  modalWidth: number;
+  modalHeight: number;
+  modalX: number;
+  modalY: number;
+} {
+  const modalWidth = Math.min(layout.width - 32, layout.desktop ? 500 : 340);
+  const modalHeight = layout.desktop ? 290 : 270;
+  return {
+    modalWidth,
+    modalHeight,
+    modalX: (layout.width - modalWidth) / 2,
+    modalY: (layout.height - modalHeight) / 2,
+  };
+}
+
+// 生成结算层操作按钮，统一回顾、下一局和重新开局的布局
+function getRoundActionButtons(layout: LayoutMetrics, state: MahjongState): PositionedActionButton[] {
+  const metrics = getRoundOverlayMetrics(layout);
+  const actions: readonly ResultAction[] =
+    state.phase === 'match-over' ? ['review', 'restart'] : ['review', 'next', 'restart'];
+  const gap = 8;
+  const width = Math.min(112, (metrics.modalWidth - 48 - gap * (actions.length - 1)) / actions.length);
+  const height = 36;
+  const totalWidth = actions.length * width + (actions.length - 1) * gap;
+  const startX = metrics.modalX + (metrics.modalWidth - totalWidth) / 2;
+  const y = metrics.modalY + metrics.modalHeight - 56;
+  return actions.map((action, index) => ({
+    action,
+    label: action === 'review' ? '回顾对局' : action === 'next' ? '下一局' : '重新开局',
+    x: startX + index * (width + gap),
+    y,
+    width,
+    height,
+    primary: action !== 'restart',
+  }));
+}
+
+// 计算回顾面板和四名玩家卡片的稳定网格尺寸
+function getReviewPanelMetrics(layout: LayoutMetrics): ReviewPanelMetrics {
+  const width = Math.min(layout.width - 24, layout.desktop ? 1180 : 352);
+  const height = Math.min(
+    layout.height - (layout.desktop ? 48 : 20),
+    layout.desktop ? 720 : Math.max(420, layout.height - 20),
+  );
+  const x = (layout.width - width) / 2;
+  const y = (layout.height - height) / 2;
+  const headerHeight = layout.desktop ? 84 : 68;
+  const footerHeight = layout.desktop ? 60 : 52;
+  const columns = layout.desktop ? 2 : 1;
+  const cardGap = layout.desktop ? 12 : 8;
+  const contentX = x + 16;
+  const contentY = y + headerHeight;
+  const contentWidth = width - 32;
+  const contentHeight = height - headerHeight - footerHeight;
+  const cardWidth = (contentWidth - cardGap * (columns - 1)) / columns;
+  const rows = Math.ceil(4 / columns);
+  const cardHeight = (contentHeight - cardGap * (rows - 1)) / rows;
+  return {
+    x,
+    y,
+    width,
+    height,
+    headerHeight,
+    footerHeight,
+    contentX,
+    contentY,
+    contentWidth,
+    cardGap,
+    cardWidth,
+    cardHeight,
+    columns,
+  };
+}
+
+// 生成回顾层操作按钮，保持当前牌局并允许返回结算或继续开局
+function getReviewActionButtons(layout: LayoutMetrics, state: MahjongState): PositionedActionButton[] {
+  const metrics = getReviewPanelMetrics(layout);
+  const actions: readonly ReviewAction[] =
+    state.phase === 'match-over' ? ['close', 'restart'] : ['close', 'next', 'restart'];
+  const gap = 8;
+  const width = Math.min(112, (metrics.width - 48 - gap * (actions.length - 1)) / actions.length);
+  const height = layout.desktop ? 36 : 32;
+  const totalWidth = actions.length * width + (actions.length - 1) * gap;
+  const startX = metrics.x + (metrics.width - totalWidth) / 2;
+  const y = metrics.y + metrics.height - metrics.footerHeight + 12;
+  return actions.map((action, index) => ({
+    action,
+    label: action === 'close' ? '返回结算' : action === 'next' ? '下一局' : '重新开局',
+    x: startX + index * (width + gap),
+    y,
+    width,
+    height,
+    primary: action === 'close' || action === 'next',
+  }));
+}
+
 // 从本地 public 目录加载公有领域牌面，失败时保留矢量文字后备绘制
 async function loadTileTextures(api: PixiApi): Promise<TextureMap> {
   const entries = await Promise.all(
@@ -529,7 +661,6 @@ function addHandTile(
   width: number,
   height: number,
   selected: boolean,
-  discardedInRiver: boolean,
   textures: TextureMap,
 ): void {
   const card = new api.Container();
@@ -538,8 +669,8 @@ function addHandTile(
     .roundRect(0, 0, width, height, Math.max(5, Math.min(9, width * 0.18)))
     .fill(selected ? COLORS.gold : COLORS.cream)
     .stroke({
-      width: discardedInRiver ? 3 : tile.red ? 2 : 1,
-      color: discardedInRiver ? COLORS.red : tile.red ? COLORS.red : selected ? COLORS.gold : COLORS.creamEdge,
+      width: tile.red ? 2 : 1,
+      color: tile.red ? COLORS.red : selected ? COLORS.gold : COLORS.creamEdge,
     });
   card.position.set(x, y - (selected ? 8 : 0));
   card.addChild(background);
@@ -574,6 +705,66 @@ function addHandTile(
   parent.addChild(card);
 }
 
+// 在回顾卡片中绘制一行真实牌面，保持牌种、赤牌与本局状态一致
+function drawReviewTileStrip(
+  api: PixiApi,
+  parent: Container,
+  tiles: readonly Tile[],
+  x: number,
+  y: number,
+  width: number,
+  tileHeight: number,
+  textures: TextureMap,
+): void {
+  if (tiles.length === 0) {
+    parent.addChild(createLabel(api, '暂无', x + width / 2, y + tileHeight / 2, 10, COLORS.muted, 0.5, 0.5, '500'));
+    return;
+  }
+  const gap = Math.min(4, Math.max(1, width * 0.008));
+  const tileWidth = Math.max(6, Math.min(tileHeight / 1.28, (width - gap * (tiles.length - 1)) / tiles.length));
+  const totalWidth = tiles.length * tileWidth + (tiles.length - 1) * gap;
+  const offsetX = Math.max(0, (width - totalWidth) / 2);
+  tiles.forEach((tile, index) => {
+    const tileBox = new api.Container();
+    const background = new api.Graphics();
+    background
+      .roundRect(0, 0, tileWidth, tileHeight, 3)
+      .fill(COLORS.cream)
+      .stroke({ width: tile.red ? 2 : 1, color: tile.red ? COLORS.red : COLORS.creamEdge });
+    tileBox.position.set(x + offsetX + index * (tileWidth + gap), y);
+    tileBox.addChild(background);
+    const texture = textures.get(tileAssetKey(tile));
+    if (texture) {
+      const sprite = new api.Sprite(texture);
+      sprite.anchor.set(0.5);
+      sprite.position.set(tileWidth / 2, tileHeight / 2);
+      sprite.width = tileWidth * 0.82;
+      sprite.height = tileHeight * 0.84;
+      tileBox.addChild(sprite);
+    } else {
+      tileBox.addChild(
+        createLabel(
+          api,
+          compactTileLabel(tile),
+          tileWidth / 2,
+          tileHeight / 2,
+          Math.max(6, tileWidth * 0.32),
+          tileTextColor(tile),
+          0.5,
+          0.5,
+          '700',
+        ),
+      );
+    }
+    if (tile.red) {
+      const redMark = new api.Graphics();
+      redMark.circle(tileWidth - 3, 3, Math.max(1, tileWidth * 0.08)).fill(COLORS.red);
+      tileBox.addChild(redMark);
+    }
+    parent.addChild(tileBox);
+  });
+}
+
 // 绘制牌河网格，按桌面方向分行收纳弃牌并避免越过牌桌边界
 function addRiverTiles(
   api: PixiApi,
@@ -585,6 +776,7 @@ function addRiverTiles(
   textures: TextureMap,
   direction: RiverDirection = 'horizontal',
   maxHeight?: number,
+  highlightKind: number | null = null,
 ): void {
   const columns = direction === 'horizontal' ? (maxWidth >= 260 ? 12 : 6) : 3;
   const gap = Math.max(2, Math.min(4, maxWidth * 0.012));
@@ -600,12 +792,13 @@ function addRiverTiles(
     const rowTileCount = Math.min(columns, visibleTiles.length - row * columns);
     const rowWidth = rowTileCount * tileWidth + Math.max(0, rowTileCount - 1) * gap;
     const rowOffsetX = Math.max(0, (maxWidth - rowWidth) / 2);
+    const highlighted = highlightKind !== null && tile.kind === highlightKind;
     const tileBox = new api.Container();
     const background = new api.Graphics();
     background
       .roundRect(0, 0, tileWidth, tileHeight, 3)
       .fill(COLORS.cream)
-      .stroke({ width: 1, color: COLORS.creamEdge });
+      .stroke({ width: highlighted ? 3 : 1, color: highlighted ? COLORS.red : COLORS.creamEdge });
     tileBox.position.set(x + rowOffsetX + column * (tileWidth + gap), y + offsetY + row * (tileHeight + gap));
     tileBox.addChild(background);
     parent.addChild(tileBox);
@@ -645,12 +838,13 @@ function addRotatedRiverTiles(
   height: number,
   textures: TextureMap,
   rotation: number,
+  highlightKind: number | null = null,
 ): void {
   const river = new api.Container();
   river.position.set(x + width / 2, y + height / 2);
   river.pivot.set(height / 2, width / 2);
   river.rotation = rotation;
-  addRiverTiles(api, river, tiles, 0, 0, height, textures, 'horizontal', width);
+  addRiverTiles(api, river, tiles, 0, 0, height, textures, 'horizontal', width, highlightKind);
   parent.addChild(river);
 }
 
@@ -983,9 +1177,13 @@ function drawBoard(
   state: MahjongState,
   layout: LayoutMetrics,
   textures: TextureMap,
+  selectedTileId: number | null,
   seatLabels?: readonly string[],
 ): void {
   const { boardX, boardY, boardWidth, boardHeight, desktop } = layout;
+  // 从已选手牌取得牌种，用于牌河中的同牌种提示
+  const selectedTileKind =
+    selectedTileId === null ? null : (state.players[0]?.hand.find((tile) => tile.id === selectedTileId)?.kind ?? null);
   const outer = new api.Graphics();
   outer
     .roundRect(boardX, boardY, boardWidth, boardHeight, desktop ? 28 : 18)
@@ -1044,6 +1242,7 @@ function drawBoard(
     textures,
     'horizontal',
     riverHeight,
+    selectedTileKind,
   );
   addRiverTiles(
     api,
@@ -1055,6 +1254,7 @@ function drawBoard(
     textures,
     'horizontal',
     riverHeight,
+    selectedTileKind,
   );
   const sideWidth = desktop ? 126 : 78;
   const sideHeight = Math.min(boardHeight * (desktop ? 0.56 : 0.5), centerSize * (desktop ? 1.45 : 1.25));
@@ -1069,6 +1269,7 @@ function drawBoard(
     sideHeight,
     textures,
     Math.PI / 2,
+    selectedTileKind,
   );
   addRotatedRiverTiles(
     api,
@@ -1080,6 +1281,7 @@ function drawBoard(
     sideHeight,
     textures,
     -Math.PI / 2,
+    selectedTileKind,
   );
   drawCenterScore(api, root, state, layout, textures);
   for (const player of state.players)
@@ -1114,7 +1316,6 @@ function drawHumanControls(
   );
   const handWidth = tileWidth * human.hand.length + handGap * (human.hand.length - 1);
   const handX = (width - handWidth) / 2;
-  const discardedKinds = new Set(state.players.flatMap((player) => player.discards.map((tile) => tile.kind)));
   const rail = new api.Graphics();
   rail
     .roundRect(
@@ -1137,7 +1338,6 @@ function drawHumanControls(
       tileWidth,
       tileHeight,
       tile.id === selectedTileId,
-      tile.id === selectedTileId && discardedKinds.has(tile.kind),
       textures,
     ),
   );
@@ -1463,20 +1663,196 @@ function drawUtilityPanel(
   }
 }
 
+// 绘制真实牌局快照，公开三名 AI 的实际手牌、牌河与牌数校验信息
+function drawReviewOverlay(
+  api: PixiApi,
+  root: Container,
+  state: MahjongState,
+  layout: LayoutMetrics,
+  textures: TextureMap,
+): void {
+  const metrics = getReviewPanelMetrics(layout);
+  const veil = new api.Graphics();
+  veil.rect(0, 0, layout.width, layout.height).fill({ color: COLORS.background, alpha: 0.82 });
+  root.addChild(veil);
+  const modal = new api.Graphics();
+  modal
+    .roundRect(metrics.x, metrics.y, metrics.width, metrics.height, layout.desktop ? 20 : 16)
+    .fill(COLORS.panel)
+    .stroke({ width: 2, color: COLORS.gold });
+  root.addChild(modal);
+
+  root.addChild(
+    createLabel(
+      api,
+      '对局回顾 · 真实牌面校验',
+      metrics.x + 20,
+      metrics.y + (layout.desktop ? 28 : 22),
+      layout.desktop ? 22 : 17,
+      COLORS.gold,
+      0,
+      0.5,
+      '700',
+    ),
+  );
+  root.addChild(
+    createLabel(
+      api,
+      '展示本局实际状态，不重新生成牌面',
+      metrics.x + 20,
+      metrics.y + (layout.desktop ? 52 : 43),
+      layout.desktop ? 12 : 9,
+      COLORS.muted,
+      0,
+      0.5,
+      '500',
+    ),
+  );
+  const doraText = state.doraIndicators.map((tile) => compactTileLabel(tile)).join('、') || '无';
+  const tileCount = state.players.reduce(
+    (total, player) =>
+      total +
+      player.hand.length +
+      player.discards.length +
+      player.melds.reduce((meldTotal, meld) => meldTotal + meld.tiles.length, 0),
+    0,
+  );
+  root.addChild(
+    createLabel(
+      api,
+      layout.desktop
+        ? `种子 ${state.seed} · 牌数校验 ${tileCount + state.wall.length}/136 · 剩余 ${state.wall.length} · 宝牌 ${doraText}`
+        : `牌数校验 ${tileCount + state.wall.length}/136 · 剩余 ${state.wall.length} · 宝牌 ${doraText}`,
+      metrics.x + 20,
+      metrics.y + (layout.desktop ? 72 : 59),
+      layout.desktop ? 10 : 8,
+      COLORS.cyan,
+      0,
+      0.5,
+      '600',
+    ),
+  );
+
+  state.players.forEach((player, index) => {
+    const column = index % metrics.columns;
+    const row = Math.floor(index / metrics.columns);
+    const cardX = metrics.contentX + column * (metrics.cardWidth + metrics.cardGap);
+    const cardY = metrics.contentY + row * (metrics.cardHeight + metrics.cardGap);
+    const card = new api.Graphics();
+    card
+      .roundRect(cardX, cardY, metrics.cardWidth, metrics.cardHeight, 10)
+      .fill({ color: COLORS.board, alpha: 0.92 })
+      .stroke({ width: 1, color: player.isHuman ? COLORS.gold : COLORS.panelLine });
+    root.addChild(card);
+
+    const winningTile = state.result?.type === 'ron' && state.result.winner === player.seat ? state.lastDiscard : null;
+    const reviewHand = winningTile ? [...player.hand, winningTile] : player.hand;
+    const score = state.matchScores[player.seat] ?? player.score;
+    const tileHeight = Math.max(12, Math.min(layout.desktop ? 30 : 20, metrics.cardHeight * 0.19));
+    const labelSize = layout.desktop ? 10 : 8;
+    const titleSize = layout.desktop ? 14 : 11;
+    root.addChild(
+      createLabel(
+        api,
+        `${player.isHuman ? '你' : 'AI'} · ${player.name}`,
+        cardX + 12,
+        cardY + metrics.cardHeight * 0.15,
+        titleSize,
+        COLORS.white,
+        0,
+        0.5,
+        '700',
+      ),
+    );
+    root.addChild(
+      createLabel(
+        api,
+        `${score.toLocaleString()} 点 · 牌河 ${player.discards.length}`,
+        cardX + metrics.cardWidth - 12,
+        cardY + metrics.cardHeight * 0.15,
+        labelSize,
+        COLORS.muted,
+        1,
+        0.5,
+        '500',
+      ),
+    );
+    root.addChild(
+      createLabel(
+        api,
+        winningTile
+          ? `手牌 ${player.hand.length} 张 · 和牌 ${compactTileLabel(winningTile)}`
+          : `手牌 ${reviewHand.length} 张`,
+        cardX + 12,
+        cardY + metrics.cardHeight * 0.31,
+        labelSize,
+        COLORS.cyan,
+        0,
+        0.5,
+        '600',
+      ),
+    );
+    drawReviewTileStrip(
+      api,
+      root,
+      reviewHand,
+      cardX + 12,
+      cardY + metrics.cardHeight * 0.36,
+      metrics.cardWidth - 24,
+      tileHeight,
+      textures,
+    );
+    root.addChild(
+      createLabel(
+        api,
+        `牌河 ${player.discards.length} 张`,
+        cardX + 12,
+        cardY + metrics.cardHeight * 0.62,
+        labelSize,
+        COLORS.cyan,
+        0,
+        0.5,
+        '600',
+      ),
+    );
+    drawReviewTileStrip(
+      api,
+      root,
+      player.discards,
+      cardX + 12,
+      cardY + metrics.cardHeight * 0.68,
+      metrics.cardWidth - 24,
+      tileHeight,
+      textures,
+    );
+  });
+
+  getReviewActionButtons(layout, state).forEach((action) => {
+    addButton(
+      api,
+      root,
+      action.label,
+      action.x,
+      action.y,
+      action.width,
+      action.height,
+      action.primary,
+      !layout.desktop,
+    );
+  });
+}
+
 // 绘制结算层，避免结束状态下误触牌面并提供下一步操作
 function drawRoundOverlay(api: PixiApi, root: Container, state: MahjongState, layout: LayoutMetrics): void {
   if ((state.phase !== 'round-over' && state.phase !== 'match-over') || !state.result) return;
   const { width, height, desktop } = layout;
+  const metrics = getRoundOverlayMetrics(layout);
   const overlay = new api.Graphics();
   overlay.rect(0, 0, width, height).fill({ color: COLORS.background, alpha: 0.66 });
   root.addChild(overlay);
-  const modalWidth = Math.min(width - 32, desktop ? 500 : 340);
-  const modalHeight = desktop ? 250 : 230;
-  const modalX = (width - modalWidth) / 2;
-  const modalY = (height - modalHeight) / 2;
   const modal = new api.Graphics();
   modal
-    .roundRect(modalX, modalY, modalWidth, modalHeight, 20)
+    .roundRect(metrics.modalX, metrics.modalY, metrics.modalWidth, metrics.modalHeight, 20)
     .fill(COLORS.panelRaised)
     .stroke({ width: 1, color: COLORS.gold });
   root.addChild(modal);
@@ -1486,7 +1862,7 @@ function drawRoundOverlay(api: PixiApi, root: Container, state: MahjongState, la
       api,
       matchOver ? '半庄完成' : '本局结算',
       width / 2,
-      modalY + 36,
+      metrics.modalY + 36,
       desktop ? 22 : 18,
       COLORS.gold,
       0.5,
@@ -1495,18 +1871,30 @@ function drawRoundOverlay(api: PixiApi, root: Container, state: MahjongState, la
     ),
   );
   root.addChild(
-    createLabel(api, state.result.message, width / 2, modalY + 82, desktop ? 16 : 13, COLORS.white, 0.5, 0.5, '600'),
+    createLabel(
+      api,
+      state.result.message,
+      width / 2,
+      metrics.modalY + 82,
+      desktop ? 16 : 13,
+      COLORS.white,
+      0.5,
+      0.5,
+      '600',
+    ),
   );
   root.addChild(
     createLabel(
       api,
       matchOver
-        ? state.players.map((player) => `${player.name} ${player.score.toLocaleString()}`).join('  ·  ')
+        ? state.players
+            .map((player) => `${player.name} ${(state.matchScores[player.seat] ?? player.score).toLocaleString()}`)
+            .join('  ·  ')
         : state.result.yaku.length > 0
           ? state.result.yaku.join('  ·  ')
           : '流局 · 继续观察牌河',
       width / 2,
-      modalY + 118,
+      metrics.modalY + 118,
       desktop ? 13 : 11,
       COLORS.muted,
       0.5,
@@ -1514,22 +1902,9 @@ function drawRoundOverlay(api: PixiApi, root: Container, state: MahjongState, la
       '500',
     ),
   );
-  if (matchOver) {
-    addButton(api, root, '重新开局', modalX + modalWidth / 2 - 56, modalY + modalHeight - 56, 112, 36, true, !desktop);
-  } else {
-    addButton(
-      api,
-      root,
-      '重新开局',
-      modalX + modalWidth / 2 - 124,
-      modalY + modalHeight - 56,
-      112,
-      36,
-      false,
-      !desktop,
-    );
-    addButton(api, root, '下一局', modalX + modalWidth / 2 + 12, modalY + modalHeight - 56, 112, 36, true, !desktop);
-  }
+  getRoundActionButtons(layout, state).forEach((action) => {
+    addButton(api, root, action.label, action.x, action.y, action.width, action.height, action.primary, !desktop);
+  });
 }
 
 // 计算单人模式横条的命中区域，视觉和交互共用同一组坐标
@@ -1591,6 +1966,7 @@ function drawScene(
   utilityPanel: MahjongUtilityPanel,
   utilityScroll: number,
   state: MahjongState,
+  reviewMode: boolean,
   selectedTileId: number | null,
   legalActions: readonly LegalAction[],
   textures: TextureMap,
@@ -1608,7 +1984,11 @@ function drawScene(
     return;
   }
   drawAtmosphere(api, root, layout, 'table');
-  drawBoard(api, root, state, layout, textures);
+  drawBoard(api, root, state, layout, textures, selectedTileId);
+  if (reviewMode) {
+    drawReviewOverlay(api, root, state, layout, textures);
+    return;
+  }
   drawHumanControls(api, root, state, selectedTileId, legalActions, layout, textures);
   drawTrainingPanel(api, root, state, layout);
   drawRoundOverlay(api, root, state, layout);
@@ -1622,6 +2002,7 @@ function getCanvasHitRegions(
   screen: MahjongScreen,
   utilityPanel: MahjongUtilityPanel,
   state: MahjongState,
+  reviewMode: boolean,
   selectedTileId: number | null,
   legalActions: readonly LegalAction[],
   layout: LayoutMetrics,
@@ -1630,6 +2011,19 @@ function getCanvasHitRegions(
   if (screen === 'lobby') {
     const single = getLobbyModeRegions(layout)[0];
     return single ? [{ ...single, onClick: () => handlers.onChooseMode('single') }] : [];
+  }
+  if (reviewMode) {
+    return getReviewActionButtons(layout, state).map((action) => ({
+      x: action.x,
+      y: action.y,
+      width: action.width,
+      height: action.height,
+      onClick: () => {
+        if (action.action === 'close') handlers.onCloseReview();
+        if (action.action === 'next') handlers.onNextRound();
+        if (action.action === 'restart') handlers.onRestart();
+      },
+    }));
   }
   if (utilityPanel !== 'none' && state.phase !== 'round-over' && state.phase !== 'match-over') {
     const metrics = getUtilityPanelMetrics(layout, utilityPanel);
@@ -1656,31 +2050,17 @@ function getCanvasHitRegions(
     return regions;
   }
   if ((state.phase === 'round-over' || state.phase === 'match-over') && state.result) {
-    const modalWidth = Math.min(layout.width - 32, layout.desktop ? 500 : 340);
-    const modalHeight = layout.desktop ? 250 : 230;
-    const modalX = (layout.width - modalWidth) / 2;
-    const modalY = (layout.height - modalHeight) / 2;
-    const matchOver = state.phase === 'match-over';
-    return [
-      {
-        x: modalX + modalWidth / 2 - (matchOver ? 56 : 124),
-        y: modalY + modalHeight - 56,
-        width: 112,
-        height: 36,
-        onClick: handlers.onRestart,
+    return getRoundActionButtons(layout, state).map((action) => ({
+      x: action.x,
+      y: action.y,
+      width: action.width,
+      height: action.height,
+      onClick: () => {
+        if (action.action === 'review') handlers.onOpenReview();
+        if (action.action === 'next') handlers.onNextRound();
+        if (action.action === 'restart') handlers.onRestart();
       },
-      ...(matchOver
-        ? []
-        : [
-            {
-              x: modalX + modalWidth / 2 + 12,
-              y: modalY + modalHeight - 56,
-              width: 112,
-              height: 36,
-              onClick: handlers.onNextRound,
-            },
-          ]),
-    ];
+    }));
   }
   const regions: HitRegion[] = [];
   const human = state.players[0];
@@ -1768,12 +2148,15 @@ export function PixiMahjongSurface({
   utilityPanel,
   utilityScroll,
   state,
+  reviewMode,
   selectedTileId,
   legalActions,
   onSelectTile,
   onAction,
   onRestart,
   onNextRound,
+  onOpenReview,
+  onCloseReview,
   onChooseMode,
   onBackToLobby,
   onToggleUtilityPanel,
@@ -1783,6 +2166,7 @@ export function PixiMahjongSurface({
   const appRef = useRef<Application | null>(null);
   const apiRef = useRef<PixiApi | null>(null);
   const stateRef = useRef(state);
+  const reviewModeRef = useRef(reviewMode);
   const selectedTileRef = useRef(selectedTileId);
   const legalActionsRef = useRef(legalActions);
   const screenRef = useRef(screen);
@@ -1795,6 +2179,8 @@ export function PixiMahjongSurface({
     onAction,
     onRestart,
     onNextRound,
+    onOpenReview,
+    onCloseReview,
     onChooseMode,
     onBackToLobby,
     onToggleUtilityPanel,
@@ -1804,6 +2190,7 @@ export function PixiMahjongSurface({
   // 同步最新的 React 状态，避免异步 Pixi 初始化读取旧牌局
   useEffect(() => {
     stateRef.current = state;
+    reviewModeRef.current = reviewMode;
     selectedTileRef.current = selectedTileId;
     legalActionsRef.current = legalActions;
     screenRef.current = screen;
@@ -1814,6 +2201,8 @@ export function PixiMahjongSurface({
       onAction,
       onRestart,
       onNextRound,
+      onOpenReview,
+      onCloseReview,
       onChooseMode,
       onBackToLobby,
       onToggleUtilityPanel,
@@ -1824,12 +2213,15 @@ export function PixiMahjongSurface({
     utilityPanel,
     utilityScroll,
     state,
+    reviewMode,
     selectedTileId,
     legalActions,
     onSelectTile,
     onAction,
     onRestart,
     onNextRound,
+    onOpenReview,
+    onCloseReview,
     onChooseMode,
     onBackToLobby,
     onToggleUtilityPanel,
@@ -1877,6 +2269,7 @@ export function PixiMahjongSurface({
           utilityPanelRef.current,
           utilityScrollRef.current,
           stateRef.current,
+          reviewModeRef.current,
           selectedTileRef.current,
           legalActionsRef.current,
           texturesRef.current,
@@ -1885,6 +2278,7 @@ export function PixiMahjongSurface({
           screenRef.current,
           utilityPanelRef.current,
           stateRef.current,
+          reviewModeRef.current,
           selectedTileRef.current,
           legalActionsRef.current,
           getLayout(app.screen.width, app.screen.height),
@@ -1964,6 +2358,13 @@ export function PixiMahjongSurface({
         };
         // 键盘输入保留图鉴滚动和单人牌局的 Escape 行为
         const handleKeyDown = (event: KeyboardEvent) => {
+          if (reviewModeRef.current) {
+            if (event.key === 'Escape') {
+              event.preventDefault();
+              handlersRef.current.onCloseReview();
+            }
+            return;
+          }
           if (utilityPanelRef.current === 'yaku') {
             const pageStep = Math.max(160, window.innerHeight * 0.55);
             if (event.key === 'ArrowDown' || event.key === 'PageDown') {
@@ -2017,6 +2418,7 @@ export function PixiMahjongSurface({
               utilityPanelRef.current,
               utilityScrollRef.current,
               stateRef.current,
+              reviewModeRef.current,
               selectedTileRef.current,
               legalActionsRef.current,
               texturesRef.current,
@@ -2025,6 +2427,7 @@ export function PixiMahjongSurface({
               screenRef.current,
               utilityPanelRef.current,
               stateRef.current,
+              reviewModeRef.current,
               selectedTileRef.current,
               legalActionsRef.current,
               getLayout(appRef.current.screen.width, appRef.current.screen.height),
@@ -2043,6 +2446,7 @@ export function PixiMahjongSurface({
             utilityPanelRef.current,
             utilityScrollRef.current,
             stateRef.current,
+            reviewModeRef.current,
             selectedTileRef.current,
             legalActionsRef.current,
             texturesRef.current,
@@ -2051,6 +2455,7 @@ export function PixiMahjongSurface({
             screenRef.current,
             utilityPanelRef.current,
             stateRef.current,
+            reviewModeRef.current,
             selectedTileRef.current,
             legalActionsRef.current,
             getLayout(appRef.current.screen.width, appRef.current.screen.height),
@@ -2086,6 +2491,7 @@ export function PixiMahjongSurface({
         utilityPanel,
         utilityScroll,
         state,
+        reviewMode,
         selectedTileId,
         legalActions,
         texturesRef.current,
@@ -2094,6 +2500,7 @@ export function PixiMahjongSurface({
         screen,
         utilityPanel,
         state,
+        reviewMode,
         selectedTileId,
         legalActions,
         getLayout(appRef.current.screen.width, appRef.current.screen.height),
@@ -2102,6 +2509,8 @@ export function PixiMahjongSurface({
           onAction,
           onRestart,
           onNextRound,
+          onOpenReview,
+          onCloseReview,
           onChooseMode,
           onBackToLobby,
           onToggleUtilityPanel,
@@ -2114,12 +2523,15 @@ export function PixiMahjongSurface({
     utilityPanel,
     utilityScroll,
     state,
+    reviewMode,
     selectedTileId,
     legalActions,
     onSelectTile,
     onAction,
     onRestart,
     onNextRound,
+    onOpenReview,
+    onCloseReview,
     onChooseMode,
     onBackToLobby,
     onToggleUtilityPanel,
