@@ -1629,6 +1629,29 @@ function getUtilityPanelMetrics(
   return { x: (layout.width - width) / 2, y: (layout.height - height) / 2, width, height };
 }
 
+// 计算配置面板的重新开局与返回主页按钮，确保绘制和命中区域一致
+function getSettingsActionButtons(
+  layout: LayoutMetrics,
+  metrics: ReturnType<typeof getUtilityPanelMetrics>,
+): Array<{
+  action: 'restart' | 'home';
+  label: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}> {
+  const height = layout.desktop ? 46 : 42;
+  const gap = layout.desktop ? 12 : 10;
+  const width = metrics.width - 56;
+  const x = metrics.x + 28;
+  const firstY = metrics.y + 98;
+  return [
+    { action: 'restart', label: '重新开局', x, y: firstY, width, height },
+    { action: 'home', label: '返回主页', x, y: firstY + height + gap, width, height },
+  ];
+}
+
 // 计算胡牌图鉴内容超出视口时允许滚动的最大距离
 function getUtilityScrollLimit(layout: LayoutMetrics, panel: Exclude<MahjongUtilityPanel, 'none'>): number {
   if (panel !== 'yaku') return 0;
@@ -1772,8 +1795,19 @@ function drawUtilityPanel(
       root.addChild(track);
     }
   } else {
-    const actionY = metrics.y + 98;
-    addButton(api, root, '返回主页', metrics.x + 28, actionY, metrics.width - 56, desktop ? 46 : 42, true, !desktop);
+    for (const action of getSettingsActionButtons(layout, metrics)) {
+      addButton(
+        api,
+        root,
+        action.label,
+        action.x,
+        action.y,
+        action.width,
+        action.height,
+        action.action === 'restart',
+        !desktop,
+      );
+    }
     root.addChild(
       createLabel(
         api,
@@ -2166,13 +2200,15 @@ function getCanvasHitRegions(
       },
     ];
     if (utilityPanel === 'settings') {
-      regions.push({
-        x: metrics.x + 28,
-        y: metrics.y + 98,
-        width: metrics.width - 56,
-        height: layout.desktop ? 46 : 42,
-        onClick: handlers.onBackToLobby,
-      });
+      for (const action of getSettingsActionButtons(layout, metrics)) {
+        regions.push({
+          x: action.x,
+          y: action.y,
+          width: action.width,
+          height: action.height,
+          onClick: action.action === 'restart' ? handlers.onRestart : handlers.onBackToLobby,
+        });
+      }
     }
     return regions;
   }

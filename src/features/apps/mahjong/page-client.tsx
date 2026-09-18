@@ -5,14 +5,12 @@ import { applyAction, createMatch, getLegalActions, playAiTurn, startNextRound }
 import type { LegalAction, MahjongState } from './core/types';
 import { PixiMahjongSurface, type MahjongScreen, type MahjongUtilityPanel } from './components/PixiMahjongSurface';
 
-const INITIAL_SEED = 3903255371;
-
 // 渲染纯前端单人牌局，所有界面交互委托给 Pixi Canvas
 export default function Mahjong() {
   const [screen, setScreen] = useState<MahjongScreen>('lobby');
   const [utilityPanel, setUtilityPanel] = useState<MahjongUtilityPanel>('none');
   const [utilityScroll, setUtilityScroll] = useState(0);
-  const [state, setState] = useState<MahjongState>(() => createMatch(INITIAL_SEED));
+  const [state, setState] = useState<MahjongState>(() => createMatch());
   const [selectedTileId, setSelectedTileId] = useState<number | null>(null);
   const [reviewMode, setReviewMode] = useState(false);
 
@@ -61,6 +59,7 @@ export default function Mahjong() {
   // 从主页进入单人牌局并清空上一次面板状态
   const handleChooseMode = (mode: 'single') => {
     setScreen(mode);
+    setState(createMatch());
     setUtilityPanel('none');
     setUtilityScroll(0);
     setSelectedTileId(null);
@@ -93,6 +92,8 @@ export default function Mahjong() {
   // 重新创建一局完整东风局并回到随机种子训练起点
   const handleRestart = () => {
     setState(createMatch());
+    setUtilityPanel('none');
+    setUtilityScroll(0);
     setSelectedTileId(null);
     setReviewMode(false);
   };
