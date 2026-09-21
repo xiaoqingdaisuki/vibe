@@ -8,8 +8,8 @@ interface LabCardProps {
 
 // 渲染 Lab 应用卡片，展示标题、描述和标签
 export function LabCard({ app }: LabCardProps) {
-  return (
-    <Link href={app.href} className={styles.card}>
+  const cardContent = (
+    <>
       <h3 className="text-xl font-semibold font-display">{app.title}</h3>
       <p className="mt-3 text-base text-muted">{app.description}</p>
       <div className="mt-4 flex flex-wrap gap-2">
@@ -19,6 +19,20 @@ export function LabCard({ app }: LabCardProps) {
           </span>
         ))}
       </div>
+    </>
+  );
+
+  if (app.slug === 'gba') {
+    return (
+      <a href={app.href} className={styles.card}>
+        {cardContent}
+      </a>
+    );
+  }
+
+  return (
+    <Link href={app.href} className={styles.card}>
+      {cardContent}
     </Link>
   );
 }

@@ -1,5 +1,5 @@
-const PRECACHE_NAME = 'vibe-pwa-precache-v2';
-const RUNTIME_CACHE_NAME = 'vibe-pwa-runtime-v2';
+const PRECACHE_NAME = 'vibe-pwa-precache-v3';
+const RUNTIME_CACHE_NAME = 'vibe-pwa-runtime-v3';
 const PRECACHE_URLS = ['/', '/offline', '/manifest.webmanifest', '/icon', '/apple-icon', '/icons/vibe-icon.svg'];
 
 // 判断响应是否可被安全写入缓存
@@ -94,6 +94,9 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
 
   if (url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
+
+  // GBA 页面依赖跨源隔离，必须直接从网络读取响应头和 WASM 资源。
+  if (url.pathname === '/lab/gba' || url.pathname.startsWith('/assets/gba/') || url.pathname.startsWith('/_next/')) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirstNavigation(request));

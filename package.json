@@ -15,6 +15,7 @@
     "prepare": "husky install"
   },
   "dependencies": {
+    "@thenick775/mgba-wasm": "2.5.1",
     "acorn": "^8.18.0",
     "dayjs": "^1.11.21",
     "gray-matter": "^4.0.3",

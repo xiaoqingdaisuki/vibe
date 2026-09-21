@@ -56,7 +56,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-theme={DEFAULT_THEME} suppressHydrationWarning>
+    <html lang="en" data-theme={DEFAULT_THEME} data-scroll-behavior="smooth" suppressHydrationWarning>
       <body>
         <Script id="theme-initialization" strategy="beforeInteractive">
           {themeInitializationScript}

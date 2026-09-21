@@ -22,6 +22,16 @@ const registeredLabApps: LabApp[] = [
     dataSource: 'local',
   },
   {
+    slug: 'gba',
+    title: 'GBA emulator',
+    description: '基于 WASM 与 Canvas 的 GBA 模拟器，支持本地 ROM 和浏览器存档。',
+    category: 'game',
+    tags: ['game', 'gba', 'wasm', 'emulator'],
+    href: '/lab/gba',
+    featured: true,
+    dataSource: 'local',
+  },
+  {
     slug: 'note',
     title: '笔记',
     description: '自由记录文本与临时备忘，内容只保存在当前浏览器。',
