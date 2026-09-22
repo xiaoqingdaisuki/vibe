@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { Application, Container, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js';
-import type { LegalAction, MahjongState, Seat, Tile } from '../core/types';
+import type { LegalAction, MahjongState, Meld, Seat, Tile } from '../core/types';
 import { getTenpaiWaits } from '../core/scoring';
 import { createTileSet, tileLabel } from '../core/tiles';
 import styles from '../styles/Mahjong.module.css';
@@ -148,7 +148,6 @@ const COLORS = {
   purple: 0xbba4ff,
   purpleSoft: 0x392f5c,
   red: 0xf17f76,
-  redSoft: 0x5b2c31,
   green: 0x8ed6a8,
   cyan: 0xa8e0b8,
   wall: 0xd7842d,
@@ -444,6 +443,12 @@ const YAKU_REFERENCES: readonly YakuReference[] = [
   },
 ];
 
+// 根据牌局风圈和本场数生成统一的局名
+function roundLabel(state: MahjongState): string {
+  const wind = state.roundWind === 'east' ? '东' : '南';
+  return `${wind}${state.roundNumber}局${state.honba > 0 ? ` ${state.honba}本场` : ''}`;
+}
+
 // 根据实际 Canvas 尺寸计算全屏牌桌与底部手牌的绘制区域
 function getLayout(width: number, height: number): LayoutMetrics {
   const desktop = width >= 900;
@@ -602,20 +607,24 @@ function getReviewActionButtons(layout: LayoutMetrics, state: MahjongState): Pos
   }));
 }
 
-// 从本地 public 目录加载公有领域牌面，失败时保留矢量文字后备绘制
+// 从本地 public 目录加载牌面与生成式 UI 素材，失败时保留文字后备绘制
 async function loadTileTextures(api: PixiApi): Promise<TextureMap> {
   const tileEntries = await Promise.all(
     TILE_ASSET_FILES.map(async (file) => [file, await api.Assets.load(`/assets/mahjong/tiles/${file}`)] as const),
   );
-  const [backgroundTexture, tableTexture, ...avatarTextures] = await Promise.all([
+  const [backgroundTexture, tableTexture, riichiStickTexture, actionBarTexture, ...avatarTextures] = await Promise.all([
     api.Assets.load('/assets/mahjong/background.png'),
     api.Assets.load('/assets/mahjong/table.png'),
+    api.Assets.load('/assets/mahjong/ui/riichi-stick.png'),
+    api.Assets.load('/assets/mahjong/ui/action-bar.png'),
     ...AVATAR_ASSET_FILES.map((file) => api.Assets.load(`/assets/mahjong/avatars/${file}`)),
   ]);
   return new Map([
     ...tileEntries,
     ['background.png', backgroundTexture],
     ['table.png', tableTexture],
+    ['ui/riichi-stick.png', riichiStickTexture],
+    ['ui/action-bar.png', actionBarTexture],
     ...AVATAR_ASSET_FILES.map((file, index) => [`avatars/${file}`, avatarTextures[index]!] as const),
   ]);
 }
@@ -834,6 +843,7 @@ function addRiverTiles(
   direction: RiverDirection = 'horizontal',
   maxHeight?: number,
   highlightKind: number | null = null,
+  riichiDiscardId: number | null = null,
 ): void {
   const columns = direction === 'horizontal' ? (maxWidth >= 260 ? 12 : 6) : 3;
   const gap = Math.max(2, Math.min(4, maxWidth * 0.012));
@@ -850,13 +860,21 @@ function addRiverTiles(
     const rowWidth = rowTileCount * tileWidth + Math.max(0, rowTileCount - 1) * gap;
     const rowOffsetX = Math.max(0, (maxWidth - rowWidth) / 2);
     const highlighted = highlightKind !== null && tile.kind === highlightKind;
+    const riichiDiscard = tile.id === riichiDiscardId;
     const tileBox = new api.Container();
     const background = new api.Graphics();
     background
       .roundRect(0, 0, tileWidth, tileHeight, 3)
       .fill(COLORS.cream)
       .stroke({ width: highlighted ? 3 : 1, color: highlighted ? COLORS.red : COLORS.creamEdge });
-    tileBox.position.set(x + rowOffsetX + column * (tileWidth + gap), y + offsetY + row * (tileHeight + gap));
+    const tileX = x + rowOffsetX + column * (tileWidth + gap);
+    const tileY = y + offsetY + row * (tileHeight + gap);
+    tileBox.position.set(tileX, tileY);
+    if (riichiDiscard) {
+      tileBox.pivot.set(tileWidth / 2, tileHeight / 2);
+      tileBox.position.set(tileX + tileWidth / 2, tileY + tileHeight / 2);
+      tileBox.rotation = Math.PI / 2;
+    }
     tileBox.addChild(background);
     parent.addChild(tileBox);
     const texture = textures.get(tileAssetKey(tile));
@@ -896,12 +914,13 @@ function addRotatedRiverTiles(
   textures: TextureMap,
   rotation: number,
   highlightKind: number | null = null,
+  riichiDiscardId: number | null = null,
 ): void {
   const river = new api.Container();
   river.position.set(x + width / 2, y + height / 2);
   river.pivot.set(height / 2, width / 2);
   river.rotation = rotation;
-  addRiverTiles(api, river, tiles, 0, 0, height, textures, 'horizontal', width, highlightKind);
+  addRiverTiles(api, river, tiles, 0, 0, height, textures, 'horizontal', width, highlightKind, riichiDiscardId);
   parent.addChild(river);
 }
 
@@ -917,8 +936,8 @@ function getHumanActionItems(
   if (state.phase === 'reaction') {
     return legalActions.map((action) => ({
       action,
-      label: action.type === 'ron' ? '荣和' : '跳过',
-      primary: action.type === 'ron',
+      label: action.label,
+      primary: action.type !== 'pass',
     }));
   }
   return [
@@ -935,6 +954,9 @@ function getHumanActionItems(
     ...(legalActions.some((action) => action.type === 'tsumo')
       ? [{ action: { type: 'tsumo', label: '自摸' } as LegalAction, label: '自摸', primary: true }]
       : []),
+    ...legalActions
+      .filter((action) => action.type === 'kan')
+      .map((action) => ({ action, label: action.label, primary: true })),
   ];
 }
 
@@ -1044,17 +1066,7 @@ function drawCenterScore(
   const titleY = contentCenterY - (desktop ? 50 : 34);
   const remainingY = contentCenterY - (desktop ? 14 : 10);
   root.addChild(
-    createLabel(
-      api,
-      `东${state.roundNumber}局`,
-      contentCenterX,
-      titleY,
-      desktop ? 21 : 16,
-      COLORS.cyan,
-      0.5,
-      0.5,
-      '700',
-    ),
+    createLabel(api, roundLabel(state), contentCenterX, titleY, desktop ? 21 : 16, COLORS.cyan, 0.5, 0.5, '700'),
   );
   root.addChild(
     createLabel(
@@ -1271,7 +1283,7 @@ function drawSeatBadge(
   root.addChild(
     createLabel(
       api,
-      `${player.score.toLocaleString()} 点 · 河 ${player.discards.length}`,
+      `${player.score.toLocaleString()} 点 · 河 ${player.discards.length}${player.furiten ? ' · 振听' : ''}`,
       contentLeft,
       position.y + (desktop ? 48 : 36),
       desktop ? 12 : 9,
@@ -1281,6 +1293,117 @@ function drawSeatBadge(
       '500',
     ),
   );
+  if (player.riichi) {
+    const stickWidth = desktop ? 88 : 64;
+    const stickTexture = textures.get('ui/riichi-stick.png');
+    if (stickTexture) {
+      const stick = new api.Sprite(stickTexture);
+      stick.anchor.set(0.5);
+      stick.position.set(position.x + boxWidth - stickWidth / 2 - 6, position.y - 4);
+      stick.width = stickWidth;
+      stick.height = stickWidth * (stickTexture.height / Math.max(1, stickTexture.width));
+      root.addChild(stick);
+    }
+  }
+}
+
+// 绘制一组副露牌，并用横置牌标记鸣牌来源
+function drawMeldTiles(
+  api: PixiApi,
+  parent: Container,
+  meld: Meld,
+  x: number,
+  y: number,
+  tileWidth: number,
+  tileHeight: number,
+  textures: TextureMap,
+): number {
+  const gap = Math.max(1, tileWidth * 0.12);
+  meld.tiles.forEach((tile, index) => {
+    const tileBox = new api.Container();
+    const background = new api.Graphics();
+    background
+      .roundRect(0, 0, tileWidth, tileHeight, 3)
+      .fill(COLORS.cream)
+      .stroke({ width: tile.red ? 2 : 1, color: tile.red ? COLORS.red : COLORS.creamEdge });
+    const tileX = x + index * (tileWidth + gap);
+    tileBox.position.set(tileX, y);
+    if (meld.calledTileId === tile.id) {
+      tileBox.pivot.set(tileWidth / 2, tileHeight / 2);
+      tileBox.position.set(tileX + tileWidth / 2, y + tileHeight / 2);
+      tileBox.rotation = Math.PI / 2;
+    }
+    tileBox.addChild(background);
+    const texture = textures.get(tileAssetKey(tile));
+    if (texture) {
+      const sprite = new api.Sprite(texture);
+      sprite.anchor.set(0.5);
+      sprite.position.set(tileWidth / 2, tileHeight / 2);
+      sprite.width = tileWidth * 0.82;
+      sprite.height = tileHeight * 0.84;
+      tileBox.addChild(sprite);
+    } else {
+      tileBox.addChild(
+        createLabel(
+          api,
+          compactTileLabel(tile),
+          tileWidth / 2,
+          tileHeight / 2,
+          Math.max(6, tileWidth * 0.32),
+          tileTextColor(tile),
+          0.5,
+          0.5,
+          '700',
+        ),
+      );
+    }
+    parent.addChild(tileBox);
+  });
+  return meld.tiles.length * (tileWidth + gap) - gap;
+}
+
+// 将各家的吃碰杠牌组固定展示在牌桌四边，避免副露只存在于规则状态
+function drawMeldsOnTable(
+  api: PixiApi,
+  root: Container,
+  state: MahjongState,
+  layout: LayoutMetrics,
+  textures: TextureMap,
+): void {
+  const { boardX, boardY, boardWidth, boardHeight, desktop } = layout;
+  const tileHeight = desktop ? 24 : 17;
+  const tileWidth = tileHeight / 1.28;
+  const positions: Record<Seat, { x: number; y: number; rotation: number }> = {
+    0: { x: boardX + boardWidth * 0.32, y: boardY + boardHeight - 36, rotation: 0 },
+    1: { x: boardX + boardWidth - 38, y: boardY + boardHeight * 0.36, rotation: -Math.PI / 2 },
+    2: { x: boardX + boardWidth * 0.32, y: boardY + 24, rotation: 0 },
+    3: { x: boardX + 38, y: boardY + boardHeight * 0.36, rotation: Math.PI / 2 },
+  };
+  for (const player of state.players) {
+    if (player.melds.length === 0) continue;
+    const position = positions[player.seat];
+    const strip = new api.Container();
+    strip.position.set(position.x, position.y);
+    strip.rotation = position.rotation;
+    let cursor = 0;
+    for (const meld of player.melds) {
+      root.addChild(
+        createLabel(
+          api,
+          meld.type === 'chi' ? '吃' : meld.type === 'pon' ? '碰' : '杠',
+          position.x + cursor + 2,
+          position.y - 7,
+          desktop ? 9 : 7,
+          COLORS.gold,
+          0,
+          0.5,
+          '700',
+        ),
+      );
+      cursor += drawMeldTiles(api, strip, meld, cursor, 0, tileWidth, tileHeight, textures) + tileWidth * 0.65;
+    }
+    root.addChild(strip);
+  }
 }
 
 // 绘制参考截图风格的全屏实体牌桌、牌河和四方席位
@@ -1369,6 +1492,7 @@ function drawBoard(
     'horizontal',
     riverHeight,
     selectedTileKind,
+    state.players[2]?.riichiDiscardId ?? null,
   );
   addRiverTiles(
     api,
@@ -1381,6 +1505,7 @@ function drawBoard(
     'horizontal',
     riverHeight,
     selectedTileKind,
+    state.players[0]?.riichiDiscardId ?? null,
   );
   const sideWidth = desktop ? 126 : 78;
   const sideHeight = Math.min(boardHeight * (desktop ? 0.56 : 0.5), centerSize * (desktop ? 1.45 : 1.25));
@@ -1396,6 +1521,7 @@ function drawBoard(
     textures,
     Math.PI / 2,
     selectedTileKind,
+    state.players[3]?.riichiDiscardId ?? null,
   );
   addRotatedRiverTiles(
     api,
@@ -1408,6 +1534,7 @@ function drawBoard(
     textures,
     -Math.PI / 2,
     selectedTileKind,
+    state.players[1]?.riichiDiscardId ?? null,
   );
   drawCenterScore(api, root, state, layout, textures);
   for (const player of state.players)
@@ -1420,6 +1547,7 @@ function drawBoard(
       player.seat === state.currentPlayer && state.phase !== 'round-over' && state.phase !== 'match-over',
       seatLabels?.[player.seat] ?? player.name,
     );
+  drawMeldsOnTable(api, root, state, layout, textures);
 }
 
 // 绘制底部手牌轨道、动作按钮和训练状态提示
@@ -1475,6 +1603,42 @@ function drawHumanControls(
   const totalWidth =
     actionWidths.reduce((sum, itemWidth) => sum + itemWidth, 0) + Math.max(0, actionList.length - 1) * 8;
   let actionX = (width - totalWidth) / 2;
+  if (actionList.length > 0) {
+    const texture = textures.get('ui/action-bar.png');
+    const actionBackdrop = new api.Container();
+    const backdropWidth = Math.max(totalWidth + (desktop ? 36 : 24), desktop ? 184 : 144);
+    const backdropHeight = actionHeight + (desktop ? 20 : 16);
+    const backdropX = (width - backdropWidth) / 2;
+    const backdropY = actionY - actionHeight - (desktop ? 10 : 8);
+    const panel = new api.Graphics();
+    panel
+      .roundRect(0, 0, backdropWidth, backdropHeight, desktop ? 16 : 12)
+      .fill({ color: COLORS.center, alpha: 0.96 })
+      .stroke({ width: 2, color: COLORS.gold });
+    panel
+      .roundRect(
+        desktop ? 5 : 4,
+        desktop ? 5 : 4,
+        backdropWidth - (desktop ? 10 : 8),
+        backdropHeight - (desktop ? 10 : 8),
+        desktop ? 12 : 9,
+      )
+      .stroke({ width: 1, color: COLORS.boardInner, alpha: 0.95 });
+    actionBackdrop.addChild(panel);
+    if (texture) {
+      const textureRatio = texture.width / Math.max(1, texture.height);
+      const decorationHeight = backdropHeight - (desktop ? 6 : 4);
+      const decoration = new api.Sprite(texture);
+      decoration.anchor.set(0.5);
+      decoration.position.set(backdropWidth / 2, backdropHeight / 2);
+      decoration.width = Math.min(backdropWidth - (desktop ? 8 : 6), decorationHeight * textureRatio);
+      decoration.height = decorationHeight;
+      decoration.alpha = 0.26;
+      actionBackdrop.addChild(decoration);
+    }
+    actionBackdrop.position.set(backdropX, backdropY);
+    root.addChild(actionBackdrop);
+  }
   for (const [index, item] of actionList.entries()) {
     const actionWidth = actionWidths[index] ?? 90;
     addButton(
@@ -1529,7 +1693,9 @@ function drawHumanControls(
                 .map((wait) => compactTileLabel(wait))
                 .join('、')}`
             : state.phase === 'player-turn'
-              ? ''
+              ? human.furiten || human.temporaryFuriten
+                ? '振听中 · 只能自摸，不能荣和'
+                : ''
               : state.phase === 'ai-turn'
                 ? 'AI 正在读取牌河与向听数…'
                 : state.phase === 'match-over'
@@ -1554,7 +1720,7 @@ function drawHumanControls(
   root.addChild(
     createLabel(
       api,
-      '点击手牌选择 · Esc 取消选择',
+      '点击手牌选择 · 再点一次出牌 · Esc 取消选择',
       boardX + 12,
       handY + handHeight - 10,
       desktop ? 10 : 9,
@@ -1587,7 +1753,7 @@ function drawTrainingPanel(
   root.addChild(
     createLabel(
       api,
-      `东${state.roundNumber}局  ·  牌山 ${state.wall.length}`,
+      `${roundLabel(state)}  ·  牌山 ${state.wall.length}`,
       margin + 14,
       desktop ? 47 : 42,
       desktop ? 10 : 9,
@@ -1878,12 +2044,14 @@ function drawReviewOverlay(
       player.melds.reduce((meldTotal, meld) => meldTotal + meld.tiles.length, 0),
     0,
   );
+  const trackedTileCount =
+    tileCount + state.wall.length + state.rinshan.length + state.deadWall.length + state.doraIndicators.length;
   root.addChild(
     createLabel(
       api,
       layout.desktop
-        ? `种子 ${state.seed} · 牌数校验 ${tileCount + state.wall.length}/136 · 剩余 ${state.wall.length} · 宝牌 ${doraText}`
-        : `牌数校验 ${tileCount + state.wall.length}/136 · 剩余 ${state.wall.length} · 宝牌 ${doraText}`,
+        ? `种子 ${state.seed} · 牌数校验 ${trackedTileCount}/136 · 剩余 ${state.wall.length} · 宝牌 ${doraText}`
+        : `牌数校验 ${trackedTileCount}/136 · 剩余 ${state.wall.length} · 宝牌 ${doraText}`,
       metrics.x + 20,
       metrics.y + (layout.desktop ? 72 : 59),
       layout.desktop ? 10 : 8,

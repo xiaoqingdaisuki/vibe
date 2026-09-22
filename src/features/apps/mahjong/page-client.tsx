@@ -75,9 +75,20 @@ export default function Mahjong() {
     setReviewMode(false);
   };
 
-  // 选中或取消选中一张手牌，实际绘制和点击区域由 Canvas 管理
+  // 首次点击抬牌，重复点击同一张抬起的牌立即执行普通出牌
   const handleTileSelect = (tileId: number) => {
     if (state.phase !== 'player-turn') return;
+    if (selectedTileId === tileId) {
+      const discard = legalActions.find((action) => action.type === 'discard' && action.tileId === tileId);
+      if (discard) {
+        setState((current) => {
+          const result = applyAction(current, 0, discard);
+          return result.accepted ? result.state : current;
+        });
+        setSelectedTileId(null);
+        return;
+      }
+    }
     setSelectedTileId((current) => (current === tileId ? null : tileId));
   };
 
