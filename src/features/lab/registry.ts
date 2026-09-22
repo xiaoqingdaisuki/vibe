@@ -4,7 +4,7 @@ const registeredLabApps: LabApp[] = [
   {
     slug: 'agent',
     title: 'AI助手',
-    description: 'AI 对话助手，支持api模型调用、流式回复与文本生成图片。',
+    description: 'AI 对话助手，支持 api 模型调用、流式回复与文本生成图片。',
     category: 'app',
     tags: ['ai', 'chat', 'streaming'],
     href: '/lab/agent',
@@ -26,7 +26,7 @@ const registeredLabApps: LabApp[] = [
     title: 'GBA emulator',
     description: '基于 WASM 与 Canvas 的 GBA 模拟器，支持本地 ROM 和浏览器存档。',
     category: 'game',
-    tags: ['game', 'gba', 'wasm', 'emulator'],
+    tags: ['game', 'gba', 'wasm'],
     href: '/lab/gba',
     featured: true,
     dataSource: 'local',
@@ -114,7 +114,7 @@ const registeredLabApps: LabApp[] = [
   {
     slug: 'skill',
     title: 'Skill',
-    description: 'A collection of skills, tools and knowledge resources.',
+    description: 'Skills 资源集合，提供技能、知识、工具等内容的快速访问。',
     category: 'app',
     tags: ['skill', 'knowledge', 'collection'],
     href: '/lab/skill',
