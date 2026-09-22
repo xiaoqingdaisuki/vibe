@@ -275,17 +275,20 @@ export const CHEST_RARITY_MULTIPLIER: Record<ItemRarity, number> = {
 export function rollRarity(chestRarity: ItemRarity): ItemRarity {
   const mult = CHEST_RARITY_MULTIPLIER[chestRarity];
   const roll = Math.random();
+  const minimumRarityIndex = RARITY_ORDER.indexOf(chestRarity);
 
   // Build cumulative thresholds from highest to lowest rarity
   // Each entry is the upper bound (inclusive) for that rarity
-  const tiers: ItemRarity[] = ['transcendent', 'mythic', 'legendary', 'epic', 'rare', 'uncommon', 'common'];
+  const tiers = RARITY_ORDER.slice(minimumRarityIndex).toReversed();
   let cumulative = 0;
 
   for (const rarity of tiers) {
     cumulative += RARITY_BASE_CHANCE[rarity] * mult;
     if (roll < Math.min(cumulative, 1)) return rarity;
   }
-  return 'common';
+
+  // 宝箱品级是掉落下限，未命中更高品级时回退到宝箱品级
+  return chestRarity;
 }
 
 const RARITY_STAT_MULTIPLIER: Record<ItemRarity, number> = {

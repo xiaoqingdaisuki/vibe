@@ -108,3 +108,13 @@ test('legacy snapshots migrate without deleting ambiguous legacy keys', () => {
   assert.ok(storage.getItem('game_character_legacy'));
   assert.ok(storage.getItem('game_character_legacy_logs'));
 });
+
+test('character snapshots preserve the one-time compensation flag', () => {
+  const storage = new MemoryStorage();
+  const character = createCharacter('veteran');
+  character.mythicChestCompensationGranted = true;
+
+  saveCharacterSnapshot(character, storage, () => 10);
+
+  assert.equal(loadCharacterSnapshot('veteran', storage)?.mythicChestCompensationGranted, true);
+});

@@ -32,6 +32,7 @@ import {
 
 const OFFLINE_CHEST_REWARD_INTERVAL_MINUTES = 15;
 const MAX_OFFLINE_CHEST_REWARD_ROLLS = 20;
+const MYTHIC_CHEST_COMPENSATION_LEVEL = 20;
 
 // 计算从 level 升到 level+1 所需经验，按等级区间分区控制升级难度
 // 轻松升到 25 → 26-29 较难 → 29-30 几乎不可能
@@ -488,6 +489,24 @@ export class GameEngine {
   getDifficultyTier(level: number): number {
     const tier = DIFFICULTY_TIERS.find((t) => level >= t.minLevel && level <= t.maxLevel);
     return tier ? tier.tier : 1;
+  }
+
+  // 为超过20级的老用户发放一次神话宝箱登录补偿
+  grantMythicChestCompensation(): boolean {
+    if (
+      this.character.level <= MYTHIC_CHEST_COMPENSATION_LEVEL ||
+      this.character.mythicChestCompensationGranted === true
+    ) {
+      return false;
+    }
+
+    const chest = ITEMS.find((item) => item.id === 'mythic_chest');
+    if (!chest || !this.tryAddToInventory({ ...chest })) {
+      return false;
+    }
+
+    this.character.mythicChestCompensationGranted = true;
+    return true;
   }
 
   // 尝试将物品加入背包，满时自动丢弃低稀有度物品

@@ -83,6 +83,11 @@ export default async function LabAppPage({ params }: LabAppPageProps) {
     return <AppComponent />;
   }
 
+  // Adventure 使用自己的桌面三栏画布，避免被 Lab 通用宽度限制压缩
+  if (app.slug === 'rpg') {
+    return <AppComponent />;
+  }
+
   if (app.slug === 'gba') {
     return (
       <div className="page-enter mx-auto max-w-5xl px-4 py-8 md:px-6 md:py-12">

@@ -275,6 +275,16 @@ export default function GamePageClient() {
       const updatedChar = await processOfflineProgress(localData);
       const engine = new GameEngine(updatedChar);
       engine.refreshCombatStats();
+      if (engine.grantMythicChestCompensation()) {
+        const compensationLog: LogEntry = {
+          id: nextLogId(),
+          timestamp: Date.now(),
+          text: '登录补偿：获得 1 个神话宝箱！',
+          type: 'loot',
+          rarity: 'mythic',
+        };
+        setLogs((prev) => [...prev, compensationLog].slice(-50));
+      }
       setCharacter(engine.character);
       saveCharacterSnapshot(engine.character);
       enterGame();

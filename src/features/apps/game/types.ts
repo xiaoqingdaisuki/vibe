@@ -91,6 +91,8 @@ export interface Character {
   createdAt: string;
   inventoryMax: number; // max inventory slots, default 20, max 50
   favorites: string[]; // item names marked as favorite (skip in bulk sell/sort)
+  // 已发放一次超过20级老用户登录补偿
+  mythicChestCompensationGranted?: boolean;
   // Computed combat stats (populated by GameEngine before rendering)
   _combatAtk?: number;
   _combatDef?: number;

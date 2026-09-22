@@ -1,0 +1,22 @@
+{
+  "name": "@vibe/desktop",
+  "version": "1.0.0",
+  "description": "vibe desktop application powered by Electron",
+  "author": "xiaoqingdaisuki",
+  "private": true,
+  "main": "dist/main.js",
+  "scripts": {
+    "generate-icon": "node scripts/generate-icon.mjs",
+    "build:electron": "node ../node_modules/typescript/bin/tsc -p tsconfig.json",
+    "build:next": "node scripts/build-next.mjs",
+    "prepare-next": "node scripts/prepare-next.mjs",
+    "build": "pnpm run generate-icon && pnpm run build:electron && pnpm run build:next && pnpm run prepare-next",
+    "dev": "pnpm run build:electron && electron .",
+    "package": "pnpm run build && electron-builder --dir",
+    "make": "pnpm run build && electron-builder --win --publish never"
+  },
+  "devDependencies": {
+    "electron": "44.4.3",
+    "electron-builder": "26.15.3"
+  }
+}

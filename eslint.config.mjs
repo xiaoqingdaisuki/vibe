@@ -6,7 +6,16 @@ const eslintConfig = [
   ...nextCoreWebVitals,
   ...nextTypescript,
   {
-    ignores: ['node_modules/**', '.next/**', 'out/**', 'build/**', 'public/assets/gba/mgba.js'],
+    ignores: [
+      'node_modules/**',
+      '.next/**',
+      'out/**',
+      'build/**',
+      'desktop/dist/**',
+      'desktop/.build/**',
+      'desktop/release/**',
+      'public/assets/gba/mgba.js',
+    ],
   },
 ];
 

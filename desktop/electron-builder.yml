@@ -1,0 +1,33 @@
+appId: com.xiaoqingdaisuki.vibe
+productName: vibe
+artifactName: vibe.${ext}
+icon: assets/vibe.ico
+asar: true
+directories:
+  output: release
+files:
+  - dist/**
+  - package.json
+extraResources:
+  - from: .build/next
+    to: next
+    filter:
+      - '**/*'
+  - from: .build/next/node_modules
+    to: next/node_modules
+    filter:
+      - '**/*'
+win:
+  target:
+    - target: portable
+      arch:
+        - x64
+    - target: nsis
+      arch:
+        - x64
+portable:
+  splashImage: assets/vibe-splash.bmp
+nsis:
+  oneClick: true
+  perMachine: false
+  artifactName: vibe-setup.${ext}

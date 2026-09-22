@@ -122,6 +122,57 @@ test('a full inventory rejects shop purchases without charging gold', () => {
   assert.match(result.logs[0]?.text ?? '', /背包空间不足/);
 });
 
+test('mythic chests never drop equipment below mythic rarity', () => {
+  const originalRandom = Math.random;
+  const engine = new GameEngine(
+    createCharacter({
+      inventory: [
+        {
+          id: 'mythic_chest',
+          name: '神话宝箱',
+          type: 'chest',
+          rarity: 'mythic',
+          description: '开启后随机获得神话以上物品',
+          minLevel: 1,
+        },
+      ],
+    }),
+  );
+
+  Math.random = () => 0.99;
+  try {
+    const result = engine.performAction({ type: 'open', itemId: 'mythic_chest' });
+    const loot = result.logs.find((log) => log.type === 'loot');
+
+    assert.ok(loot);
+    assert.ok(loot.rarity === 'mythic' || loot.rarity === 'transcendent');
+  } finally {
+    Math.random = originalRandom;
+  }
+});
+
+test('grants a mythic chest once to characters above level twenty', () => {
+  const engine = new GameEngine(createCharacter({ level: 21 }));
+
+  assert.equal(engine.grantMythicChestCompensation(), true);
+  assert.equal(engine.character.mythicChestCompensationGranted, true);
+  assert.deepEqual(
+    engine.character.inventory.map((item) => item.id),
+    ['mythic_chest'],
+  );
+
+  assert.equal(engine.grantMythicChestCompensation(), false);
+  assert.equal(engine.character.inventory.filter((item) => item.id === 'mythic_chest').length, 1);
+});
+
+test('does not grant the compensation at the level twenty boundary', () => {
+  const engine = new GameEngine(createCharacter({ level: 20 }));
+
+  assert.equal(engine.grantMythicChestCompensation(), false);
+  assert.equal(engine.character.mythicChestCompensationGranted, undefined);
+  assert.equal(engine.character.inventory.length, 0);
+});
+
 test('warrior temporary weapon health never accumulates into persistent hp', () => {
   const weapon = createEquipment('strong_weapon', '强力武器', 'legendary', 1_000);
   const engine = new GameEngine(

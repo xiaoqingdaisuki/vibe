@@ -34,6 +34,8 @@ function isCharacterSnapshot(value: unknown): value is Character {
     (!Array.isArray(value.favorites) || value.favorites.some((name) => typeof name !== 'string'))
   )
     return false;
+  if (value.mythicChestCompensationGranted !== undefined && typeof value.mythicChestCompensationGranted !== 'boolean')
+    return false;
   const stats = value.stats;
   return (
     ['str', 'dex', 'int', 'vit', 'luk'].every((key) => typeof stats[key] === 'number' && Number.isFinite(stats[key])) &&

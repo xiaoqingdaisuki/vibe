@@ -9,6 +9,8 @@ out/
 .cache/
 *.tsbuildinfo
 bun.lockb
+desktop/.build/
+desktop/release/
 
 # ---- Environment ----
 .env
