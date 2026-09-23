@@ -143,7 +143,7 @@ const COLORS = {
   creamEdge: 0xe2d5bc,
   muted: 0xc2d6c4,
   mutedDark: 0x6a7f6e,
-  gold: 0xe0b45b,
+  gold: 0xf3b63c,
   goldSoft: 0x8f6c3d,
   purple: 0xbba4ff,
   purpleSoft: 0x392f5c,
@@ -1375,20 +1375,21 @@ function drawMeldsOnTable(
     strip.rotation = position.rotation;
     let cursor = 0;
     for (const meld of player.melds) {
-      root.addChild(
-        createLabel(
-          api,
-          meld.type === 'chi' ? '吃' : meld.type === 'pon' ? '碰' : '杠',
-          position.x + cursor + 2,
-          position.y - 7,
-          desktop ? 9 : 7,
-          COLORS.gold,
-          0,
-          0.5,
-          '700',
-        ),
+      const meldWidth = drawMeldTiles(api, strip, meld, cursor, 0, tileWidth, tileHeight, textures);
+      const meldLabel = createLabel(
+        api,
+        meld.type === 'chi' ? '吃' : meld.type === 'pon' ? '碰' : '杠',
+        cursor + meldWidth / 2,
+        -7,
+        desktop ? 9 : 7,
+        COLORS.gold,
+        0.5,
+        0.5,
+        '700',
       );
-      cursor += drawMeldTiles(api, strip, meld, cursor, 0, tileWidth, tileHeight, textures) + tileWidth * 0.65;
+      if (position.rotation !== 0) meldLabel.rotation = -position.rotation;
+      strip.addChild(meldLabel);
+      cursor += meldWidth + tileWidth * 0.65;
     }
     root.addChild(strip);
   }
