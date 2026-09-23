@@ -1409,13 +1409,14 @@ function drawMeldsOnTable(
     boardX + tableTiles.wallInset + tableTiles.wallHeight + tableTiles.edgeGap + tableTiles.meldTileHeight;
   const rightMeldX =
     boardX + boardWidth - tableTiles.wallInset - tableTiles.wallHeight - tableTiles.edgeGap - tableTiles.meldTileHeight;
+  const rightMeldY = boardY + boardHeight * 0.76;
   const positions: Record<Seat, { x: number; y: number; rotation: number }> = {
     0: {
       x: boardX + boardWidth * 0.25,
       y: boardY + boardHeight - tableTiles.meldTileHeight - tableTiles.edgeGap,
       rotation: 0,
     },
-    1: { x: rightMeldX, y: boardY + boardHeight * 0.58, rotation: -Math.PI / 2 },
+    1: { x: rightMeldX, y: rightMeldY, rotation: -Math.PI / 2 },
     2: {
       x: boardX + boardWidth * 0.12,
       y: boardY + tableTiles.wallInset + tableTiles.wallHeight + tableTiles.edgeGap,
@@ -1567,7 +1568,10 @@ function drawBoard(
   const riverHeight = Math.max(desktop ? 84 : 68, tableTiles.riverTileHeight * 2 + tableTiles.doraGap);
   const seatClearance = desktop ? 78 : 62;
   const topRiverY = Math.max(boardY + seatClearance, centerY - riverHeight - riverGap);
-  const bottomRiverY = Math.min(boardY + boardHeight - seatClearance - riverHeight, centerY + centerHeight + riverGap);
+  const bottomRiverY = Math.min(
+    boardY + boardHeight - seatClearance - riverHeight,
+    centerY + centerHeight + riverGap + tableTiles.riverTileHeight,
+  );
   addRiverTiles(
     api,
     root,
