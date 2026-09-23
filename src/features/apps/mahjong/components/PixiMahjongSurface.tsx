@@ -6,6 +6,7 @@ import type { LegalAction, MahjongState, Meld, Seat, Tile } from '../core/types'
 import { getTenpaiWaits } from '../core/scoring';
 import { createTileSet, tileLabel } from '../core/tiles';
 import styles from '../styles/Mahjong.module.css';
+import { getTableTileMetrics } from './table-layout';
 
 export type MahjongScreen = 'lobby' | 'single';
 export type MahjongUtilityPanel = 'none' | 'yaku' | 'settings';
@@ -844,12 +845,35 @@ function addRiverTiles(
   maxHeight?: number,
   highlightKind: number | null = null,
   riichiDiscardId: number | null = null,
+  preferredTileHeight = 30,
 ): void {
-  const columns = direction === 'horizontal' ? (maxWidth >= 260 ? 12 : 6) : 3;
-  const gap = Math.max(2, Math.min(4, maxWidth * 0.012));
-  const tileWidth = Math.max(15, Math.min(24, (maxWidth - gap * (columns - 1)) / columns));
-  const tileHeight = tileWidth * 1.28;
   const visibleTiles = tiles.slice(-18);
+  if (visibleTiles.length === 0) return;
+  const gap = Math.max(2, Math.min(5, Math.round(preferredTileHeight * 0.12)));
+  const preferredTileWidth = preferredTileHeight / 1.28;
+  const maxColumns = direction === 'horizontal' ? 12 : 6;
+  let columns = Math.max(
+    1,
+    Math.min(maxColumns, visibleTiles.length, Math.floor((maxWidth + gap) / (preferredTileWidth + gap))),
+  );
+  let tileWidth = Math.max(8, Math.min(preferredTileWidth, (maxWidth - gap * (columns - 1)) / columns));
+  let tileHeight = tileWidth * 1.28;
+  if (maxHeight !== undefined) {
+    while (columns < visibleTiles.length) {
+      const rows = Math.ceil(visibleTiles.length / columns);
+      const gridHeight = rows * tileHeight + Math.max(0, rows - 1) * gap;
+      if (gridHeight <= maxHeight) break;
+      columns += 1;
+      tileWidth = Math.max(8, Math.min(preferredTileWidth, (maxWidth - gap * (columns - 1)) / columns));
+      tileHeight = tileWidth * 1.28;
+    }
+    const rows = Math.ceil(visibleTiles.length / columns);
+    const heightLimit = (maxHeight - Math.max(0, rows - 1) * gap) / rows;
+    if (tileHeight > heightLimit) {
+      tileHeight = Math.max(8, heightLimit);
+      tileWidth = tileHeight / 1.28;
+    }
+  }
   const rows = Math.ceil(visibleTiles.length / columns);
   const gridHeight = rows * tileHeight + Math.max(0, rows - 1) * gap;
   const offsetY = maxHeight === undefined ? 0 : Math.max(0, (maxHeight - gridHeight) / 2);
@@ -915,12 +939,26 @@ function addRotatedRiverTiles(
   rotation: number,
   highlightKind: number | null = null,
   riichiDiscardId: number | null = null,
+  preferredTileHeight = 30,
 ): void {
   const river = new api.Container();
   river.position.set(x + width / 2, y + height / 2);
   river.pivot.set(height / 2, width / 2);
   river.rotation = rotation;
-  addRiverTiles(api, river, tiles, 0, 0, height, textures, 'horizontal', width, highlightKind, riichiDiscardId);
+  addRiverTiles(
+    api,
+    river,
+    tiles,
+    0,
+    0,
+    height,
+    textures,
+    'horizontal',
+    width,
+    highlightKind,
+    riichiDiscardId,
+    preferredTileHeight,
+  );
   parent.addChild(river);
 }
 
@@ -1058,6 +1096,7 @@ function drawCenterScore(
   textures: TextureMap,
 ): void {
   const { desktop } = layout;
+  const tableTiles = getTableTileMetrics(layout);
   const center = getCenterMetrics(layout);
   const centerSize = center.size;
   const centerWidth = centerSize;
@@ -1082,10 +1121,14 @@ function drawCenterScore(
     ),
   );
   const doraTiles = state.doraIndicators;
-  const doraTileWidth = desktop ? 24 : 18;
+  const doraGap = tableTiles.doraGap;
+  const doraTextWidth = Math.min(desktop ? 42 : 32, centerWidth * 0.22);
+  const availableDoraWidth = Math.max(0, centerWidth * 0.86 - doraTextWidth - doraGap * (doraTiles.length + 1));
+  const doraTileWidth = Math.min(
+    tableTiles.doraTileWidth,
+    Math.max(12, availableDoraWidth / Math.max(1, doraTiles.length)),
+  );
   const doraTileHeight = doraTileWidth * 1.28;
-  const doraGap = desktop ? 5 : 3;
-  const doraTextWidth = desktop ? 42 : 32;
   const doraStripWidth =
     doraTextWidth + doraGap + doraTiles.length * doraTileWidth + Math.max(0, doraTiles.length - 1) * doraGap;
   const doraStripX = contentCenterX - doraStripWidth / 2;
@@ -1359,13 +1402,26 @@ function drawMeldsOnTable(
   textures: TextureMap,
 ): void {
   const { boardX, boardY, boardWidth, boardHeight, desktop } = layout;
-  const tileHeight = desktop ? 24 : 17;
+  const tableTiles = getTableTileMetrics(layout);
+  const tileHeight = tableTiles.meldTileHeight;
   const tileWidth = tileHeight / 1.28;
+  const leftMeldX =
+    boardX + tableTiles.wallInset + tableTiles.wallHeight + tableTiles.edgeGap + tableTiles.meldTileHeight;
+  const rightMeldX =
+    boardX + boardWidth - tableTiles.wallInset - tableTiles.wallHeight - tableTiles.edgeGap - tableTiles.meldTileHeight;
   const positions: Record<Seat, { x: number; y: number; rotation: number }> = {
-    0: { x: boardX + boardWidth * 0.25, y: boardY + boardHeight - (desktop ? 92 : 60), rotation: 0 },
-    1: { x: boardX + boardWidth - (desktop ? 58 : 34), y: boardY + boardHeight * 0.58, rotation: -Math.PI / 2 },
-    2: { x: boardX + boardWidth * 0.12, y: boardY + (desktop ? 58 : 34), rotation: 0 },
-    3: { x: boardX + (desktop ? 58 : 34), y: boardY + boardHeight * 0.24, rotation: Math.PI / 2 },
+    0: {
+      x: boardX + boardWidth * 0.25,
+      y: boardY + boardHeight - tableTiles.meldTileHeight - tableTiles.edgeGap,
+      rotation: 0,
+    },
+    1: { x: rightMeldX, y: boardY + boardHeight * 0.58, rotation: -Math.PI / 2 },
+    2: {
+      x: boardX + boardWidth * 0.12,
+      y: boardY + tableTiles.wallInset + tableTiles.wallHeight + tableTiles.edgeGap,
+      rotation: 0,
+    },
+    3: { x: leftMeldX, y: boardY + boardHeight * 0.24, rotation: Math.PI / 2 },
   };
   for (const player of state.players) {
     if (player.melds.length === 0) continue;
@@ -1438,6 +1494,7 @@ function drawBoard(
   seatLabels?: readonly string[],
 ): void {
   const { boardX, boardY, boardWidth, boardHeight, desktop } = layout;
+  const tableTiles = getTableTileMetrics(layout);
   // 从已选手牌取得牌种，用于牌河中的同牌种提示
   const selectedTileKind =
     selectedTileId === null ? null : (state.players[0]?.hand.find((tile) => tile.id === selectedTileId)?.kind ?? null);
@@ -1476,14 +1533,23 @@ function drawBoard(
     )
     .stroke({ width: 1, color: 0x8fd4d2, alpha: tableTexture ? 0.14 : 0.26 });
   root.addChild(lane);
-  const wallWidth = desktop ? 34 : 22;
-  const wallHeight = desktop ? 22 : 16;
-  drawWall(api, root, boardX + boardWidth * 0.12, boardY + 25, 7, wallWidth, wallHeight, 'horizontal');
-  drawWall(api, root, boardX + 23, boardY + boardHeight * 0.22, 7, wallHeight, wallWidth, 'vertical');
+  const wallWidth = tableTiles.wallWidth;
+  const wallHeight = tableTiles.wallHeight;
   drawWall(
     api,
     root,
-    boardX + boardWidth - wallHeight - 23,
+    boardX + boardWidth * 0.12,
+    boardY + tableTiles.wallInset,
+    7,
+    wallWidth,
+    wallHeight,
+    'horizontal',
+  );
+  drawWall(api, root, boardX + tableTiles.wallInset, boardY + boardHeight * 0.22, 7, wallHeight, wallWidth, 'vertical');
+  drawWall(
+    api,
+    root,
+    boardX + boardWidth - wallHeight - tableTiles.wallInset,
     boardY + boardHeight * 0.22,
     7,
     wallHeight,
@@ -1496,9 +1562,9 @@ function drawBoard(
   const centerHeight = centerSize;
   const centerX = center.x;
   const centerY = center.y;
-  const riverGap = desktop ? 32 : 14;
+  const riverGap = tableTiles.riverGap;
   const riverWidth = Math.min(boardWidth * (desktop ? 0.36 : 0.62), centerSize * (desktop ? 1.72 : 1.5));
-  const riverHeight = desktop ? 84 : 68;
+  const riverHeight = Math.max(desktop ? 84 : 68, tableTiles.riverTileHeight * 2 + tableTiles.doraGap);
   const seatClearance = desktop ? 78 : 62;
   const topRiverY = Math.max(boardY + seatClearance, centerY - riverHeight - riverGap);
   const bottomRiverY = Math.min(boardY + boardHeight - seatClearance - riverHeight, centerY + centerHeight + riverGap);
@@ -1514,6 +1580,7 @@ function drawBoard(
     riverHeight,
     selectedTileKind,
     state.players[2]?.riichiDiscardId ?? null,
+    tableTiles.riverTileHeight,
   );
   addRiverTiles(
     api,
@@ -1527,8 +1594,12 @@ function drawBoard(
     riverHeight,
     selectedTileKind,
     state.players[0]?.riichiDiscardId ?? null,
+    tableTiles.riverTileHeight,
   );
-  const sideWidth = desktop ? 126 : 78;
+  const sideWidth = Math.max(
+    desktop ? 126 : 78,
+    tableTiles.riverTileHeight * 3 + tableTiles.doraGap * 2 + tableTiles.edgeGap,
+  );
   const sideHeight = Math.min(boardHeight * (desktop ? 0.56 : 0.5), centerSize * (desktop ? 1.45 : 1.25));
   const sideY = centerY + centerHeight / 2 - sideHeight / 2;
   addRotatedRiverTiles(
@@ -1543,6 +1614,7 @@ function drawBoard(
     Math.PI / 2,
     selectedTileKind,
     state.players[3]?.riichiDiscardId ?? null,
+    tableTiles.riverTileHeight,
   );
   addRotatedRiverTiles(
     api,
@@ -1556,6 +1628,7 @@ function drawBoard(
     -Math.PI / 2,
     selectedTileKind,
     state.players[1]?.riichiDiscardId ?? null,
+    tableTiles.riverTileHeight,
   );
   drawCenterScore(api, root, state, layout, textures);
   drawRiichiSticksOnTable(api, root, state, layout, textures);
