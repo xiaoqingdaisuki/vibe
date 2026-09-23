@@ -1293,18 +1293,6 @@ function drawSeatBadge(
       '500',
     ),
   );
-  if (player.riichi) {
-    const stickWidth = desktop ? 88 : 64;
-    const stickTexture = textures.get('ui/riichi-stick.png');
-    if (stickTexture) {
-      const stick = new api.Sprite(stickTexture);
-      stick.anchor.set(0.5);
-      stick.position.set(position.x + boxWidth - stickWidth / 2 - 6, position.y - 4);
-      stick.width = stickWidth;
-      stick.height = stickWidth * (stickTexture.height / Math.max(1, stickTexture.width));
-      root.addChild(stick);
-    }
-  }
 }
 
 // 绘制一组副露牌，并用横置牌标记鸣牌来源
@@ -1362,7 +1350,7 @@ function drawMeldTiles(
   return meld.tiles.length * (tileWidth + gap) - gap;
 }
 
-// 将各家的吃碰杠牌组固定展示在牌桌四边，避免副露只存在于规则状态
+// 将各家的吃碰杠牌组固定展示在牌桌外沿，避开牌河与中央计分区
 function drawMeldsOnTable(
   api: PixiApi,
   root: Container,
@@ -1374,10 +1362,10 @@ function drawMeldsOnTable(
   const tileHeight = desktop ? 24 : 17;
   const tileWidth = tileHeight / 1.28;
   const positions: Record<Seat, { x: number; y: number; rotation: number }> = {
-    0: { x: boardX + boardWidth * 0.32, y: boardY + boardHeight - 36, rotation: 0 },
-    1: { x: boardX + boardWidth - 38, y: boardY + boardHeight * 0.36, rotation: -Math.PI / 2 },
-    2: { x: boardX + boardWidth * 0.32, y: boardY + 24, rotation: 0 },
-    3: { x: boardX + 38, y: boardY + boardHeight * 0.36, rotation: Math.PI / 2 },
+    0: { x: boardX + boardWidth * 0.25, y: boardY + boardHeight - (desktop ? 92 : 60), rotation: 0 },
+    1: { x: boardX + boardWidth - (desktop ? 58 : 34), y: boardY + boardHeight * 0.58, rotation: -Math.PI / 2 },
+    2: { x: boardX + boardWidth * 0.12, y: boardY + (desktop ? 58 : 34), rotation: 0 },
+    3: { x: boardX + (desktop ? 58 : 34), y: boardY + boardHeight * 0.24, rotation: Math.PI / 2 },
   };
   for (const player of state.players) {
     if (player.melds.length === 0) continue;
@@ -1403,6 +1391,38 @@ function drawMeldsOnTable(
       cursor += drawMeldTiles(api, strip, meld, cursor, 0, tileWidth, tileHeight, textures) + tileWidth * 0.65;
     }
     root.addChild(strip);
+  }
+}
+
+// 将立直棒放在中央计分框四边，并按玩家座位方向旋转
+function drawRiichiSticksOnTable(
+  api: PixiApi,
+  root: Container,
+  state: MahjongState,
+  layout: LayoutMetrics,
+  textures: TextureMap,
+): void {
+  const texture = textures.get('ui/riichi-stick.png');
+  if (!texture) return;
+  const center = getCenterMetrics(layout);
+  const stickWidth = layout.desktop ? 112 : 82;
+  const stickHeight = stickWidth * (texture.height / Math.max(1, texture.width));
+  const positions: Record<Seat, { x: number; y: number; rotation: number }> = {
+    0: { x: center.centerX, y: center.frameBottom - stickHeight * 0.55, rotation: 0 },
+    1: { x: center.frameRight - stickHeight * 0.55, y: center.centerY, rotation: -Math.PI / 2 },
+    2: { x: center.centerX, y: center.frameTop - stickHeight * 0.55, rotation: 0 },
+    3: { x: center.frameLeft + stickHeight * 0.55, y: center.centerY, rotation: Math.PI / 2 },
+  };
+  for (const player of state.players) {
+    if (!player.riichi) continue;
+    const position = positions[player.seat];
+    const stick = new api.Sprite(texture);
+    stick.anchor.set(0.5);
+    stick.position.set(position.x, position.y);
+    stick.width = stickWidth;
+    stick.height = stickHeight;
+    stick.rotation = position.rotation;
+    root.addChild(stick);
   }
 }
 
@@ -1537,6 +1557,7 @@ function drawBoard(
     state.players[1]?.riichiDiscardId ?? null,
   );
   drawCenterScore(api, root, state, layout, textures);
+  drawRiichiSticksOnTable(api, root, state, layout, textures);
   for (const player of state.players)
     drawSeatBadge(
       api,
