@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import type { Application, Container, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js';
+import type { Application, Container, Text, Texture } from 'pixi.js';
 import type { LegalAction, MahjongState, Meld, PlayerState, Seat, Tile } from '../core/types';
 import { getTenpaiWaits } from '../core/scoring';
 import { createTileSet, tileLabel } from '../core/tiles';
@@ -12,34 +12,11 @@ export type MahjongScreen = 'lobby' | 'single';
 export type MahjongUtilityPanel = 'none' | 'yaku' | 'settings';
 
 interface PixiMahjongSurfaceProps {
-  screen: MahjongScreen;
-  utilityPanel: MahjongUtilityPanel;
-  utilityScroll: number;
-  state: MahjongState;
-  reviewMode: boolean;
-  selectedTileId: number | null;
-  legalActions: readonly LegalAction[];
-  onSelectTile: (tileId: number) => void;
-  onAction: (action: LegalAction) => void;
-  onRestart: () => void;
-  onNextRound: () => void;
-  onOpenReview: () => void;
-  onCloseReview: () => void;
-  onChooseMode: (mode: 'single') => void;
-  onBackToLobby: () => void;
-  onToggleUtilityPanel: (panel: Exclude<MahjongUtilityPanel, 'none'>) => void;
-  onScrollUtility: (delta: number, limit?: number) => void;
+  view: MahjongSurfaceView;
+  handlers: MahjongSurfaceHandlers;
 }
 
-interface PixiApi {
-  Application: new () => Application;
-  Assets: { load: (url: string) => Promise<Texture> };
-  Container: new () => Container;
-  Graphics: new () => Graphics;
-  Rectangle: new (x?: number, y?: number, width?: number, height?: number) => Rectangle;
-  Sprite: new (texture?: Texture) => Sprite;
-  Text: new (options: { text: string; style: Record<string, unknown> }) => Text;
-}
+type PixiApi = typeof import('pixi.js');
 
 interface LayoutMetrics {
   width: number;
@@ -67,7 +44,17 @@ interface CenterMetrics {
   frameBottom: number;
 }
 
-interface SceneHandlers {
+export interface MahjongSurfaceView {
+  screen: MahjongScreen;
+  utilityPanel: MahjongUtilityPanel;
+  utilityScroll: number;
+  state: MahjongState;
+  reviewMode: boolean;
+  selectedTileId: number | null;
+  legalActions: readonly LegalAction[];
+}
+
+export interface MahjongSurfaceHandlers {
   onSelectTile: (tileId: number) => void;
   onAction: (action: LegalAction) => void;
   onRestart: () => void;
@@ -79,6 +66,8 @@ interface SceneHandlers {
   onToggleUtilityPanel: (panel: Exclude<MahjongUtilityPanel, 'none'>) => void;
   onScrollUtility: (delta: number, limit?: number) => void;
 }
+
+type SceneHandlers = MahjongSurfaceHandlers;
 
 type TextureMap = ReadonlyMap<string, Texture>;
 
@@ -647,7 +636,7 @@ function createLabel(
     text,
     style: {
       fontFamily: 'Inter, Microsoft YaHei, sans-serif',
-      fontSize,
+      fontSize: Math.max(10, Math.round(fontSize / 2) * 2),
       fill,
       fontWeight: weight,
       letterSpacing: 0.2,
@@ -1126,7 +1115,7 @@ function drawCenterScore(
   const titleY = contentCenterY - (desktop ? 50 : 34);
   const remainingY = contentCenterY - (desktop ? 14 : 10);
   root.addChild(
-    createLabel(api, roundLabel(state), contentCenterX, titleY, desktop ? 21 : 16, COLORS.cyan, 0.5, 0.5, '700'),
+    createLabel(api, roundLabel(state), contentCenterX, titleY, desktop ? 20 : 16, COLORS.cyan, 0.5, 0.5, '700'),
   );
   root.addChild(
     createLabel(
@@ -1429,7 +1418,7 @@ function drawMeldsOnTable(
   textures: TextureMap,
   highlightKind: number | null,
 ): void {
-  const { boardX, boardY, boardWidth, boardHeight, desktop } = layout;
+  const { boardX, boardY, boardWidth, boardHeight } = layout;
   const tableTiles = getTableTileMetrics(layout);
   const tileHeight = tableTiles.meldTileHeight;
   const tileWidth = tileHeight / 1.28;
@@ -1466,7 +1455,7 @@ function drawMeldsOnTable(
         meld.type === 'chi' ? '吃' : meld.type === 'pon' ? '碰' : '杠',
         cursor + meldWidth / 2,
         -7,
-        desktop ? 9 : 7,
+        10,
         COLORS.gold,
         0.5,
         0.5,
@@ -2404,7 +2393,7 @@ function drawLobbyScene(api: PixiApi, root: Container, layout: LayoutMetrics, te
       '本地牌手训练',
       width / 2,
       height * 0.2 + (desktop ? 54 : 40),
-      desktop ? 15 : 11,
+      desktop ? 16 : 12,
       COLORS.gold,
       0.5,
       0.5,
@@ -2412,7 +2401,7 @@ function drawLobbyScene(api: PixiApi, root: Container, layout: LayoutMetrics, te
     ),
   );
   root.addChild(
-    createLabel(api, '选择训练模式', width / 2, height * 0.36, desktop ? 19 : 15, COLORS.mutedDark, 0.5, 0.5, '500'),
+    createLabel(api, '选择训练模式', width / 2, height * 0.36, desktop ? 20 : 16, COLORS.mutedDark, 0.5, 0.5, '500'),
   );
   const regions = getLobbyModeRegions(layout);
   drawLobbyCard(api, root, regions[0]!, '单人模式');
@@ -2605,25 +2594,20 @@ function drawCanvasFallback(canvas: HTMLCanvasElement): void {
 }
 
 // 创建单一 Pixi Canvas，并在路由离开时释放 WebGL 资源
-export function PixiMahjongSurface({
-  screen,
-  utilityPanel,
-  utilityScroll,
-  state,
-  reviewMode,
-  selectedTileId,
-  legalActions,
-  onSelectTile,
-  onAction,
-  onRestart,
-  onNextRound,
-  onOpenReview,
-  onCloseReview,
-  onChooseMode,
-  onBackToLobby,
-  onToggleUtilityPanel,
-  onScrollUtility,
-}: PixiMahjongSurfaceProps) {
+export function PixiMahjongSurface({ view, handlers }: PixiMahjongSurfaceProps) {
+  const { screen, utilityPanel, utilityScroll, state, reviewMode, selectedTileId, legalActions } = view;
+  const {
+    onSelectTile,
+    onAction,
+    onRestart,
+    onNextRound,
+    onOpenReview,
+    onCloseReview,
+    onChooseMode,
+    onBackToLobby,
+    onToggleUtilityPanel,
+    onScrollUtility,
+  } = handlers;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const appRef = useRef<Application | null>(null);
   const apiRef = useRef<PixiApi | null>(null);
@@ -2703,9 +2687,10 @@ export function PixiMahjongSurface({
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
 
+    // 初始化 Pixi 应用并绑定 Canvas 交互
     const initialize = async () => {
       try {
-        const pixiModule = (await import('pixi.js')) as unknown as PixiApi;
+        const pixiModule = await import('pixi.js');
         if (disposed) return;
         const app = new pixiModule.Application();
         await app.init({
@@ -2860,6 +2845,7 @@ export function PixiMahjongSurface({
         canvas.addEventListener('click', handleClick);
         canvas.addEventListener('keydown', handleKeyDown);
         canvas.addEventListener('wheel', handleWheel, { passive: false });
+        // 移除 Canvas 事件监听，避免路由切换后继续响应输入
         removeCanvasListeners = () => {
           canvas.removeEventListener('pointerdown', handlePointerDown);
           canvas.removeEventListener('pointermove', handlePointerMove);
@@ -2898,6 +2884,7 @@ export function PixiMahjongSurface({
           })
           .catch(() => undefined);
 
+        // 响应窗口尺寸变化并重绘当前牌桌
         const resize = () => {
           if (!appRef.current || !apiRef.current) return;
           appRef.current.renderer.resize(Math.max(320, window.innerWidth), Math.max(420, window.innerHeight));

@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [new URL('https://static.mxdzlk.com/**')],
   },
+  // 为 GBA 页面和资源提供跨源隔离响应头
   async headers() {
     return [
       {

@@ -3,7 +3,13 @@
 import { useEffect, useState } from 'react';
 import { applyAction, createMatch, getLegalActions, playAiTurn, startNextRound } from './core/engine';
 import type { LegalAction, MahjongState } from './core/types';
-import { PixiMahjongSurface, type MahjongScreen, type MahjongUtilityPanel } from './components/PixiMahjongSurface';
+import {
+  PixiMahjongSurface,
+  type MahjongScreen,
+  type MahjongSurfaceHandlers,
+  type MahjongSurfaceView,
+  type MahjongUtilityPanel,
+} from './components/PixiMahjongSurface';
 
 // 渲染纯前端单人牌局，所有界面交互委托给 Pixi Canvas
 export default function Mahjong() {
@@ -143,23 +149,31 @@ export default function Mahjong() {
 
   return (
     <PixiMahjongSurface
-      screen={screen}
-      utilityPanel={utilityPanel}
-      utilityScroll={utilityScroll}
-      state={state}
-      reviewMode={reviewMode}
-      selectedTileId={selectedTileId}
-      legalActions={legalActions}
-      onSelectTile={handleTileSelect}
-      onAction={handleAction}
-      onRestart={handleRestart}
-      onNextRound={handleNextRound}
-      onOpenReview={handleOpenReview}
-      onCloseReview={handleCloseReview}
-      onChooseMode={handleChooseMode}
-      onBackToLobby={handleBackToLobby}
-      onToggleUtilityPanel={handleToggleUtilityPanel}
-      onScrollUtility={handleScrollUtility}
+      view={
+        {
+          screen,
+          utilityPanel,
+          utilityScroll,
+          state,
+          reviewMode,
+          selectedTileId,
+          legalActions,
+        } satisfies MahjongSurfaceView
+      }
+      handlers={
+        {
+          onSelectTile: handleTileSelect,
+          onAction: handleAction,
+          onRestart: handleRestart,
+          onNextRound: handleNextRound,
+          onOpenReview: handleOpenReview,
+          onCloseReview: handleCloseReview,
+          onChooseMode: handleChooseMode,
+          onBackToLobby: handleBackToLobby,
+          onToggleUtilityPanel: handleToggleUtilityPanel,
+          onScrollUtility: handleScrollUtility,
+        } satisfies MahjongSurfaceHandlers
+      }
     />
   );
 }

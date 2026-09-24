@@ -75,6 +75,12 @@ function getPlayerWaits(player: PlayerState): Tile[] {
   return getTenpaiWaits(player.hand, player.melds);
 }
 
+// 根据庄家座位计算指定座位的自风
+function getSeatWind(state: MahjongState, seat: Seat): Wind {
+  const offset = (seat - state.dealer + 4) % 4;
+  return (['east', 'south', 'west', 'north'] as const)[offset] ?? 'east';
+}
+
 // 根据现有牌河重算舍牌振听，允许非立直手牌换听后解除振听
 function refreshFuriten(player: PlayerState, temporaryFuriten = player.temporaryFuriten): PlayerState {
   const waitKinds = new Set(getPlayerWaits(player).map((tile) => tile.kind));
@@ -94,6 +100,7 @@ function canWinByTsumo(state: MahjongState, player: PlayerState): boolean {
       tsumo: true,
       riichi: player.riichi,
       roundWind: state.roundWind,
+      seatWind: getSeatWind(state, player.seat),
       dealer: player.seat === state.dealer,
       melds: player.melds,
     }).han > 0
@@ -111,6 +118,7 @@ function getRonSeats(state: MahjongState, sourceSeat: Seat, tile: Tile): Seat[] 
           tsumo: false,
           riichi: player.riichi,
           roundWind: state.roundWind,
+          seatWind: getSeatWind(state, player.seat),
           dealer: player.seat === state.dealer,
           melds: player.melds,
         }).han > 0,
@@ -143,6 +151,7 @@ function drawFromRinshan(state: MahjongState, seat: Seat): MahjongState {
 
 // 结算荒牌流局时的听牌罚符，并记录庄家是否听牌连庄
 function finishDraw(state: MahjongState): MahjongState {
+  // 流局只结算听牌罚符，本场费按日麻规则不转移，庄家连庄时再携带
   const tenpaiSeats = state.players
     .filter((player) => isTenpai(player.hand, player.melds))
     .map((player) => player.seat);
@@ -208,15 +217,18 @@ function finishWin(
     tsumo: type === 'tsumo',
     riichi: player.riichi,
     roundWind: state.roundWind,
+    seatWind: getSeatWind(state, winner),
     dealer: winner === state.dealer,
     melds: player.melds,
   });
   if (score.han === 0) return state;
 
   const nextScores = state.players.map((candidate) => candidate.score);
+  const honbaBonus = state.honba * 300;
   if (type === 'ron') {
-    nextScores[winner] = (nextScores[winner] ?? 0) + score.points;
-    if (loser !== undefined) nextScores[loser] = (nextScores[loser] ?? 0) - score.points;
+    const totalPoints = score.points + honbaBonus;
+    nextScores[winner] = (nextScores[winner] ?? 0) + totalPoints;
+    if (loser !== undefined) nextScores[loser] = (nextScores[loser] ?? 0) - totalPoints;
   } else {
     for (const candidate of state.players) {
       if (candidate.seat === winner) continue;
@@ -226,8 +238,9 @@ function finishWin(
           : candidate.seat === state.dealer
             ? (score.dealerPayment ?? 0)
             : (score.childPayment ?? 0);
-      nextScores[candidate.seat] = (nextScores[candidate.seat] ?? 0) - payment;
-      nextScores[winner] = (nextScores[winner] ?? 0) + payment;
+      const totalPayment = payment + state.honba * 100;
+      nextScores[candidate.seat] = (nextScores[candidate.seat] ?? 0) - totalPayment;
+      nextScores[winner] = (nextScores[winner] ?? 0) + totalPayment;
     }
   }
   if (state.riichiSticks > 0) {
@@ -243,10 +256,12 @@ function finishWin(
     loser,
     han: score.han,
     fu: score.fu,
-    points: score.points,
+    points: score.points + honbaBonus,
     yaku: score.yaku,
     dealerContinues: winner === state.dealer,
-    message: `${player.name}${type === 'tsumo' ? '自摸' : '荣和'}，${score.han} 番 ${score.fu} 符，${score.points} 点`,
+    message: `${player.name}${type === 'tsumo' ? '自摸' : '荣和'}，${score.han} 番 ${score.fu} 符，${
+      score.points + honbaBonus
+    } 点`,
   };
   return {
     ...state,
@@ -359,6 +374,10 @@ function getReactionActions(state: MahjongState, seat: Seat): LegalAction[] {
   const actions: LegalAction[] = [];
   if (reaction.ronSeats.includes(seat) && !player.furiten && !player.temporaryFuriten) {
     actions.push({ type: 'ron', label: '荣和' });
+  }
+  if (reaction.ronSeats.length > 0) {
+    if (actions.length > 0) actions.push({ type: 'pass', label: '跳过' });
+    return actions;
   }
   actions.push(...getCallActions(state, seat));
   if (actions.length > 0) actions.push({ type: 'pass', label: '跳过' });

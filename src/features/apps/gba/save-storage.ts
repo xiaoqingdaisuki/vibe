@@ -4,6 +4,26 @@ const DATABASE_NAME = 'vibe-gba';
 const DATABASE_VERSION = 1;
 const STORE_NAME = 'saves';
 
+// 判断未知 IndexedDB 值是否可以安全读取为键值对象
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
+// 校验存档记录的全部字段，避免旧数据或手工修改污染页面状态
+function isGbaSaveRecord(value: unknown, romHash: string): value is GbaSaveRecord {
+  if (!isRecord(value)) return false;
+  return (
+    value.romHash === romHash &&
+    value.data instanceof ArrayBuffer &&
+    value.data.byteLength > 0 &&
+    typeof value.updatedAt === 'number' &&
+    Number.isFinite(value.updatedAt) &&
+    value.updatedAt > 0 &&
+    typeof value.coreVersion === 'string' &&
+    value.coreVersion.length > 0
+  );
+}
+
 // 打开存档数据库并在首次打开时创建对象仓库
 function openDatabase(): Promise<IDBDatabase> {
   if (typeof indexedDB === 'undefined') {
@@ -36,8 +56,8 @@ export async function loadGbaSave(romHash: string): Promise<GbaSaveRecord | null
     };
     request.onsuccess = () => {
       database.close();
-      const value = request.result as GbaSaveRecord | undefined;
-      if (!value || !(value.data instanceof ArrayBuffer)) {
+      const value: unknown = request.result;
+      if (!isGbaSaveRecord(value, romHash)) {
         resolve(null);
         return;
       }

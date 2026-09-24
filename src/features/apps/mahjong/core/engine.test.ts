@@ -3,7 +3,7 @@ import test from 'node:test';
 import { applyAction, createMatch, getLegalActions, playAiTurn, startNextRound } from './engine.ts';
 import { createTileSet } from './tiles.ts';
 import { getTenpaiWaits, isWinningHand, scoreHand } from './scoring.ts';
-import type { MahjongState, Suit, Tile } from './types.ts';
+import type { MahjongState, Meld, Suit, Tile } from './types.ts';
 
 function makeTile(kind: number, id: number): Tile {
   const isHonor = kind >= 27;
@@ -78,10 +78,66 @@ test('scores a closed all-simples self draw with a visible yaku', () => {
     red: false,
   }));
   assert.equal(isWinningHand(tiles), true);
-  const score = scoreHand(tiles, { tsumo: true, riichi: false, roundWind: 'east', dealer: false });
+  const score = scoreHand(tiles, {
+    tsumo: true,
+    riichi: false,
+    roundWind: 'east',
+    seatWind: 'south',
+    dealer: false,
+  });
   assert.ok(score.yaku.includes('门清自摸'));
   assert.ok(score.yaku.includes('断幺九'));
   assert.ok(score.points > 0);
+});
+
+test('blocks calls while another player has a legal ron', () => {
+  const base = createMatch(910);
+  const calledTile = makeTile(27, 9100);
+  const humanHand = [27, 27, 1, 2, 3, 4, 5, 6, 9, 10, 11, 18, 19].map((kind, id) => makeTile(kind, id + 9101));
+  const state = withPlayer(
+    {
+      ...base,
+      phase: 'reaction',
+      pendingReaction: { sourceSeat: 1, tile: calledTile, ronSeats: [2] },
+    },
+    0,
+    { hand: humanHand },
+  );
+
+  const actions = getLegalActions(state, 0);
+  assert.equal(
+    actions.some((action) => action.type === 'pon'),
+    false,
+  );
+  assert.equal(
+    actions.some((action) => action.type === 'chi'),
+    false,
+  );
+  assert.equal(
+    actions.some((action) => action.type === 'kan'),
+    false,
+  );
+});
+
+test('uses open meld fu and counts the winner seat wind', () => {
+  const tiles = [0, 1, 2, 3, 4, 5, 9, 10, 11, 18, 18].map((kind, id) => makeTile(kind, id + 9200));
+  const eastKan: Meld = {
+    type: 'kan',
+    tiles: [27, 27, 27, 27].map((kind, id) => makeTile(kind, id + 9300)),
+    open: true,
+    variant: 'daiminkan',
+  };
+  const score = scoreHand(tiles, {
+    tsumo: false,
+    riichi: false,
+    roundWind: 'south',
+    seatWind: 'east',
+    dealer: false,
+    melds: [eastKan],
+  });
+
+  assert.equal(score.fu, 40);
+  assert.ok(score.yaku.includes('役牌'));
 });
 
 test('returns concrete waits for a two-sided tenpai hand', () => {
@@ -266,4 +322,33 @@ test('keeps a non-leading dealer above 30000 in the same round for priority cont
   assert.equal(next.roundNumber, southTwo.roundNumber);
   assert.equal(next.dealer, southTwo.dealer);
   assert.equal(next.honba, southTwo.honba + 1);
+});
+
+test('adds honba payments to a self draw result', () => {
+  const base = createMatch(911);
+  const tiles = [1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14, 15, 7, 7].map((kind, id) => makeTile(kind, id + 9400));
+  const state = withPlayer(
+    {
+      ...base,
+      phase: 'ai-turn',
+      currentPlayer: 1,
+      drawnTileId: tiles[13]?.id ?? null,
+      honba: 2,
+    },
+    1,
+    { hand: tiles, score: 25_000 },
+  );
+  const action = getLegalActions(state, 1).find((candidate) => candidate.type === 'tsumo');
+  assert.ok(action);
+
+  const result = applyAction(state, 1, action);
+  const baseScore = scoreHand(tiles, {
+    tsumo: true,
+    riichi: false,
+    roundWind: state.roundWind,
+    seatWind: 'south',
+    dealer: false,
+  });
+  assert.equal(result.state.result?.points, baseScore.points + 600);
+  assert.equal(result.state.players[1]?.score, 25_000 + baseScore.points + 600);
 });

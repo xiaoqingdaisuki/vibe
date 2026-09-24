@@ -15,6 +15,9 @@ let nextProcess: UtilityProcess | null = null;
 let developmentProcess: ChildProcess | null = null;
 let internalOrigin = '';
 let isShuttingDown = false;
+let nextServerUrl: URL | null = null;
+let serverStartPromise: Promise<URL> | null = null;
+let mainWindowCreation: Promise<void> | null = null;
 
 const startupMarkup = `<!doctype html>
 <html lang="zh-CN">
@@ -225,6 +228,7 @@ function loadDesktopEnvironment(): void {
 // 处理 standalone Next 服务异常退出，避免窗口继续显示失效页面
 function handleNextProcessExit(code: number): void {
   nextProcess = null;
+  nextServerUrl = null;
 
   if (isShuttingDown) return;
 
@@ -238,6 +242,7 @@ function handleNextProcessExit(code: number): void {
 // 记录开发模式 Next 进程退出，避免开发进程异常时静默失败
 function handleDevelopmentProcessExit(code: number | null, signal: NodeJS.Signals | null): void {
   developmentProcess = null;
+  nextServerUrl = null;
 
   if (isShuttingDown) return;
 
@@ -285,9 +290,27 @@ async function startNextServer(): Promise<URL> {
   return serverUrl;
 }
 
+// 复用尚未退出的 Next 服务，避免 macOS 重开窗口时重复启动进程
+function ensureNextServer(): Promise<URL> {
+  const activeProcess = app.isPackaged ? nextProcess : developmentProcess;
+  if (nextServerUrl && activeProcess) return Promise.resolve(nextServerUrl);
+  if (serverStartPromise) return serverStartPromise;
+
+  const startPromise = startNextServer().then((serverUrl) => {
+    nextServerUrl = serverUrl;
+    return serverUrl;
+  });
+  const trackedStart = startPromise.finally(() => {
+    if (serverStartPromise === trackedStart) serverStartPromise = null;
+  });
+  serverStartPromise = trackedStart;
+  return trackedStart;
+}
+
 // 停止本地 Next 服务，确保退出应用时不残留后台进程
 function stopNextServer(): void {
   isShuttingDown = true;
+  nextServerUrl = null;
 
   if (nextProcess) {
     nextProcess.kill();
@@ -340,7 +363,7 @@ function configureWindowNavigation(window: BrowserWindow): void {
 async function createMainWindow(): Promise<void> {
   createStartupWindow();
   updateStartupStatus('正在启动本地服务…');
-  const serverUrl = await startNextServer();
+  const serverUrl = await ensureNextServer();
   updateStartupStatus('正在加载 Vibe 界面…');
   internalOrigin = serverUrl.origin;
 
@@ -370,6 +393,19 @@ async function createMainWindow(): Promise<void> {
   await mainWindow.loadURL(serverUrl.toString());
 }
 
+// 保证同一时刻只有一个主窗口创建流程，避免激活事件重复启动窗口
+function ensureMainWindow(): Promise<void> {
+  if (mainWindow && !mainWindow.isDestroyed()) return Promise.resolve();
+  if (mainWindowCreation) return mainWindowCreation;
+
+  const creation = createMainWindow();
+  const trackedCreation = creation.finally(() => {
+    if (mainWindowCreation === trackedCreation) mainWindowCreation = null;
+  });
+  mainWindowCreation = trackedCreation;
+  return trackedCreation;
+}
+
 // 处理 Electron 启动阶段的错误并清理本地服务
 function handleStartupError(error: unknown): void {
   const message = error instanceof Error ? error.message : 'Unknown startup error.';
@@ -392,13 +428,13 @@ function handleSecondInstance(): void {
 async function handleApplicationReady(): Promise<void> {
   loadDesktopEnvironment();
   app.setAppUserModelId('com.xiaoqingdaisuki.vibe');
-  await createMainWindow();
+  await ensureMainWindow();
 }
 
 // macOS 重新激活应用时恢复主窗口
 function handleApplicationActivate(): void {
-  if (mainWindow) return;
-  void createMainWindow().catch(handleStartupError);
+  if (mainWindow && !mainWindow.isDestroyed()) return;
+  void ensureMainWindow().catch(handleStartupError);
 }
 
 // 非 macOS 平台关闭最后一个窗口时退出应用

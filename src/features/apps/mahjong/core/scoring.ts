@@ -76,9 +76,14 @@ function isAllSimples(tiles: readonly Tile[]): boolean {
   return tiles.every((tile) => tile.suit !== 'honor' && tile.rank >= 2 && tile.rank <= 8);
 }
 
-// 判断牌型是否包含役牌刻子或副露刻子
-function countValueTriplets(shape: WinningShape | null, melds: readonly Meld[], roundWind: Wind): number {
-  const valueKinds = new Set([31, 32, 33, 27 + windKind(roundWind)]);
+// 判断牌型是否包含自风、场风、三元牌刻子或副露刻子
+function countValueTriplets(
+  shape: WinningShape | null,
+  melds: readonly Meld[],
+  roundWind: Wind,
+  seatWind: Wind,
+): number {
+  const valueKinds = new Set([31, 32, 33, 27 + windKind(roundWind), 27 + windKind(seatWind)]);
   const concealedValueTriplets =
     shape?.groups.filter((group) => group.type === 'triplet' && valueKinds.has(group.start)).length ?? 0;
   const openValueTriplets = melds.filter((meld) => {
@@ -116,7 +121,7 @@ function calculateFu(
     if (meld.type === 'chi') continue;
     const first = meld.tiles[0];
     const terminalOrHonor = first !== undefined && (first.kind >= 27 || first.rank === 1 || first.rank === 9);
-    const baseFu = meld.type === 'kan' ? 16 : 4;
+    const baseFu = meld.type === 'kan' ? (meld.open ? 8 : 16) : meld.open ? 2 : 4;
     fu += terminalOrHonor ? baseFu * 2 : baseFu;
   }
   if (fu === 20 && tiles.length > 0 && !closed) return 30;
@@ -143,6 +148,7 @@ export function hasYaku(
     readonly riichi?: boolean;
     readonly tsumo?: boolean;
     readonly roundWind?: Wind;
+    readonly seatWind?: Wind;
   },
 ): boolean {
   return (
@@ -150,6 +156,7 @@ export function hasYaku(
       tsumo: options.tsumo ?? false,
       riichi: options.riichi ?? false,
       roundWind: options.roundWind ?? 'east',
+      seatWind: options.seatWind ?? 'east',
       dealer: false,
       melds: options.melds,
     }).han > 0
@@ -189,6 +196,7 @@ export function scoreHand(
     readonly tsumo: boolean;
     readonly riichi: boolean;
     readonly roundWind: Wind;
+    readonly seatWind: Wind;
     readonly dealer: boolean;
     readonly melds?: readonly Meld[];
   },
@@ -221,7 +229,7 @@ export function scoreHand(
       yaku.push('断幺九');
       han += 1;
     }
-    const valueTriplets = countValueTriplets(shape, melds, options.roundWind);
+    const valueTriplets = countValueTriplets(shape, melds, options.roundWind, options.seatWind);
     if (valueTriplets > 0) {
       yaku.push('役牌');
       han += valueTriplets;

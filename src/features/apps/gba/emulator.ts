@@ -4,6 +4,7 @@ import type { GbaCheat } from './types.ts';
 import { getRomFileName } from './rom.ts';
 
 const DEFAULT_VOLUME = 1;
+const CORE_READY_TIMEOUT_MS = 10_000;
 
 const CLEAN_CHEAT_STATE_SLOT = 98;
 const RUNTIME_CHEAT_STATE_SLOT = 99;
@@ -104,6 +105,8 @@ export class GbaEmulator {
 
   private readonly coreReady: Promise<void>;
 
+  private readonly cancelCoreReady: () => void;
+
   private readonly coreCallbacks: {
     saveDataUpdatedCallback: () => void;
     videoFrameEndedCallback: () => void;
@@ -125,6 +128,7 @@ export class GbaEmulator {
   private constructor(
     module: MgbaModule,
     coreReady: Promise<void>,
+    cancelCoreReady: () => void,
     coreCallbacks: {
       saveDataUpdatedCallback: () => void;
       videoFrameEndedCallback: () => void;
@@ -132,6 +136,7 @@ export class GbaEmulator {
   ) {
     this.module = module;
     this.coreReady = coreReady;
+    this.cancelCoreReady = cancelCoreReady;
     this.coreCallbacks = coreCallbacks;
   }
 
@@ -159,18 +164,48 @@ export class GbaEmulator {
     runtime.toggleInput(false);
 
     let resolveCoreReady: (() => void) | null = null;
-    const coreReady = new Promise<void>((resolve) => {
+    let rejectCoreReady: ((error: Error) => void) | null = null;
+    let coreReadyTimer: number | null = null;
+    const coreReady = new Promise<void>((resolve, reject) => {
       resolveCoreReady = resolve;
+      rejectCoreReady = reject;
     });
+
+    // 取消尚未完成的首帧等待定时器，避免销毁模拟器后仍保留异步任务
+    function clearCoreReadyTimer(): void {
+      if (coreReadyTimer === null) return;
+      window.clearTimeout(coreReadyTimer);
+      coreReadyTimer = null;
+    }
+
+    // 销毁模拟器时结束首帧等待，避免异步加载永久挂起
+    function cancelCoreReady(): void {
+      clearCoreReadyTimer();
+      rejectCoreReady?.(new Error('mGBA 核心初始化已取消。'));
+      resolveCoreReady = null;
+      rejectCoreReady = null;
+    }
+
+    // 首帧迟迟未到时拒绝初始化，避免页面永久停留在加载状态
+    function rejectCoreReadyAfterTimeout(): void {
+      coreReadyTimer = null;
+      rejectCoreReady?.(new Error('mGBA 核心未能在规定时间内输出首帧。'));
+      resolveCoreReady = null;
+      rejectCoreReady = null;
+    }
+
+    coreReadyTimer = window.setTimeout(rejectCoreReadyAfterTimeout, CORE_READY_TIMEOUT_MS);
 
     // 首帧到达后再允许调用需要运行线程的 mGBA 接口
     function handleVideoFrame(): void {
+      clearCoreReadyTimer();
       resolveCoreReady?.();
       resolveCoreReady = null;
+      rejectCoreReady = null;
       callbacks.onFrame();
     }
 
-    return new GbaEmulator(runtime, coreReady, {
+    return new GbaEmulator(runtime, coreReady, cancelCoreReady, {
       saveDataUpdatedCallback: callbacks.onSaveDirty,
       videoFrameEndedCallback: handleVideoFrame,
     });
@@ -375,6 +410,7 @@ export class GbaEmulator {
 
   // 退出当前游戏并释放 WASM 线程与音频资源
   destroy(): void {
+    this.cancelCoreReady();
     try {
       this.module.quitGame();
       this.module.quitMgba();
