@@ -33,6 +33,7 @@ export interface PlayerState {
   readonly isHuman: boolean;
   readonly hand: readonly Tile[];
   readonly discards: readonly Tile[];
+  readonly calledDiscardIds: readonly number[];
   readonly melds: readonly Meld[];
   readonly score: number;
   readonly riichi: boolean;

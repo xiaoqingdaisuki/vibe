@@ -48,6 +48,7 @@ function createPlayer(seat: Seat, hand: Tile[] = [], score = DEFAULT_RULES.start
     isHuman: seat === 0,
     hand,
     discards: [],
+    calledDiscardIds: [],
     melds: [],
     score,
     riichi: false,
@@ -460,9 +461,19 @@ function applyMeldCall(state: MahjongState, seat: Seat, action: LegalAction): Ma
     },
     false,
   );
+  const nextPlayers = state.players.map((candidate) => {
+    if (candidate.seat === seat) return nextPlayer;
+    if (candidate.seat !== reaction.sourceSeat || candidate.calledDiscardIds.includes(reaction.tile.id)) {
+      return candidate;
+    }
+    return {
+      ...candidate,
+      calledDiscardIds: [...candidate.calledDiscardIds, reaction.tile.id],
+    };
+  });
   const nextState: MahjongState = {
     ...state,
-    players: replacePlayer(state.players, nextPlayer),
+    players: nextPlayers,
     currentPlayer: seat,
     phase: seat === 0 ? 'player-turn' : 'ai-turn',
     pendingReaction: null,

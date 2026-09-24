@@ -8,6 +8,7 @@ test('牌桌尺寸变大时，桌面牌面规格同步放大', () => {
 
   assert.ok(wide.riverTileHeight > compact.riverTileHeight);
   assert.ok(wide.meldTileHeight > compact.meldTileHeight);
+  assert.ok(wide.handTileHeight > compact.handTileHeight);
   assert.ok(wide.wallWidth > compact.wallWidth);
   assert.ok(wide.doraTileWidth > compact.doraTileWidth);
 });
@@ -17,6 +18,7 @@ test('窄屏仍保留可读的桌面牌面下限', () => {
 
   assert.ok(narrow.riverTileHeight >= 25);
   assert.ok(narrow.meldTileHeight >= 26);
+  assert.ok(narrow.handTileHeight >= 56);
   assert.ok(narrow.wallHeight >= 20);
   assert.ok(narrow.doraTileWidth >= 22);
 });

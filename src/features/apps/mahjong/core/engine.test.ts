@@ -174,14 +174,17 @@ test('offers a pon reaction and keeps the called tile in the visible meld', () =
     0,
     { hand },
   );
-  const pon = getLegalActions(state, 0).find((action) => action.type === 'pon');
+  const stateWithVisibleDiscard = withPlayer(state, 1, { discards: [calledTile] });
+  const pon = getLegalActions(stateWithVisibleDiscard, 0).find((action) => action.type === 'pon');
   assert.ok(pon);
-  const result = applyAction(state, 0, pon);
+  const result = applyAction(stateWithVisibleDiscard, 0, pon);
   assert.equal(result.accepted, true);
   assert.equal(result.state.phase, 'player-turn');
   assert.equal(result.state.currentPlayer, 0);
   assert.equal(result.state.players[0].melds[0]?.type, 'pon');
   assert.equal(result.state.players[0].melds[0]?.calledTileId, calledTile.id);
+  assert.deepEqual(result.state.players[1]?.discards, [calledTile]);
+  assert.deepEqual(result.state.players[1]?.calledDiscardIds, [calledTile.id]);
 });
 
 test('offers chi only to the next player and records the sequence meld', () => {

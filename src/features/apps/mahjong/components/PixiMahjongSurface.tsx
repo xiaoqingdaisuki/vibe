@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { Application, Container, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js';
-import type { LegalAction, MahjongState, Meld, Seat, Tile } from '../core/types';
+import type { LegalAction, MahjongState, Meld, PlayerState, Seat, Tile } from '../core/types';
 import { getTenpaiWaits } from '../core/scoring';
 import { createTileSet, tileLabel } from '../core/tiles';
 import styles from '../styles/Mahjong.module.css';
@@ -148,7 +148,8 @@ const COLORS = {
   goldSoft: 0x8f6c3d,
   purple: 0xbba4ff,
   purpleSoft: 0x392f5c,
-  red: 0xf17f76,
+  red: 0xe04444,
+  highlightRed: 0xff3030,
   green: 0x8ed6a8,
   cyan: 0xa8e0b8,
   wall: 0xd7842d,
@@ -718,6 +719,22 @@ function tileAssetKey(tile: Tile): string {
   );
 }
 
+// 过滤已被鸣走的弃牌，只让牌河和统计展示仍在桌面的牌
+function getVisibleDiscards(player: Pick<PlayerState, 'discards' | 'calledDiscardIds'>): Tile[] {
+  const calledDiscardIds = new Set(player.calledDiscardIds);
+  return player.discards.filter((tile) => !calledDiscardIds.has(tile.id));
+}
+
+// 为已选牌种叠加高对比红色描边，强化牌河与副露的对应关系
+function addTileHighlight(api: PixiApi, parent: Container, width: number, height: number): void {
+  const inset = Math.max(1.5, Math.min(3, width * 0.06));
+  const outline = new api.Graphics();
+  outline
+    .roundRect(-inset, -inset, width + inset * 2, height + inset * 2, Math.max(4, Math.min(7, width * 0.12)))
+    .stroke({ width: Math.max(2, Math.min(4, width * 0.08)), color: COLORS.highlightRed, alpha: 0.98 });
+  parent.addChild(outline);
+}
+
 // 绘制一张带选中态和点击区域的手牌
 function addHandTile(
   api: PixiApi,
@@ -890,7 +907,10 @@ function addRiverTiles(
     background
       .roundRect(0, 0, tileWidth, tileHeight, 3)
       .fill(COLORS.cream)
-      .stroke({ width: highlighted ? 3 : 1, color: highlighted ? COLORS.red : COLORS.creamEdge });
+      .stroke({
+        width: highlighted ? Math.max(3, Math.min(5, Math.round(tileWidth * 0.1))) : 1,
+        color: highlighted ? COLORS.highlightRed : COLORS.creamEdge,
+      });
     const tileX = x + rowOffsetX + column * (tileWidth + gap);
     const tileY = y + offsetY + row * (tileHeight + gap);
     tileBox.position.set(tileX, tileY);
@@ -900,6 +920,7 @@ function addRiverTiles(
       tileBox.rotation = Math.PI / 2;
     }
     tileBox.addChild(background);
+    if (highlighted) addTileHighlight(api, tileBox, tileWidth, tileHeight);
     parent.addChild(tileBox);
     const texture = textures.get(tileAssetKey(tile));
     if (texture) {
@@ -1326,7 +1347,7 @@ function drawSeatBadge(
   root.addChild(
     createLabel(
       api,
-      `${player.score.toLocaleString()} 点 · 河 ${player.discards.length}${player.furiten ? ' · 振听' : ''}`,
+      `${player.score.toLocaleString()} 点 · 河 ${getVisibleDiscards(player).length}${player.furiten ? ' · 振听' : ''}`,
       contentLeft,
       position.y + (desktop ? 48 : 36),
       desktop ? 12 : 9,
@@ -1348,15 +1369,20 @@ function drawMeldTiles(
   tileWidth: number,
   tileHeight: number,
   textures: TextureMap,
+  highlightKind: number | null,
 ): number {
   const gap = Math.max(1, tileWidth * 0.12);
   meld.tiles.forEach((tile, index) => {
     const tileBox = new api.Container();
     const background = new api.Graphics();
+    const highlighted = highlightKind !== null && tile.kind === highlightKind;
     background
       .roundRect(0, 0, tileWidth, tileHeight, 3)
       .fill(COLORS.cream)
-      .stroke({ width: tile.red ? 2 : 1, color: tile.red ? COLORS.red : COLORS.creamEdge });
+      .stroke({
+        width: highlighted ? Math.max(3, Math.min(5, Math.round(tileWidth * 0.1))) : tile.red ? 2 : 1,
+        color: highlighted ? COLORS.highlightRed : tile.red ? COLORS.red : COLORS.creamEdge,
+      });
     const tileX = x + index * (tileWidth + gap);
     tileBox.position.set(tileX, y);
     if (meld.calledTileId === tile.id) {
@@ -1365,6 +1391,7 @@ function drawMeldTiles(
       tileBox.rotation = Math.PI / 2;
     }
     tileBox.addChild(background);
+    if (highlighted) addTileHighlight(api, tileBox, tileWidth, tileHeight);
     const texture = textures.get(tileAssetKey(tile));
     if (texture) {
       const sprite = new api.Sprite(texture);
@@ -1400,6 +1427,7 @@ function drawMeldsOnTable(
   state: MahjongState,
   layout: LayoutMetrics,
   textures: TextureMap,
+  highlightKind: number | null,
 ): void {
   const { boardX, boardY, boardWidth, boardHeight, desktop } = layout;
   const tableTiles = getTableTileMetrics(layout);
@@ -1432,7 +1460,7 @@ function drawMeldsOnTable(
     strip.rotation = position.rotation;
     let cursor = 0;
     for (const meld of player.melds) {
-      const meldWidth = drawMeldTiles(api, strip, meld, cursor, 0, tileWidth, tileHeight, textures);
+      const meldWidth = drawMeldTiles(api, strip, meld, cursor, 0, tileWidth, tileHeight, textures, highlightKind);
       const meldLabel = createLabel(
         api,
         meld.type === 'chi' ? '吃' : meld.type === 'pon' ? '碰' : '杠',
@@ -1575,7 +1603,7 @@ function drawBoard(
   addRiverTiles(
     api,
     root,
-    state.players[2]?.discards ?? [],
+    state.players[2] ? getVisibleDiscards(state.players[2]) : [],
     centerX + centerWidth / 2 - riverWidth / 2,
     topRiverY,
     riverWidth,
@@ -1589,7 +1617,7 @@ function drawBoard(
   addRiverTiles(
     api,
     root,
-    state.players[0]?.discards ?? [],
+    state.players[0] ? getVisibleDiscards(state.players[0]) : [],
     centerX + centerWidth / 2 - riverWidth / 2,
     bottomRiverY,
     riverWidth,
@@ -1609,7 +1637,7 @@ function drawBoard(
   addRotatedRiverTiles(
     api,
     root,
-    state.players[3]?.discards ?? [],
+    state.players[3] ? getVisibleDiscards(state.players[3]) : [],
     centerX - sideWidth - riverGap,
     sideY,
     sideWidth,
@@ -1623,7 +1651,7 @@ function drawBoard(
   addRotatedRiverTiles(
     api,
     root,
-    state.players[1]?.discards ?? [],
+    state.players[1] ? getVisibleDiscards(state.players[1]) : [],
     centerX + centerWidth + riverGap,
     sideY,
     sideWidth,
@@ -1646,7 +1674,7 @@ function drawBoard(
       player.seat === state.currentPlayer && state.phase !== 'round-over' && state.phase !== 'match-over',
       seatLabels?.[player.seat] ?? player.name,
     );
-  drawMeldsOnTable(api, root, state, layout, textures);
+  drawMeldsOnTable(api, root, state, layout, textures, selectedTileKind);
 }
 
 // 绘制底部手牌轨道、动作按钮和训练状态提示
@@ -1661,13 +1689,16 @@ function drawHumanControls(
 ): void {
   const { width, boardX, boardWidth, desktop, handY, handHeight } = layout;
   const human = state.players[0];
-  const tileHeight = desktop ? 78 : 52;
+  const tableTiles = getTableTileMetrics(layout);
+  const preferredTileHeight = tableTiles.handTileHeight;
   const handGap = desktop ? 4 : 2;
   const handWidthLimit = Math.min(boardWidth * 0.78, width - (desktop ? 84 : 24));
+  const preferredTileWidth = preferredTileHeight / 1.28;
   const tileWidth = Math.max(
-    24,
-    Math.min(desktop ? 62 : 38, (handWidthLimit - handGap * (human.hand.length - 1)) / human.hand.length),
+    18,
+    Math.min(preferredTileWidth, (handWidthLimit - handGap * (human.hand.length - 1)) / human.hand.length),
   );
+  const tileHeight = Math.min(preferredTileHeight, tileWidth * 1.28);
   const handWidth = tileWidth * human.hand.length + handGap * (human.hand.length - 1);
   const handX = (width - handWidth) / 2;
   const rail = new api.Graphics();
@@ -2139,7 +2170,7 @@ function drawReviewOverlay(
     (total, player) =>
       total +
       player.hand.length +
-      player.discards.length +
+      getVisibleDiscards(player).length +
       player.melds.reduce((meldTotal, meld) => meldTotal + meld.tiles.length, 0),
     0,
   );
@@ -2175,6 +2206,7 @@ function drawReviewOverlay(
 
     const winningTile = state.result?.type === 'ron' && state.result.winner === player.seat ? state.lastDiscard : null;
     const reviewHand = winningTile ? [...player.hand, winningTile] : player.hand;
+    const visibleDiscards = getVisibleDiscards(player);
     const score = state.matchScores[player.seat] ?? player.score;
     const tileHeight = Math.max(12, Math.min(layout.desktop ? 30 : 20, metrics.cardHeight * 0.19));
     const labelSize = layout.desktop ? 10 : 8;
@@ -2195,7 +2227,7 @@ function drawReviewOverlay(
     root.addChild(
       createLabel(
         api,
-        `${score.toLocaleString()} 点 · 牌河 ${player.discards.length}`,
+        `${score.toLocaleString()} 点 · 牌河 ${visibleDiscards.length}`,
         cardX + metrics.cardWidth - 12,
         cardY + metrics.cardHeight * 0.15,
         labelSize,
@@ -2233,7 +2265,7 @@ function drawReviewOverlay(
     root.addChild(
       createLabel(
         api,
-        `牌河 ${player.discards.length} 张`,
+        `牌河 ${visibleDiscards.length} 张`,
         cardX + 12,
         cardY + metrics.cardHeight * 0.62,
         labelSize,
@@ -2246,7 +2278,7 @@ function drawReviewOverlay(
     drawReviewTileStrip(
       api,
       root,
-      player.discards,
+      visibleDiscards,
       cardX + 12,
       cardY + metrics.cardHeight * 0.68,
       metrics.cardWidth - 24,
