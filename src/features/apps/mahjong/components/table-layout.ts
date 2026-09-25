@@ -12,6 +12,33 @@ export interface TableTileMetrics {
   riverGap: number;
 }
 
+export interface HumanHandMetrics {
+  tileWidth: number;
+  tileHeight: number;
+  handWidth: number;
+  handX: number;
+  handGap: number;
+}
+
+// 为手牌绘制与点击命中计算同一组坐标
+export function getHumanHandMetrics(
+  layout: { width: number; boardWidth: number; desktop: boolean },
+  handLength: number,
+  preferredTileHeight: number,
+): HumanHandMetrics {
+  const handGap = layout.desktop ? 4 : 2;
+  if (handLength <= 0) return { tileWidth: 0, tileHeight: 0, handWidth: 0, handX: layout.width / 2, handGap };
+  const handWidthLimit = layout.desktop ? Math.min(layout.boardWidth * 0.78, layout.width - 84) : layout.width - 16;
+  const preferredTileWidth = preferredTileHeight / 1.28;
+  const tileWidth = Math.max(
+    18,
+    Math.min(preferredTileWidth, (handWidthLimit - handGap * (handLength - 1)) / handLength),
+  );
+  const tileHeight = Math.min(preferredTileHeight, tileWidth * 1.28);
+  const handWidth = tileWidth * handLength + handGap * (handLength - 1);
+  return { tileWidth, tileHeight, handWidth, handX: (layout.width - handWidth) / 2, handGap };
+}
+
 interface TableTileLayoutInput {
   boardWidth: number;
   boardHeight: number;

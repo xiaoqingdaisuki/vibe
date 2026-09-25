@@ -65,6 +65,10 @@ export interface RoundResult {
   readonly yaku: readonly string[];
   readonly message: string;
   readonly dealerContinues?: boolean;
+  readonly winningTile?: Tile;
+  readonly hanDetails?: readonly { name: string; han: number }[];
+  readonly fuDetails?: readonly string[];
+  readonly scoreChanges?: readonly number[];
 }
 
 export interface MahjongState {
@@ -89,6 +93,7 @@ export interface MahjongState {
   readonly lastDiscard: Tile | null;
   readonly result: RoundResult | null;
   readonly matchScores: readonly number[];
+  readonly notice?: string | null;
 }
 
 export interface LegalAction {
@@ -106,6 +111,8 @@ export interface ScoreResult {
   readonly yaku: readonly string[];
   readonly dealerPayment?: number;
   readonly childPayment?: number;
+  readonly hanDetails?: readonly { name: string; han: number }[];
+  readonly fuDetails?: readonly string[];
 }
 
 export interface DispatchResult {

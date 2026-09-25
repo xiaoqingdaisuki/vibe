@@ -25,10 +25,15 @@ const PLAYER_NAMES = ['玩家', '林悠', '森川葵', '白石澪'] as const;
 const ROUND_SEATS: readonly Seat[] = [0, 1, 2, 3];
 const ACTION_PRIORITY: Readonly<Record<ActionTypeForPriority, number>> = {
   kan: 0,
-  pon: 1,
-  chi: 2,
+  pon: 0,
+  chi: 1,
 };
 type ActionTypeForPriority = 'chi' | 'pon' | 'kan';
+
+// 比较同一张弃牌上的动作优先级，碰与明杠按距离决定先后
+function reactionPriority(action: LegalAction): number {
+  return action.type === 'ron' ? -1 : ACTION_PRIORITY[action.type as ActionTypeForPriority];
+}
 
 // 使用安全随机源生成一局可回放的初始种子
 export function createSeed(): number {
@@ -103,6 +108,8 @@ function canWinByTsumo(state: MahjongState, player: PlayerState): boolean {
       seatWind: getSeatWind(state, player.seat),
       dealer: player.seat === state.dealer,
       melds: player.melds,
+      winningTile: player.hand.find((tile) => tile.id === state.drawnTileId),
+      doraIndicators: state.doraIndicators,
     }).han > 0
   );
 }
@@ -121,6 +128,8 @@ function getRonSeats(state: MahjongState, sourceSeat: Seat, tile: Tile): Seat[] 
           seatWind: getSeatWind(state, player.seat),
           dealer: player.seat === state.dealer,
           melds: player.melds,
+          winningTile: tile,
+          doraIndicators: state.doraIndicators,
         }).han > 0,
     )
     .map((player) => player.seat);
@@ -128,8 +137,10 @@ function getRonSeats(state: MahjongState, sourceSeat: Seat, tile: Tile): Seat[] 
 
 // 在王牌岭上牌中补摸一张，并翻开下一张杠宝牌
 function drawFromRinshan(state: MahjongState, seat: Seat): MahjongState {
-  if (state.rinshan.length === 0 || state.kanCount >= 4) return finishDraw(state);
+  if (state.rinshan.length === 0 || state.kanCount >= 4 || state.wall.length === 0) return finishDraw(state);
   const tile = state.rinshan[0];
+  const replacementTile = state.wall[state.wall.length - 1];
+  if (!tile || !replacementTile) return finishDraw(state);
   const player = state.players[seat];
   const nextPlayer = refreshFuriten({ ...player, hand: [...player.hand, tile] }, false);
   const nextDora = state.deadWall[0] ? [...state.doraIndicators, state.deadWall[0]] : [...state.doraIndicators];
@@ -137,7 +148,8 @@ function drawFromRinshan(state: MahjongState, seat: Seat): MahjongState {
     ...state,
     players: replacePlayer(state.players, nextPlayer),
     rinshan: state.rinshan.slice(1),
-    deadWall: state.deadWall.slice(1),
+    deadWall: [...state.deadWall.slice(1), replacementTile],
+    wall: state.wall.slice(0, -1),
     doraIndicators: nextDora,
     currentPlayer: seat,
     phase: seat === 0 ? 'player-turn' : 'ai-turn',
@@ -170,6 +182,7 @@ function finishDraw(state: MahjongState): MahjongState {
     type: 'draw',
     yaku: [],
     dealerContinues,
+    scoreChanges: deltas,
     message: `牌山耗尽，本局流局 · ${tenpaiSeats.length} 家听牌${dealerContinues ? ' · 庄家连庄' : ''}`,
   };
   return {
@@ -220,6 +233,8 @@ function finishWin(
     seatWind: getSeatWind(state, winner),
     dealer: winner === state.dealer,
     melds: player.melds,
+    winningTile: winningTile ?? player.hand.find((tile) => tile.id === state.drawnTileId),
+    doraIndicators: state.doraIndicators,
   });
   if (score.han === 0) return state;
 
@@ -258,6 +273,10 @@ function finishWin(
     fu: score.fu,
     points: score.points + honbaBonus,
     yaku: score.yaku,
+    winningTile: winningTile ?? player.hand.find((tile) => tile.id === state.drawnTileId),
+    hanDetails: score.hanDetails,
+    fuDetails: score.fuDetails,
+    scoreChanges: state.players.map((candidate) => (nextScores[candidate.seat] ?? 0) - candidate.score),
     dealerContinues: winner === state.dealer,
     message: `${player.name}${type === 'tsumo' ? '自摸' : '荣和'}，${score.han} 番 ${score.fu} 符，${
       score.points + honbaBonus
@@ -279,10 +298,10 @@ function finishWin(
 function getCallActions(state: MahjongState, seat: Seat): LegalAction[] {
   const reaction = state.pendingReaction;
   const player = state.players[seat];
-  if (!reaction || !player || player.riichi || state.kanCount >= 4) return [];
+  if (!reaction || !player || player.riichi || state.wall.length === 0) return [];
   const actions: LegalAction[] = [];
   const matchingTiles = player.hand.filter((candidate) => candidate.kind === reaction.tile.kind);
-  if (matchingTiles.length >= 3) {
+  if (matchingTiles.length >= 3 && state.kanCount < 4 && state.wall.length > 0) {
     actions.push({
       type: 'kan',
       variant: 'daiminkan',
@@ -338,12 +357,26 @@ function createTileCandidate(kind: number): Tile {
 
 // 返回牌手摸牌后可以执行的暗杠或加杠动作
 function getSelfKanActions(state: MahjongState, player: PlayerState): LegalAction[] {
-  if (state.drawnTileId === null || player.riichi || state.kanCount >= 4) return [];
+  if (state.drawnTileId === null || state.kanCount >= 4 || state.wall.length === 0) return [];
   const actions: LegalAction[] = [];
   const counts = toCounts(player.hand);
   for (let kind = 0; kind < counts.length; kind += 1) {
     if (counts[kind] !== 4) continue;
     const tileIds = player.hand.filter((tile) => tile.kind === kind).map((tile) => tile.id);
+    if (player.riichi) {
+      if (!tileIds.includes(state.drawnTileId)) continue;
+      const originalHand = player.hand.filter((tile) => tile.id !== state.drawnTileId);
+      const originalWaits = getTenpaiWaits(originalHand, player.melds)
+        .map((tile) => tile.kind)
+        .join(',');
+      const kanTiles = player.hand.filter((tile) => tileIds.includes(tile.id));
+      const afterKanHand = player.hand.filter((tile) => !tileIds.includes(tile.id));
+      const afterKanMelds: Meld[] = [...player.melds, { type: 'kan', tiles: kanTiles, open: false, variant: 'ankan' }];
+      const afterKanWaits = getTenpaiWaits(afterKanHand, afterKanMelds)
+        .map((tile) => tile.kind)
+        .join(',');
+      if (!originalWaits || originalWaits !== afterKanWaits) continue;
+    }
     actions.push({
       type: 'kan',
       variant: 'ankan',
@@ -351,15 +384,16 @@ function getSelfKanActions(state: MahjongState, player: PlayerState): LegalActio
       label: `暗杠 ${compactTileLabel(createTileCandidate(kind))}`,
     });
   }
-  const drawnTile = player.hand.find((tile) => tile.id === state.drawnTileId);
-  if (drawnTile) {
-    const pon = player.melds.find((meld) => meld.type === 'pon' && meld.open && meld.tiles[0]?.kind === drawnTile.kind);
-    if (pon) {
+  if (!player.riichi) {
+    for (const meld of player.melds) {
+      if (meld.type !== 'pon' || !meld.open) continue;
+      const matchingTile = player.hand.find((tile) => tile.kind === meld.tiles[0]?.kind);
+      if (!matchingTile) continue;
       actions.push({
         type: 'kan',
         variant: 'kakan',
-        tileIds: [drawnTile.id],
-        label: `加杠 ${compactTileLabel(drawnTile)}`,
+        tileIds: [matchingTile.id],
+        label: `加杠 ${compactTileLabel(matchingTile)}`,
       });
     }
   }
@@ -396,9 +430,8 @@ function chooseAiReaction(state: MahjongState): { seat: Seat; action: LegalActio
         .map((action) => ({ seat: player.seat, action })),
     );
   candidates.sort((left, right) => {
-    const leftPriority = left.action.type === 'ron' ? -1 : ACTION_PRIORITY[left.action.type as ActionTypeForPriority];
-    const rightPriority =
-      right.action.type === 'ron' ? -1 : ACTION_PRIORITY[right.action.type as ActionTypeForPriority];
+    const leftPriority = reactionPriority(left.action);
+    const rightPriority = reactionPriority(right.action);
     if (leftPriority !== rightPriority) return leftPriority - rightPriority;
     const leftDistance = (left.seat - reaction.sourceSeat + 4) % 4;
     const rightDistance = (right.seat - reaction.sourceSeat + 4) % 4;
@@ -407,21 +440,49 @@ function chooseAiReaction(state: MahjongState): { seat: Seat; action: LegalActio
   return candidates[0] ?? null;
 }
 
+// 仅在玩家动作能胜过 AI 反应时展示该动作
+function humanActionPrecedesAi(
+  state: MahjongState,
+  action: LegalAction,
+  aiReaction: ReturnType<typeof chooseAiReaction>,
+): boolean {
+  if (!aiReaction || !state.pendingReaction) return true;
+  const humanPriority = reactionPriority(action);
+  const aiPriority = reactionPriority(aiReaction.action);
+  if (humanPriority !== aiPriority) return humanPriority < aiPriority;
+  const sourceSeat = state.pendingReaction.sourceSeat;
+  return (4 - sourceSeat) % 4 < (aiReaction.seat - sourceSeat + 4) % 4;
+}
+
 // 处理弃牌后的荣和、鸣牌和下一位摸牌，统一玩家与 AI 的优先级
 function resolveDiscardReaction(state: MahjongState, sourceSeat: Seat, tile: Tile): MahjongState {
   const ronSeats = getRonSeats(state, sourceSeat, tile);
+  const human = state.players[0];
+  const completedHumanHand =
+    sourceSeat !== 0 && human !== undefined && isWinningHand([...human.hand, tile], human.melds);
+  const humanNotice =
+    !completedHumanHand || ronSeats.includes(0)
+      ? null
+      : human.temporaryFuriten
+        ? '这张牌可和，但你处于同巡振听，不能荣和'
+        : human.furiten
+          ? '这张牌可和，但你处于舍牌振听，不能荣和'
+          : '这张牌组成和牌形，但当前没有役，不能荣和';
   const reactionState: MahjongState = {
     ...state,
+    notice: humanNotice ?? state.notice,
     phase: 'reaction',
     pendingReaction: { sourceSeat, tile, ronSeats },
   };
   const humanActions = getReactionActions(reactionState, 0).filter((action) => action.type !== 'pass');
-  if (humanActions.length > 0) return reactionState;
   const aiReaction = chooseAiReaction(reactionState);
+  if (humanActions.some((action) => humanActionPrecedesAi(reactionState, action, aiReaction))) {
+    return reactionState;
+  }
   if (aiReaction?.action.type === 'ron') return finishWin(reactionState, aiReaction.seat, 'ron', sourceSeat, tile);
   if (aiReaction && aiReaction.action.type !== 'pass')
     return applyMeldCall(reactionState, aiReaction.seat, aiReaction.action);
-  return drawForNextPlayer(state, ((sourceSeat + 1) % 4) as Seat);
+  return drawForNextPlayer(reactionState, ((sourceSeat + 1) % 4) as Seat);
 }
 
 // 将指定座位的弃牌写入牌河，并计算荣和或鸣牌反应窗口
@@ -448,6 +509,7 @@ function discardTile(state: MahjongState, seat: Seat, tileId: number, declareRii
     lastDiscard: tile,
     drawnTileId: null,
     seq: state.seq + 1,
+    notice: seat === 0 ? null : state.notice,
   };
   return resolveDiscardReaction(nextState, seat, tile);
 }
@@ -618,6 +680,7 @@ export function createMatch(
     pendingReaction: null,
     lastDiscard: null,
     result: null,
+    notice: null,
     matchScores: players.map((player) => player.score),
     drawnTileId: null,
   };
@@ -628,7 +691,13 @@ export function createMatch(
 export function getLegalActions(state: MahjongState, seat: Seat): LegalAction[] {
   const player = state.players[seat];
   if (state.phase === 'reaction' && state.pendingReaction?.sourceSeat !== seat) {
-    return getReactionActions(state, seat);
+    const actions = getReactionActions(state, seat);
+    if (seat !== 0) return actions;
+    const aiReaction = chooseAiReaction(state);
+    const available = actions.filter(
+      (action) => action.type !== 'pass' && humanActionPrecedesAi(state, action, aiReaction),
+    );
+    return available.length > 0 ? [...available, { type: 'pass', label: '跳过' }] : [];
   }
   if (state.phase !== (seat === 0 ? 'player-turn' : 'ai-turn') || state.currentPlayer !== seat) return [];
   const actions: LegalAction[] = [];
@@ -645,6 +714,7 @@ export function getLegalActions(state: MahjongState, seat: Seat): LegalAction[] 
       !player.riichi &&
       player.melds.every((meld) => !meld.open) &&
       player.score >= 1_000 &&
+      state.wall.length >= 4 &&
       isTenpai(remaining, player.melds);
     if (canDeclareRiichi) actions.push({ type: 'riichi', tileId: tile.id, label: '立直并打出' });
   }
@@ -690,6 +760,7 @@ export function applyAction(state: MahjongState, seat: Seat, action: LegalAction
       ...state,
       players: replacePlayer(state.players, nextPlayer),
       seq: state.seq + 1,
+      notice: passedRon && seat === 0 ? '你已跳过荣和，本巡不能再荣和' : state.notice,
     };
     return { state: resolveAutomaticReaction(nextState), accepted: true };
   }
@@ -770,7 +841,7 @@ export function startNextRound(state: MahjongState): MahjongState {
       1,
       ((state.dealer + 1) % 4) as Seat,
       'south',
-      0,
+      state.result?.type === 'draw' ? state.honba + 1 : 0,
       state.riichiSticks,
     );
   }
@@ -782,7 +853,7 @@ export function startNextRound(state: MahjongState): MahjongState {
     nextRound,
     nextDealer,
     state.roundWind,
-    0,
+    state.result?.type === 'draw' ? state.honba + 1 : 0,
     state.riichiSticks,
   );
 }
