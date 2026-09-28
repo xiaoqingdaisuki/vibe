@@ -78,3 +78,15 @@ export function updateWorkspaceEditor(
     editors: workspace.editors.map((editor) => (editor.id === editorId ? { ...editor, code } : editor)),
   };
 }
+
+// 仅在源码仍匹配快照时写回异步编辑结果，避免覆盖用户输入
+export function updateWorkspaceEditorIfUnchanged(
+  workspace: OnlineEditorWorkspace,
+  editorId: string,
+  expectedCode: string,
+  code: string,
+): OnlineEditorWorkspace {
+  const editor = workspace.editors.find((candidate) => candidate.id === editorId);
+  if (!editor || editor.code !== expectedCode) return workspace;
+  return updateWorkspaceEditor(workspace, editorId, code);
+}

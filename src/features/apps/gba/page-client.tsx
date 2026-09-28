@@ -55,7 +55,7 @@ function VirtualButton({ button, className = '', label, onPress, onRelease }: Vi
 // 管理 GBA 页面展示所需的会话数据与操作
 export default function GbaEmulatorApp() {
   const {
-    refs: { appRef, canvasRef, fileInputRef },
+    refs: { appRef, canvasRef, cheatDialogRef, fileInputRef },
     state: {
       phase,
       errorMessage,
@@ -341,6 +341,7 @@ export default function GbaEmulatorApp() {
       {isCheatModalOpen ? (
         <div className={styles.modalBackdrop} onMouseDown={handleCheatBackdropClick}>
           <section
+            ref={cheatDialogRef}
             className={styles.cheatModal}
             role="dialog"
             aria-modal="true"

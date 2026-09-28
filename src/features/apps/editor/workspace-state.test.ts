@@ -7,6 +7,7 @@ import {
   closeWorkspaceEditor,
   selectWorkspaceEditor,
   updateWorkspaceEditor,
+  updateWorkspaceEditorIfUnchanged,
 } from './workspace-state.ts';
 
 test('adds an independent editor and selects it', () => {
@@ -26,6 +27,19 @@ test('updates only the selected editor source', () => {
 
   assert.equal(next.editors[1]?.code, 'console.log("two");');
   assert.equal(next.editors[0]?.code, initial.editors[0]?.code);
+});
+
+test('does not overwrite source changed while an async result is pending', () => {
+  const initial = createDefaultWorkspace();
+  const editorId = initial.activeEditorId;
+  const originalCode = initial.editors[0]?.code ?? '';
+  const changed = updateWorkspaceEditor(initial, editorId, 'new source');
+
+  const ignored = updateWorkspaceEditorIfUnchanged(changed, editorId, originalCode, 'formatted source');
+  const applied = updateWorkspaceEditorIfUnchanged(initial, editorId, originalCode, 'formatted source');
+
+  assert.equal(ignored.editors[0]?.code, 'new source');
+  assert.equal(applied.editors[0]?.code, 'formatted source');
 });
 
 test('selects valid tabs and ignores unknown ids', () => {

@@ -40,10 +40,10 @@ type EmulatorConstructor = new (
 function createTestRuntime(autoLoadCheats: () => boolean): {
   emulator: GbaEmulator;
   files: Map<string, Uint8Array>;
-  stats: { loadGame: number; quickReload: number; saveState: number; loadState: number };
+  stats: { loadGame: number; quickReload: number; saveState: number; loadState: number; fsSync: number };
 } {
   const files = new Map<string, Uint8Array>();
-  const stats = { loadGame: 0, quickReload: 0, saveState: 0, loadState: 0 };
+  const stats = { loadGame: 0, quickReload: 0, saveState: 0, loadState: 0, fsSync: 0 };
   const runtimeModule: TestModule = {
     FS: {
       readFile: (path) => {
@@ -55,7 +55,9 @@ function createTestRuntime(autoLoadCheats: () => boolean): {
       analyzePath: (path) => ({ exists: files.has(path) }),
       unlink: (path) => files.delete(path),
     },
-    FSSync: async () => undefined,
+    FSSync: async () => {
+      stats.fsSync += 1;
+    },
     loadGame: () => {
       stats.loadGame += 1;
       return true;
@@ -124,6 +126,7 @@ test('replaces runtime cheats without quick-resetting the visible game', async (
   assert.equal(runtime.stats.quickReload, 0);
   assert.equal(runtime.stats.saveState, 3);
   assert.equal(runtime.stats.loadState, 4);
+  assert.equal(runtime.stats.fsSync, 0);
   assert.equal(runtime.files.has(cheatPath), false);
   assert.deepEqual(runtime.emulator.getActiveCheats(), []);
 });

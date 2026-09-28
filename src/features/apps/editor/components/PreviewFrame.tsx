@@ -47,9 +47,15 @@ function createFrameState(code: string, theme: Theme): PreviewFrameState {
 export function PreviewFrame({ code, theme }: PreviewFrameProps): ReactElement {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const previousCodeRef = useRef(code);
+  const themeRef = useRef(theme);
   const [diagnostics, setDiagnostics] = useState<PreviewDiagnostic[]>([]);
   const [frame, setFrame] = useState<PreviewFrameState | null>(null);
   const [previewState, setPreviewState] = useState<PreviewState>('loading');
+
+  // 同步主题引用，避免主题变化取消源码防抖任务
+  useEffect(() => {
+    themeRef.current = theme;
+  }, [theme]);
 
   // 客户端挂载后生成随机会话，避免服务端与客户端的 iframe 文档不一致
   useEffect(() => {
@@ -113,17 +119,20 @@ export function PreviewFrame({ code, theme }: PreviewFrameProps): ReactElement {
     const action = getHotPreviewAction(previousCode, code, previewState, Boolean(frame));
     if (action === 'none') return;
 
-    previousCodeRef.current = code;
-    if (action === 'remember') return;
+    if (action === 'remember') {
+      previousCodeRef.current = code;
+      return;
+    }
 
     const timeoutId = window.setTimeout(() => {
+      previousCodeRef.current = code;
       setDiagnostics([]);
-      setFrame(createFrameState(code, theme));
+      setFrame(createFrameState(code, themeRef.current));
       setPreviewState(getPreviewStateAfterCommand('restart'));
     }, 300);
 
     return () => window.clearTimeout(timeoutId);
-  }, [code, frame, previewState, theme]);
+  }, [code, frame, previewState]);
 
   // 网站主题变更只透传给 iframe 根节点，不重新执行用户代码
   useEffect(() => {

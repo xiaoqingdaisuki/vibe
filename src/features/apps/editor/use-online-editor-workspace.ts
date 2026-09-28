@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { createDefaultWorkspace, DEFAULT_EDITOR_CODE } from './data';
 import type { EditorDocument, OnlineEditorWorkspace } from './types';
@@ -9,6 +9,7 @@ import {
   closeWorkspaceEditor,
   selectWorkspaceEditor,
   updateWorkspaceEditor,
+  updateWorkspaceEditorIfUnchanged as applyWorkspaceEditorIfUnchanged,
 } from './workspace-state';
 import { loadWorkspace, saveWorkspace } from './workspace-storage';
 
@@ -20,6 +21,7 @@ interface OnlineEditorWorkspaceController {
   resetActiveEditor: () => void;
   selectEditor: (editorId: string) => void;
   updateEditor: (editorId: string, code: string) => void;
+  updateEditorIfUnchanged: (editorId: string, expectedCode: string, code: string) => void;
 }
 
 // 获取可用的浏览器本地存储，兼容受限环境
@@ -39,6 +41,12 @@ function getBrowserStorage(): Storage | null {
 export function useOnlineEditorWorkspace(): OnlineEditorWorkspaceController {
   const [workspace, setWorkspace] = useState<OnlineEditorWorkspace>(createDefaultWorkspace);
   const [hasLoadedStorage, setHasLoadedStorage] = useState(false);
+  const workspaceRef = useRef(workspace);
+
+  // 同步工作区引用，供页面离开时读取最新状态
+  useEffect(() => {
+    workspaceRef.current = workspace;
+  }, [workspace]);
 
   useEffect(() => {
     const frameId = window.requestAnimationFrame(() => {
@@ -60,6 +68,19 @@ export function useOnlineEditorWorkspace(): OnlineEditorWorkspaceController {
 
     return () => window.clearTimeout(timeoutId);
   }, [hasLoadedStorage, workspace]);
+
+  // 页面离开或工作区卸载时立即保存最新源码，避免延迟写入丢失
+  useEffect(() => {
+    function persistLatestWorkspace(): void {
+      if (hasLoadedStorage) saveWorkspace(getBrowserStorage(), workspaceRef.current);
+    }
+
+    window.addEventListener('pagehide', persistLatestWorkspace);
+    return () => {
+      window.removeEventListener('pagehide', persistLatestWorkspace);
+      persistLatestWorkspace();
+    };
+  }, [hasLoadedStorage]);
 
   const activeEditor =
     workspace.editors.find((editor) => editor.id === workspace.activeEditorId) ?? workspace.editors[0];
@@ -84,6 +105,11 @@ export function useOnlineEditorWorkspace(): OnlineEditorWorkspaceController {
     setWorkspace((currentWorkspace) => updateWorkspaceEditor(currentWorkspace, editorId, code));
   };
 
+  // 仅在源码未变化时写回异步结果，避免覆盖用户的新输入
+  const updateEditorIfUnchanged = (editorId: string, expectedCode: string, code: string): void => {
+    setWorkspace((currentWorkspace) => applyWorkspaceEditorIfUnchanged(currentWorkspace, editorId, expectedCode, code));
+  };
+
   // 将当前编辑器恢复为友善的 React 动画示例
   const resetActiveEditor = (): void => {
     updateEditor(activeEditor.id, DEFAULT_EDITOR_CODE);
@@ -97,5 +123,6 @@ export function useOnlineEditorWorkspace(): OnlineEditorWorkspaceController {
     resetActiveEditor,
     selectEditor,
     updateEditor,
+    updateEditorIfUnchanged,
   };
 }

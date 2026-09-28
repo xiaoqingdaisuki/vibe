@@ -33,6 +33,10 @@ test('recognizes standalone CSS for formatting, highlighting and preview', () =>
   assert.equal(getEditorLanguage(code), 'css');
 });
 
+test('ignores leading source comments when detecting CSS', () => {
+  assert.equal(getPreviewSourceMode('/* stylesheet */\nbody { color: red; }'), 'css');
+});
+
 test('recognizes ordinary and custom element CSS selectors', () => {
   assert.equal(getPreviewSourceMode('div { color: red; }'), 'css');
   assert.equal(getPreviewSourceMode('div{color:red}'), 'css');

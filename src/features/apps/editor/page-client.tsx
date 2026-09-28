@@ -13,8 +13,16 @@ import { useVibeTheme } from './use-vibe-theme';
 
 // 渲染多工作区 React 编辑器与实时预览工作台
 export function OnlineEditor(): ReactElement {
-  const { activeEditor, addEditor, closeEditor, editors, resetActiveEditor, selectEditor, updateEditor } =
-    useOnlineEditorWorkspace();
+  const {
+    activeEditor,
+    addEditor,
+    closeEditor,
+    editors,
+    resetActiveEditor,
+    selectEditor,
+    updateEditor,
+    updateEditorIfUnchanged,
+  } = useOnlineEditorWorkspace();
   const theme = useVibeTheme();
   const [formatError, setFormatError] = useState('');
   const [isFormatting, setIsFormatting] = useState(false);
@@ -27,9 +35,12 @@ export function OnlineEditor(): ReactElement {
 
     setFormatError('');
     setIsFormatting(true);
+    const editorId = activeEditor.id;
+    const source = activeEditor.code;
+    const language = activeLanguage;
     try {
-      const formattedValue = await formatCode(activeEditor.code, activeLanguage);
-      updateEditor(activeEditor.id, formattedValue);
+      const formattedValue = await formatCode(source, language);
+      updateEditorIfUnchanged(editorId, source, formattedValue);
     } catch {
       setFormatError('当前代码无法格式化，请先修正语法。');
     } finally {

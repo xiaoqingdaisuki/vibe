@@ -167,6 +167,12 @@ export function CodeEditor({
       return;
     }
 
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      inputRef.current?.blur();
+      return;
+    }
+
     if (event.key !== 'Tab') return;
 
     event.preventDefault();
@@ -320,6 +326,7 @@ export function CodeEditor({
           onKeyDown={handleKeyDown}
           onScroll={handleScroll}
           aria-label={`编辑 ${editorTitle}`}
+          aria-keyshortcuts="Escape"
           autoCapitalize="none"
           autoComplete="off"
           autoCorrect="off"

@@ -28,7 +28,7 @@ function isCssSource(code: string): boolean {
 
 // 根据源码特征自动区分 HTML、React JSX 与原生 JavaScript
 export function getPreviewSourceMode(code: string): PreviewSourceMode {
-  const normalizedCode = code.replace(/^\s*(?:<!--\s*[\s\S]*?\s*-->\s*)*/, '');
+  const normalizedCode = code.replace(/^(?:\s*(?:<!--[\s\S]*?-->|\/\*[\s\S]*?\*\/|\/\/[^\r\n]*(?:\r?\n|$)))+\s*/u, '');
 
   if (HTML_ENTRY_PATTERN.test(normalizedCode)) {
     return 'html';

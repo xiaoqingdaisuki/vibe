@@ -14,6 +14,7 @@ const RUNTIME_CHEAT_STATE_FLAGS = 27;
 const EMPTY_CHEAT_SET = '!disabled\n# __vibe_empty_cheat_set__\n';
 
 type EmulatorFileSystem = {
+  readdir: (path: string) => string[];
   readFile: (path: string) => Uint8Array;
   writeFile: (path: string, data: Uint8Array) => void;
   analyzePath: (path: string) => { exists: boolean };
@@ -100,6 +101,24 @@ function readVirtualFile(fileSystem: EmulatorFileSystem, path: string): Uint8Arr
   }
 }
 
+// 清理旧版本遗留的 ROM、金手指和临时状态，避免它们再次进入持久化文件系统
+function clearEphemeralFiles(module: MgbaModule): void {
+  const paths = module.filePaths();
+  for (const directory of [paths.gamePath, paths.cheatsPath, paths.saveStatePath]) {
+    let entries: string[];
+    try {
+      entries = module.FS.readdir(directory);
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (entry === '.' || entry === '..') continue;
+      removeVirtualFile(module.FS, `${directory}/${entry}`);
+    }
+  }
+}
+
 export class GbaEmulator {
   private readonly module: MgbaModule;
 
@@ -151,6 +170,8 @@ export class GbaEmulator {
     const factory = await loadMgbaFactory();
     const runtime = await factory({ canvas, locateFile: locateWasmFile });
     await runtime.FSInit();
+    clearEphemeralFiles(runtime);
+    await runtime.FSSync();
     runtime.setCoreSettings({
       audioSync: true,
       autoSaveStateEnable: false,
@@ -326,7 +347,6 @@ export class GbaEmulator {
       if (!stateSaved) throw new Error('无法保存当前游戏进度，金手指未应用。');
       this.replaceCheatsInCurrentCore(cheats);
       this.activeCheats = cheats.map((cheat) => ({ ...cheat }));
-      await this.module.FSSync();
     } catch (error) {
       if (stateSaved) {
         try {
@@ -347,11 +367,6 @@ export class GbaEmulator {
     } finally {
       removeVirtualFile(this.module.FS, this.statePath);
       if (previousState) this.module.FS.writeFile(this.statePath, previousState);
-      try {
-        await this.module.FSSync();
-      } catch {
-        // 临时状态文件清理失败不影响已经恢复的游戏核心。
-      }
     }
   }
 

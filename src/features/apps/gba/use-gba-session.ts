@@ -16,6 +16,14 @@ import { confirmGbaReset } from './reset-confirmation';
 import { GBA_KEY_BINDINGS } from './keyboard';
 import type { GbaButton, GbaCheat, GbaPhase, GbaRom, GbaSpeed } from './types';
 
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+
+// 返回弹窗内当前可通过键盘访问的元素
+function getFocusableElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
+}
+
 // 将未知金手指异常转换为用户可理解的提示
 function getCheatErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'mGBA 无法解析这组金手指代码。';
@@ -67,6 +75,7 @@ export interface GbaSessionActions {
 export interface GbaSessionRefs {
   appRef: RefObject<HTMLDivElement | null>;
   canvasRef: RefObject<HTMLCanvasElement | null>;
+  cheatDialogRef: RefObject<HTMLElement | null>;
   fileInputRef: RefObject<HTMLInputElement | null>;
 }
 
@@ -82,6 +91,8 @@ export function useGbaSession(): GbaSession {
   const appRef = useRef<HTMLDivElement>(null);
   // 保存 Canvas 节点，交给 mGBA WASM 绑定视频输出
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // 保存金手指弹窗节点，用于管理焦点循环
+  const cheatDialogRef = useRef<HTMLElement>(null);
   // 保存文件选择器节点，允许顶部按钮重复选择同一个 ROM
   const fileInputRef = useRef<HTMLInputElement>(null);
   // 保存当前 WASM 模块，避免每次状态更新重新创建模拟器
@@ -104,6 +115,10 @@ export function useGbaSession(): GbaSession {
   const frameReadyRef = useRef(false);
   // 保存当前 ROM 加载请求编号，丢弃过期请求的异步结果
   const loadRequestRef = useRef(0);
+  // 保存打开弹窗前的焦点，关闭后恢复键盘操作位置
+  const previousCheatFocusRef = useRef<HTMLElement | null>(null);
+  // 保存金手指应用状态，供稳定的弹窗键盘监听读取
+  const isApplyingCheatsRef = useRef(false);
 
   // 管理模拟器所处阶段，驱动页面按钮和画面提示
   const [phase, setPhase] = useState<GbaPhase>('empty');
@@ -144,18 +159,62 @@ export function useGbaSession(): GbaSession {
     cheatModalRef.current = isCheatModalOpen;
   }, [isCheatModalOpen]);
 
-  // 监听 Escape，为金手指弹窗提供统一关闭方式
+  // 同步金手指应用状态，避免弹窗监听器因异步操作闭包过期
   useEffect(() => {
-    if (!isCheatModalOpen || isApplyingCheats) return undefined;
+    isApplyingCheatsRef.current = isApplyingCheats;
+  }, [isApplyingCheats]);
 
-    // 按 Escape 关闭金手指弹窗
-    function handleCheatEscape(event: KeyboardEvent): void {
-      if (event.key === 'Escape') setIsCheatModalOpen(false);
+  // 将弹窗焦点限制在对话框内并锁定背景滚动
+  useEffect(() => {
+    if (!isCheatModalOpen) return undefined;
+
+    const dialog = cheatDialogRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    let animationFrameId = 0;
+
+    // 处理弹窗内的 Escape 关闭与 Tab 焦点循环
+    function handleCheatKeyDown(event: KeyboardEvent): void {
+      if (event.key === 'Escape') {
+        if (!isApplyingCheatsRef.current) setIsCheatModalOpen(false);
+        return;
+      }
+
+      if (event.key !== 'Tab' || !dialog) return;
+      const focusableElements = getFocusableElements(dialog);
+      if (focusableElements.length === 0) {
+        event.preventDefault();
+        return;
+      }
+
+      const firstElement = focusableElements[0];
+      const lastElement = focusableElements[focusableElements.length - 1];
+      if (!dialog.contains(document.activeElement)) {
+        event.preventDefault();
+        (event.shiftKey ? lastElement : firstElement)?.focus();
+        return;
+      }
+      if (event.shiftKey && document.activeElement === firstElement) {
+        event.preventDefault();
+        lastElement?.focus();
+      } else if (!event.shiftKey && document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement?.focus();
+      }
     }
 
-    window.addEventListener('keydown', handleCheatEscape);
-    return () => window.removeEventListener('keydown', handleCheatEscape);
-  }, [isApplyingCheats, isCheatModalOpen]);
+    window.addEventListener('keydown', handleCheatKeyDown);
+    animationFrameId = window.requestAnimationFrame(() => {
+      if (dialog) getFocusableElements(dialog)[0]?.focus();
+    });
+    return () => {
+      window.removeEventListener('keydown', handleCheatKeyDown);
+      window.cancelAnimationFrame(animationFrameId);
+      document.body.style.overflow = previousOverflow;
+      previousCheatFocusRef.current?.focus();
+      previousCheatFocusRef.current = null;
+    };
+  }, [isCheatModalOpen]);
 
   // 判断 ROM 加载请求是否仍然拥有当前页面的写入权
   function isCurrentLoad(requestId: number): boolean {
@@ -383,6 +442,8 @@ export function useGbaSession(): GbaSession {
 
   // 打开金手指编辑弹窗，并复制当前列表作为可撤销草稿
   function handleOpenCheats(): void {
+    const activeElement = document.activeElement;
+    previousCheatFocusRef.current = activeElement instanceof HTMLElement ? activeElement : null;
     setDraftCheats(cheats.map((cheat) => ({ ...cheat })));
     setCheatName('');
     setCheatCode('');
@@ -428,8 +489,7 @@ export function useGbaSession(): GbaSession {
 
   // 更新列表中指定金手指的名称、代码或启用状态
   function handleUpdateCheat(id: string, patch: Partial<Omit<GbaCheat, 'id'>>): void {
-    const nextPatch = patch.code === undefined ? patch : { ...patch, code: normalizeGbaCheatCode(patch.code) };
-    setDraftCheats((current) => current.map((cheat) => (cheat.id === id ? { ...cheat, ...nextPatch } : cheat)));
+    setDraftCheats((current) => current.map((cheat) => (cheat.id === id ? { ...cheat, ...patch } : cheat)));
   }
 
   // 从编辑草稿中删除指定金手指
@@ -590,6 +650,7 @@ export function useGbaSession(): GbaSession {
 
   // 组件卸载时保存存档并释放 WASM 资源
   useEffect(() => {
+    mountedRef.current = true;
     return () => {
       loadRequestRef.current += 1;
       mountedRef.current = false;
@@ -601,7 +662,7 @@ export function useGbaSession(): GbaSession {
   }, []);
 
   return {
-    refs: { appRef, canvasRef, fileInputRef },
+    refs: { appRef, canvasRef, cheatDialogRef, fileInputRef },
     state: {
       phase,
       errorMessage,

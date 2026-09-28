@@ -1,4 +1,4 @@
-import type { ReactElement } from 'react';
+import type { KeyboardEvent, ReactElement } from 'react';
 
 import { getEditorTabId } from '../editor-dom';
 import type { EditorDocument } from '../types';
@@ -15,6 +15,31 @@ interface EditorTabsProps {
 // 渲染可新建、切换与按需关闭的独立编辑器标签
 export function EditorTabs({ activeEditorId, editors, onAdd, onClose, onSelect }: EditorTabsProps): ReactElement {
   const canCloseEditor = editors.length > 1;
+
+  // 使用方向键和 Home/End 在编辑器标签之间移动焦点
+  function handleTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, editorId: string): void {
+    const currentIndex = editors.findIndex((editor) => editor.id === editorId);
+    if (currentIndex < 0) return;
+
+    let nextIndex = currentIndex;
+    if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+      nextIndex = (currentIndex + 1) % editors.length;
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+      nextIndex = (currentIndex - 1 + editors.length) % editors.length;
+    } else if (event.key === 'Home') {
+      nextIndex = 0;
+    } else if (event.key === 'End') {
+      nextIndex = editors.length - 1;
+    } else {
+      return;
+    }
+
+    event.preventDefault();
+    const nextEditor = editors[nextIndex];
+    if (!nextEditor) return;
+    onSelect(nextEditor.id);
+    document.getElementById(getEditorTabId(nextEditor.id))?.focus();
+  }
 
   return (
     <div className={styles.tabs} role="tablist" aria-label="编辑器列表">
@@ -33,6 +58,7 @@ export function EditorTabs({ activeEditorId, editors, onAdd, onClose, onSelect }
                 aria-controls="source-panel"
                 tabIndex={selected ? 0 : -1}
                 onClick={() => onSelect(editor.id)}
+                onKeyDown={(event) => handleTabKeyDown(event, editor.id)}
               >
                 {editor.title}
               </button>
