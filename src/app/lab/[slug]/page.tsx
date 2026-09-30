@@ -37,11 +37,13 @@ function ComingSoonApp({ title }: ComingSoonAppProps) {
   );
 }
 
+// 为静态注册的应用生成可预渲染路径
 export async function generateStaticParams() {
   const slugs = getAllLabAppSlugs();
   return slugs.map((slug) => ({ slug }));
 }
 
+// 根据应用注册信息生成页面标题与描述
 export async function generateMetadata({ params }: LabAppPageProps) {
   const { slug } = await params;
   const app = getLabAppBySlug(slug);
@@ -78,6 +80,11 @@ export default async function LabAppPage({ params }: LabAppPageProps) {
 
   const loadedApp = await loadApp();
   const AppComponent = loadedApp.default;
+
+  // 地图使用完整画布承载全部操作，避免通用页面容器限制地图视野
+  if (app.slug === 'map') {
+    return <AppComponent />;
+  }
 
   if (app.slug === 'mahjong') {
     return <AppComponent />;

@@ -4,6 +4,7 @@ export type LabAppLoader = () => Promise<{
 }>;
 
 const LAB_APP_LOADERS: Record<string, LabAppLoader> = {
+  map: () => import('./map/page-client'),
   editor: () => import('./editor/page-client'),
   maplestory: () => import('./maplestory/page-client'),
   sudoku: () => import('./sudoku/page-client'),
