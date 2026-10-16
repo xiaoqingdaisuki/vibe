@@ -21,7 +21,7 @@ test('keeps streaming idle protection within the total route budget', () => {
   assert.equal(getAgentStreamIdleTimeoutMs('75000'), 75_000);
   assert.equal(getAgentStreamIdleTimeoutMs('999999'), 295_000);
   assert.equal(getAgentStreamIdleTimeoutMs('1'), 30_000);
-  assert.equal(getAgentStreamIdleTimeoutMs('invalid'), 75_000);
+  assert.equal(getAgentStreamIdleTimeoutMs('invalid'), 180_000);
 });
 
 test('caps configured idle protection by the configured total timeout', () => {

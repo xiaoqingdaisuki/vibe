@@ -44,7 +44,7 @@ test('stops a stalled stream and cancels its reader instead of remaining in load
   const pending = callAgentApi(REQUEST, () => undefined);
   const assertion = assert.rejects(pending, /响应超时/);
   await new Promise<void>((resolve) => setImmediate(resolve));
-  t.mock.timers.tick(75_000);
+  t.mock.timers.tick(180_000);
   await assertion;
   assert.equal(cancelled, true);
 });
