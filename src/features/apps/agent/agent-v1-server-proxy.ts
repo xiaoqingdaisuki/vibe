@@ -86,6 +86,7 @@ async function fetchUpstream(
   init: Omit<RequestInit, 'signal'>,
   userId?: string,
   timeoutMs = getAgentRequestTimeoutMs(),
+  signal?: AbortSignal,
 ): Promise<Response | JsonProxyResult> {
   const url = getAgentApiUrl(pathname);
   if (!url) return errorResult('AI助手服务配置异常，请联系管理员。', 500, 'CONFIG_ERROR');
@@ -99,12 +100,12 @@ async function fetchUpstream(
       ...(init.headers as Record<string, string> | undefined),
       Authorization: `Bearer ${apiSecret}`,
     };
-    if (!(init.body instanceof FormData)) headers['Content-Type'] = 'application/json';
+    if (init.body != null && !(init.body instanceof FormData)) headers['Content-Type'] = 'application/json';
     return await fetch(url, {
       ...init,
       headers,
       body: init.body ?? null,
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs)]) : AbortSignal.timeout(timeoutMs),
       cache: 'no-store',
     });
   } catch (error) {
@@ -174,7 +175,11 @@ export async function proxyGetAgentCapabilities(userId: string): Promise<JsonPro
 }
 
 // 代理流式消息发送请求到上游API
-export async function proxyStreamAgentMessage(conversationId: string, payload: unknown): Promise<AgentV1ProxyResult> {
+export async function proxyStreamAgentMessage(
+  conversationId: string,
+  payload: unknown,
+  signal?: AbortSignal,
+): Promise<AgentV1ProxyResult> {
   if (!CONVERSATION_ID_PATTERN.test(conversationId)) {
     return errorResult('会话 ID 格式不正确。', 400, 'INVALID_REQUEST');
   }
@@ -200,8 +205,9 @@ export async function proxyStreamAgentMessage(conversationId: string, payload: u
     if (!isRecord(payload)) return errorResult('请求体格式不正确。', 400, 'INVALID_REQUEST');
     content = getInputText(payload.content, MAX_MESSAGE_CHARS);
     userId = getInputText(payload.user_id, 128);
-    const hasDocumentAttachment = (Array.isArray(payload.session_documents) && payload.session_documents.length > 0)
-      || (Array.isArray(payload.document_attachment_ids) && payload.document_attachment_ids.length > 0);
+    const hasDocumentAttachment =
+      (Array.isArray(payload.session_documents) && payload.session_documents.length > 0) ||
+      (Array.isArray(payload.document_attachment_ids) && payload.document_attachment_ids.length > 0);
     if (!content && !hasDocumentAttachment) {
       return errorResult('消息内容格式不正确。', 400, 'INVALID_REQUEST');
     }
@@ -225,6 +231,7 @@ export async function proxyStreamAgentMessage(conversationId: string, payload: u
     },
     userId,
     getAgentStreamTimeoutMs(),
+    signal,
   );
   if (!(upstream instanceof Response)) return upstream;
   if (!upstream.ok) return adaptUpstreamError(upstream);

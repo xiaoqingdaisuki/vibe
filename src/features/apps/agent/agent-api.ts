@@ -422,6 +422,7 @@ async function readEventStream(
     return requireContent({ content: fullContent, suggestionCards });
   } finally {
     signal?.removeEventListener('abort', cancelRead);
+    await reader.cancel().catch(() => undefined);
     reader.releaseLock();
   }
 }
@@ -433,18 +434,52 @@ export async function callAgentApi(
   signal?: AbortSignal,
   onToolProgress?: (progress: AgentToolProgress) => void,
 ): Promise<AgentApiResponse> {
-  const response = await fetchAgent(request, signal);
-  if (!response.ok) throw new AgentHttpError(await readHttpError(response), response.status);
+  const controller = new AbortController();
+  const combinedSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
+  let timedOut = false;
+  // 正文或工具进度长期停滞时退出加载，SSE 心跳不延长业务等待。
+  const onTimeout = () => {
+    timedOut = true;
+    controller.abort();
+  };
+  let idleTimer = setTimeout(onTimeout, 75_000);
+  const totalTimer = setTimeout(onTimeout, 290_000);
+  // 有业务进度时重置停滞计时，同时保留请求总时限。
+  const refreshProgress = () => {
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(onTimeout, 75_000);
+  };
+  try {
+    const response = await fetchAgent(request, combinedSignal);
+    if (!response.ok) throw new AgentHttpError(await readHttpError(response), response.status);
 
-  const contentType = response.headers.get('content-type') ?? '';
-  if (contentType.includes('application/json')) {
-    const payload: unknown = await response.json().catch(() => null);
-    return parseJsonResponse(payload);
-  }
-  if (contentType.includes('text/event-stream')) {
-    return readEventStream(response, onChunk, signal, onToolProgress);
-  }
+    const contentType = response.headers.get('content-type') ?? '';
+    if (contentType.includes('application/json')) {
+      const payload: unknown = await response.json().catch(() => null);
+      return parseJsonResponse(payload);
+    }
+    if (contentType.includes('text/event-stream')) {
+      return await readEventStream(
+        response,
+        (chunk) => {
+          refreshProgress();
+          onChunk(chunk);
+        },
+        combinedSignal,
+        (progress) => {
+          refreshProgress();
+          onToolProgress?.(progress);
+        },
+      );
+    }
 
-  const content = await response.text();
-  return requireContent({ content });
+    const content = await response.text();
+    return requireContent({ content });
+  } catch (error) {
+    if (timedOut && !signal?.aborted) throw new Error('AI助手响应超时，请稍后重试。');
+    throw error;
+  } finally {
+    clearTimeout(idleTimer);
+    clearTimeout(totalTimer);
+  }
 }

@@ -12,6 +12,93 @@ import {
 
 const REQUEST = { conversationId: 'conv_1', content: '测试', userId: 'web_user123' };
 
+test('stops a stalled stream and cancels its reader instead of remaining in loading', async (t) => {
+  const originalFetch = globalThis.fetch;
+  let cancelled = false;
+  globalThis.fetch = async () =>
+    new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(': ping\n\n'));
+        },
+        cancel() {
+          cancelled = true;
+        },
+      }),
+      { headers: { 'Content-Type': 'text/event-stream' } },
+    );
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const pending = callAgentApi(REQUEST, () => undefined);
+  const assertion = assert.rejects(pending, /响应超时/);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  t.mock.timers.tick(75_000);
+  await assertion;
+  assert.equal(cancelled, true);
+});
+
+test('cancels the upstream reader when an SSE error ends consumption', async (t) => {
+  const originalFetch = globalThis.fetch;
+  let cancelled = false;
+  globalThis.fetch = async () =>
+    new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(
+            new TextEncoder().encode('event: error\ndata: {"error":{"message":"invalid response"}}\n\n'),
+          );
+        },
+        cancel() {
+          cancelled = true;
+        },
+      }),
+      { headers: { 'Content-Type': 'text/event-stream' } },
+    );
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  await assert.rejects(
+    callAgentApi(REQUEST, () => undefined),
+    /invalid response/,
+  );
+  assert.equal(cancelled, true);
+});
+
+test('continuous progress cannot keep a request alive past the total deadline', async (t) => {
+  const originalFetch = globalThis.fetch;
+  let streamController: ReadableStreamDefaultController<Uint8Array>;
+  let cancelled = false;
+  globalThis.fetch = async () =>
+    new Response(
+      new ReadableStream({
+        start(controller) {
+          streamController = controller;
+        },
+        cancel() {
+          cancelled = true;
+        },
+      }),
+      { headers: { 'Content-Type': 'text/event-stream' } },
+    );
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+  });
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const pending = callAgentApi(REQUEST, () => undefined);
+  const assertion = assert.rejects(pending, /响应超时/);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  for (let index = 0; index < 4; index += 1) {
+    t.mock.timers.tick(60_000);
+    streamController!.enqueue(new TextEncoder().encode('data: {"text":"progress"}\n\n'));
+    await new Promise<void>((resolve) => setImmediate(resolve));
+  }
+  t.mock.timers.tick(50_000);
+  await assertion;
+  assert.equal(cancelled, true);
+});
+
 test('returns a successful JSON response from the HTTP API', async (t) => {
   const originalFetch = globalThis.fetch;
   globalThis.fetch = async () =>

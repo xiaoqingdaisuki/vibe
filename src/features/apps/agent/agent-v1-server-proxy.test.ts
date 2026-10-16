@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   proxyCreateAgentConversation,
+  proxyDeleteAgentConversation,
   proxyGetAgentCapabilities,
   proxyGetAgentConversationMessages,
   proxyStreamAgentMessage,
@@ -10,6 +11,56 @@ import {
 
 const TEST_AGENT_API_SECRET = 'test-agent-secret-with-at-least-32-bytes';
 process.env.AGENT_API_SECRET = TEST_AGENT_API_SECRET;
+
+test('deletes a conversation without a JSON content type for its empty request body', async (t) => {
+  const originalFetch = globalThis.fetch;
+  const originalBaseUrl = process.env.AGENT_API_BASE_URL;
+  process.env.AGENT_API_BASE_URL = 'https://agent.test';
+  let upstreamUrl = '';
+  let upstreamInit: RequestInit | undefined;
+  globalThis.fetch = async (input, init) => {
+    upstreamUrl = String(input);
+    upstreamInit = init;
+    return new Response(null, { status: 204 });
+  };
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    if (originalBaseUrl === undefined) delete process.env.AGENT_API_BASE_URL;
+    else process.env.AGENT_API_BASE_URL = originalBaseUrl;
+  });
+
+  const result = await proxyDeleteAgentConversation('conv_123', 'web_user123');
+
+  assert.equal(result.status, 200);
+  assert.equal(upstreamUrl, 'https://agent.test/api/v1/conversations/conv_123');
+  assert.equal(upstreamInit?.method, 'DELETE');
+  assert.equal(upstreamInit?.body, null);
+  const headers = new Headers(upstreamInit?.headers);
+  assert.equal(headers.has('Content-Type'), false);
+  assert.equal(headers.get('authorization'), `Bearer ${TEST_AGENT_API_SECRET}`);
+  assert.equal(headers.get('x-agent-user-id'), 'web_user123');
+});
+
+test('propagates caller cancellation to the upstream streaming request', async (t) => {
+  const originalFetch = globalThis.fetch;
+  const originalBaseUrl = process.env.AGENT_API_BASE_URL;
+  process.env.AGENT_API_BASE_URL = 'http://agent.test';
+  let upstreamSignal: AbortSignal | null | undefined;
+  globalThis.fetch = async (_input, init) => {
+    upstreamSignal = init?.signal;
+    return new Response('data: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } });
+  };
+  t.after(() => {
+    globalThis.fetch = originalFetch;
+    if (originalBaseUrl === undefined) delete process.env.AGENT_API_BASE_URL;
+    else process.env.AGENT_API_BASE_URL = originalBaseUrl;
+  });
+  const controller = new AbortController();
+  await proxyStreamAgentMessage('conv_123', { content: '测试', user_id: 'web_user123' }, controller.signal);
+  assert.equal(upstreamSignal?.aborted, false);
+  controller.abort();
+  assert.equal(upstreamSignal?.aborted, true);
+});
 
 test('creates a conversation through the Agent v1 API', async (t) => {
   const originalFetch = globalThis.fetch;
@@ -93,7 +144,11 @@ test('forwards raw PDF and DOCX multipart attachments to the Agent API', async (
   const form = new FormData();
   form.append('metadata', JSON.stringify({ content: '读取文档', user_id: 'web_user123' }));
   form.append('documents', new Blob(['pdf'], { type: 'application/pdf' }), 'marker.pdf');
-  form.append('documents', new Blob(['docx'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }), 'marker.docx');
+  form.append(
+    'documents',
+    new Blob(['docx'], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }),
+    'marker.docx',
+  );
   const result = await proxyStreamAgentMessage('conv_123', form);
 
   assert.equal(result.status, 200);
@@ -174,10 +229,13 @@ test('retrieves memory capability for attachment lifecycle decisions', async (t)
   let upstreamUrl = '';
   globalThis.fetch = async (input) => {
     upstreamUrl = String(input);
-    return new Response(JSON.stringify({
-      memory_enabled: false,
-      attachments: { document_mode: 'session_only' },
-    }), { headers: { 'Content-Type': 'application/json' } });
+    return new Response(
+      JSON.stringify({
+        memory_enabled: false,
+        attachments: { document_mode: 'session_only' },
+      }),
+      { headers: { 'Content-Type': 'application/json' } },
+    );
   };
   t.after(() => {
     globalThis.fetch = originalFetch;

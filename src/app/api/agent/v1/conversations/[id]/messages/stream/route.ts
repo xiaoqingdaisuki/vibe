@@ -15,7 +15,7 @@ export async function POST(request: Request, context: RouteContext): Promise<Res
   const payload: unknown = contentType.includes('multipart/form-data')
     ? await request.formData().catch(() => null)
     : await request.json().catch(() => null);
-  const result = await proxyStreamAgentMessage(id, payload);
+  const result = await proxyStreamAgentMessage(id, payload, request.signal);
   if ('body' in result) return NextResponse.json(result.body, { status: result.status });
 
   return new Response(result.stream, {
