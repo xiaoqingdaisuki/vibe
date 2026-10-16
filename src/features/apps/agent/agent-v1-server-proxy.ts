@@ -11,6 +11,14 @@ interface StreamProxyResult {
   contentType: string;
 }
 
+interface FetchUpstreamOptions {
+  pathname: string;
+  init: Omit<RequestInit, 'signal'>;
+  userId?: string;
+  timeoutMs?: number;
+  signal?: AbortSignal;
+}
+
 export type AgentV1ProxyResult = JsonProxyResult | StreamProxyResult;
 
 const CONVERSATION_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
@@ -81,13 +89,13 @@ function isTimeoutError(error: unknown): boolean {
 }
 
 // 向上游API发起请求，带超时和错误处理
-async function fetchUpstream(
-  pathname: string,
-  init: Omit<RequestInit, 'signal'>,
-  userId?: string,
+async function fetchUpstream({
+  pathname,
+  init,
+  userId,
   timeoutMs = getAgentRequestTimeoutMs(),
-  signal?: AbortSignal,
-): Promise<Response | JsonProxyResult> {
+  signal,
+}: FetchUpstreamOptions): Promise<Response | JsonProxyResult> {
   const url = getAgentApiUrl(pathname);
   if (!url) return errorResult('AI助手服务配置异常，请联系管理员。', 500, 'CONFIG_ERROR');
   const apiSecret = process.env.AGENT_API_SECRET?.trim();
@@ -140,14 +148,14 @@ export async function proxyCreateAgentConversation(payload: unknown): Promise<Js
     return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
   }
 
-  const upstream = await fetchUpstream(
-    '/api/v1/conversations',
-    {
+  const upstream = await fetchUpstream({
+    pathname: '/api/v1/conversations',
+    init: {
       method: 'POST',
       body: JSON.stringify({ title, mode: 'chat', user_id: userId }),
     },
     userId,
-  );
+  });
   if (!(upstream instanceof Response)) return upstream;
   if (!upstream.ok) return adaptUpstreamError(upstream);
 
@@ -164,7 +172,7 @@ export async function proxyGetAgentCapabilities(userId: string): Promise<JsonPro
   if (!USER_ID_PATTERN.test(userId)) {
     return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
   }
-  const upstream = await fetchUpstream('/api/v1/capabilities', { method: 'GET' }, userId);
+  const upstream = await fetchUpstream({ pathname: '/api/v1/capabilities', init: { method: 'GET' }, userId });
   if (!(upstream instanceof Response)) return upstream;
   if (!upstream.ok) return adaptUpstreamError(upstream);
   const payload: unknown = await upstream.json().catch(() => null);
@@ -223,16 +231,16 @@ export async function proxyStreamAgentMessage(
     return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
   }
 
-  const upstream = await fetchUpstream(
-    `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/stream`,
-    {
+  const upstream = await fetchUpstream({
+    pathname: `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/stream`,
+    init: {
       method: 'POST',
       body,
     },
     userId,
-    getAgentStreamTimeoutMs(),
+    timeoutMs: getAgentStreamTimeoutMs(),
     signal,
-  );
+  });
   if (!(upstream instanceof Response)) return upstream;
   if (!upstream.ok) return adaptUpstreamError(upstream);
   if (!upstream.body) return errorResult('AI助手服务返回了无效响应。', 502, 'INVALID_UPSTREAM_RESPONSE');
@@ -252,11 +260,11 @@ export async function proxyDeleteAgentConversation(conversationId: string, userI
   if (!USER_ID_PATTERN.test(userId)) {
     return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
   }
-  const upstream = await fetchUpstream(
-    `/api/v1/conversations/${encodeURIComponent(conversationId)}`,
-    { method: 'DELETE' },
+  const upstream = await fetchUpstream({
+    pathname: `/api/v1/conversations/${encodeURIComponent(conversationId)}`,
+    init: { method: 'DELETE' },
     userId,
-  );
+  });
   if (!(upstream instanceof Response)) return upstream;
   if (!upstream.ok) return adaptUpstreamError(upstream);
   return { status: 200, body: { success: true } };
@@ -273,11 +281,11 @@ export async function proxyGetAgentConversationMessages(
   if (!USER_ID_PATTERN.test(userId)) {
     return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
   }
-  const upstream = await fetchUpstream(
-    `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`,
-    { method: 'GET' },
+  const upstream = await fetchUpstream({
+    pathname: `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`,
+    init: { method: 'GET' },
     userId,
-  );
+  });
   if (!(upstream instanceof Response)) return upstream;
   if (!upstream.ok) return adaptUpstreamError(upstream);
 

@@ -12,24 +12,34 @@ import {
 
 const REQUEST = { conversationId: 'conv_1', content: '测试', userId: 'web_user123' };
 
-test('stops a stalled stream and cancels its reader instead of remaining in loading', async (t) => {
+type TestContext = { after(callback: () => void): void };
+
+// 安装一次性全局 fetch mock，并在测试结束后恢复原实现
+function installFetchMock(t: TestContext, implementation: typeof globalThis.fetch): void {
   const originalFetch = globalThis.fetch;
-  let cancelled = false;
-  globalThis.fetch = async () =>
-    new Response(
-      new ReadableStream({
-        start(controller) {
-          controller.enqueue(new TextEncoder().encode(': ping\n\n'));
-        },
-        cancel() {
-          cancelled = true;
-        },
-      }),
-      { headers: { 'Content-Type': 'text/event-stream' } },
-    );
+  globalThis.fetch = implementation;
   t.after(() => {
     globalThis.fetch = originalFetch;
   });
+}
+
+test('stops a stalled stream and cancels its reader instead of remaining in loading', async (t) => {
+  let cancelled = false;
+  installFetchMock(
+    t,
+    async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(': ping\n\n'));
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      ),
+  );
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const pending = callAgentApi(REQUEST, () => undefined);
   const assertion = assert.rejects(pending, /响应超时/);
@@ -40,25 +50,24 @@ test('stops a stalled stream and cancels its reader instead of remaining in load
 });
 
 test('cancels the upstream reader when an SSE error ends consumption', async (t) => {
-  const originalFetch = globalThis.fetch;
   let cancelled = false;
-  globalThis.fetch = async () =>
-    new Response(
-      new ReadableStream({
-        start(controller) {
-          controller.enqueue(
-            new TextEncoder().encode('event: error\ndata: {"error":{"message":"invalid response"}}\n\n'),
-          );
-        },
-        cancel() {
-          cancelled = true;
-        },
-      }),
-      { headers: { 'Content-Type': 'text/event-stream' } },
-    );
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
+  installFetchMock(
+    t,
+    async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(
+              new TextEncoder().encode('event: error\ndata: {"error":{"message":"invalid response"}}\n\n'),
+            );
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      ),
+  );
   await assert.rejects(
     callAgentApi(REQUEST, () => undefined),
     /invalid response/,
@@ -67,24 +76,23 @@ test('cancels the upstream reader when an SSE error ends consumption', async (t)
 });
 
 test('continuous progress cannot keep a request alive past the total deadline', async (t) => {
-  const originalFetch = globalThis.fetch;
   let streamController: ReadableStreamDefaultController<Uint8Array>;
   let cancelled = false;
-  globalThis.fetch = async () =>
-    new Response(
-      new ReadableStream({
-        start(controller) {
-          streamController = controller;
-        },
-        cancel() {
-          cancelled = true;
-        },
-      }),
-      { headers: { 'Content-Type': 'text/event-stream' } },
-    );
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
+  installFetchMock(
+    t,
+    async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            streamController = controller;
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      ),
+  );
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const pending = callAgentApi(REQUEST, () => undefined);
   const assertion = assert.rejects(pending, /响应超时/);
@@ -99,15 +107,49 @@ test('continuous progress cannot keep a request alive past the total deadline', 
   assert.equal(cancelled, true);
 });
 
+test('honors the stream timeout announced by the server', async (t) => {
+  let streamController: ReadableStreamDefaultController<Uint8Array>;
+  let cancelled = false;
+  installFetchMock(
+    t,
+    async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            streamController = controller;
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        {
+          headers: {
+            'Content-Type': 'text/event-stream',
+            'X-Agent-Stream-Timeout': '120000',
+          },
+        },
+      ),
+  );
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const pending = callAgentApi(REQUEST, () => undefined);
+  const assertion = assert.rejects(pending, /响应超时/);
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  t.mock.timers.tick(60_000);
+  streamController!.enqueue(new TextEncoder().encode('data: {"text":"progress"}\n\n'));
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  t.mock.timers.tick(55_000);
+  await assertion;
+  assert.equal(cancelled, true);
+});
+
 test('returns a successful JSON response from the HTTP API', async (t) => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({ content: '接口回复' }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
+  installFetchMock(
+    t,
+    async () =>
+      new Response(JSON.stringify({ content: '接口回复' }), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+  );
 
   const response = await callAgentApi(REQUEST, () => undefined);
 
@@ -115,14 +157,13 @@ test('returns a successful JSON response from the HTTP API', async (t) => {
 });
 
 test('accepts the legacy chat reply response field', async (t) => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({ reply: '旧版接口回复' }), {
-      headers: { 'Content-Type': 'application/json' },
-    });
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
+  installFetchMock(
+    t,
+    async () =>
+      new Response(JSON.stringify({ reply: '旧版接口回复' }), {
+        headers: { 'Content-Type': 'application/json' },
+      }),
+  );
 
   const response = await callAgentApi(REQUEST, () => undefined);
 
@@ -130,46 +171,40 @@ test('accepts the legacy chat reply response field', async (t) => {
 });
 
 test('surfaces a concise server error without using local fallback data', async (t) => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({ error: { message: 'AI助手服务暂不可用' } }), {
-      status: 503,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
+  installFetchMock(
+    t,
+    async () =>
+      new Response(JSON.stringify({ error: { message: 'AI助手服务暂不可用' } }), {
+        status: 503,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+  );
 
   await assert.rejects(() => callAgentApi(REQUEST, () => undefined), /AI助手服务暂不可用/);
 });
 
 test('does not expose an HTML error page to the user', async (t) => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () => new Response('<html>Internal error</html>', { status: 500 });
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
+  installFetchMock(t, async () => new Response('<html>Internal error</html>', { status: 500 }));
 
   await assert.rejects(() => callAgentApi(REQUEST, () => undefined), /AI助手请求失败（HTTP 500）/);
 });
 
 test('streams SSE chunks split across network boundaries', async (t) => {
-  const originalFetch = globalThis.fetch;
   const encoder = new TextEncoder();
-  globalThis.fetch = async () =>
-    new Response(
-      new ReadableStream({
-        start(controller) {
-          controller.enqueue(encoder.encode('data: {"delta":"你'));
-          controller.enqueue(encoder.encode('好"}\n\ndata: [DONE]\n\n'));
-          controller.close();
-        },
-      }),
-      { headers: { 'Content-Type': 'text/event-stream' } },
-    );
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
+  installFetchMock(
+    t,
+    async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode('data: {"delta":"你'));
+            controller.enqueue(encoder.encode('好"}\n\ndata: [DONE]\n\n'));
+            controller.close();
+          },
+        }),
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      ),
+  );
 
   const chunks: string[] = [];
   const response = await callAgentApi(REQUEST, (chunk) => chunks.push(chunk));
@@ -179,20 +214,19 @@ test('streams SSE chunks split across network boundaries', async (t) => {
 });
 
 test('forwards tool progress events without adding them to the assistant response', async (t) => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () =>
-    new Response(
-      [
-        'data: {"event":"tool","tool_name":"web_search","status":"started"}\n\n',
-        'data: {"event":"tool","tool_name":"web_search","status":"completed"}\n\n',
-        'data: {"delta":"搜索结果"}\n\n',
-        'data: [DONE]\n\n',
-      ].join(''),
-      { headers: { 'Content-Type': 'text/event-stream' } },
-    );
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
+  installFetchMock(
+    t,
+    async () =>
+      new Response(
+        [
+          'data: {"event":"tool","tool_name":"web_search","status":"started"}\n\n',
+          'data: {"event":"tool","tool_name":"web_search","status":"completed"}\n\n',
+          'data: {"delta":"搜索结果"}\n\n',
+          'data: [DONE]\n\n',
+        ].join(''),
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      ),
+  );
 
   const progress: string[] = [];
   const response = await callAgentApi(
@@ -207,22 +241,20 @@ test('forwards tool progress events without adding them to the assistant respons
 });
 
 test('surfaces a structured error received after an SSE stream starts', async (t) => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () =>
-    new Response('data: {"error":{"code":"AGENT_TIMEOUT","message":"AI助手响应超时，请稍后重试。"}}\n\n', {
-      headers: { 'Content-Type': 'text/event-stream' },
-    });
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
+  installFetchMock(
+    t,
+    async () =>
+      new Response('data: {"error":{"code":"AGENT_TIMEOUT","message":"AI助手响应超时，请稍后重试。"}}\n\n', {
+        headers: { 'Content-Type': 'text/event-stream' },
+      }),
+  );
 
   await assert.rejects(() => callAgentApi(REQUEST, () => undefined), new Error('AI助手响应超时，请稍后重试。'));
 });
 
 test('sends the same stable user identity when creating and streaming a conversation', async (t) => {
-  const originalFetch = globalThis.fetch;
   const bodies: unknown[] = [];
-  globalThis.fetch = async (_input, init) => {
+  installFetchMock(t, async (_input, init) => {
     bodies.push(JSON.parse(String(init?.body)));
     if (bodies.length === 1) {
       return new Response(JSON.stringify({ id: 'conv_1' }), {
@@ -233,9 +265,6 @@ test('sends the same stable user identity when creating and streaming a conversa
     return new Response('data: {"delta":"完成"}\n\ndata: [DONE]\n\n', {
       headers: { 'Content-Type': 'text/event-stream' },
     });
-  };
-  t.after(() => {
-    globalThis.fetch = originalFetch;
   });
 
   await createAgentConversation('测试', 'web_user123');
@@ -248,15 +277,14 @@ test('sends the same stable user identity when creating and streaming a conversa
 });
 
 test('surfaces a nested FastAPI detail error', async (t) => {
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = async () =>
-    new Response(JSON.stringify({ detail: { code: 'NOT_FOUND', message: '会话不存在' } }), {
-      status: 404,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
+  installFetchMock(
+    t,
+    async () =>
+      new Response(JSON.stringify({ detail: { code: 'NOT_FOUND', message: '会话不存在' } }), {
+        status: 404,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+  );
 
   await assert.rejects(() => callAgentApi(REQUEST, () => undefined), /会话不存在/);
 });
@@ -268,9 +296,8 @@ test('discards a stored conversation only after a confirmed 404 response', () =>
 });
 
 test('loads persisted messages from the v1 conversation API', async (t) => {
-  const originalFetch = globalThis.fetch;
   let requestUrl = '';
-  globalThis.fetch = async (input) => {
+  installFetchMock(t, async (input) => {
     requestUrl = String(input);
     return new Response(
       JSON.stringify({
@@ -281,9 +308,6 @@ test('loads persisted messages from the v1 conversation API', async (t) => {
       }),
       { headers: { 'Content-Type': 'application/json' } },
     );
-  };
-  t.after(() => {
-    globalThis.fetch = originalFetch;
   });
 
   const messages = await getAgentConversationMessages('conv_1', 'web_user123');
@@ -296,9 +320,8 @@ test('loads persisted messages from the v1 conversation API', async (t) => {
 });
 
 test('deletes the server conversation and surfaces failures instead of orphaning it', async (t) => {
-  const originalFetch = globalThis.fetch;
   const requests: string[] = [];
-  globalThis.fetch = async (input) => {
+  installFetchMock(t, async (input) => {
     requests.push(String(input));
     return requests.length === 1
       ? new Response(null, { status: 204 })
@@ -306,9 +329,6 @@ test('deletes the server conversation and surfaces failures instead of orphaning
           status: 503,
           headers: { 'Content-Type': 'application/json' },
         });
-  };
-  t.after(() => {
-    globalThis.fetch = originalFetch;
   });
 
   await deleteAgentConversation('conv_1', 'web_user123');

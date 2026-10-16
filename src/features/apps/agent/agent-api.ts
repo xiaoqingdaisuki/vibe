@@ -1,3 +1,13 @@
+import {
+  AGENT_STREAM_CLIENT_TIMEOUT_MARGIN_MS,
+  AGENT_STREAM_IDLE_TIMEOUT_HEADER,
+  AGENT_STREAM_TIMEOUT_HEADER,
+  DEFAULT_AGENT_STREAM_IDLE_TIMEOUT_MS,
+  DEFAULT_AGENT_STREAM_TIMEOUT_MS,
+  parseAgentStreamIdleTimeout,
+  parseAgentStreamTimeout,
+} from './agent-timeout-contract.ts';
+
 export interface AgentSuggestionCard {
   id: string;
   title: string;
@@ -442,15 +452,30 @@ export async function callAgentApi(
     timedOut = true;
     controller.abort();
   };
-  let idleTimer = setTimeout(onTimeout, 75_000);
-  const totalTimer = setTimeout(onTimeout, 290_000);
+  const requestStartedAt = Date.now();
+  let idleTimeoutMs = DEFAULT_AGENT_STREAM_IDLE_TIMEOUT_MS;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
+  let totalTimer = setTimeout(onTimeout, DEFAULT_AGENT_STREAM_TIMEOUT_MS - AGENT_STREAM_CLIENT_TIMEOUT_MARGIN_MS);
   // 有业务进度时重置停滞计时，同时保留请求总时限。
   const refreshProgress = () => {
-    clearTimeout(idleTimer);
-    idleTimer = setTimeout(onTimeout, 75_000);
+    if (idleTimer) clearTimeout(idleTimer);
+    idleTimer = setTimeout(onTimeout, idleTimeoutMs);
+  };
+  // 根据服务端响应头调整客户端超时，避免两端各自维护不同的生产配置。
+  const alignStreamTimeouts = (response: Response) => {
+    const serverTimeout =
+      parseAgentStreamTimeout(response.headers.get(AGENT_STREAM_TIMEOUT_HEADER)) ?? DEFAULT_AGENT_STREAM_TIMEOUT_MS;
+    idleTimeoutMs =
+      parseAgentStreamIdleTimeout(response.headers.get(AGENT_STREAM_IDLE_TIMEOUT_HEADER)) ??
+      DEFAULT_AGENT_STREAM_IDLE_TIMEOUT_MS;
+    const elapsed = Date.now() - requestStartedAt;
+    const remaining = Math.max(0, serverTimeout - AGENT_STREAM_CLIENT_TIMEOUT_MARGIN_MS - elapsed);
+    clearTimeout(totalTimer);
+    totalTimer = setTimeout(onTimeout, remaining);
   };
   try {
     const response = await fetchAgent(request, combinedSignal);
+    alignStreamTimeouts(response);
     if (!response.ok) throw new AgentHttpError(await readHttpError(response), response.status);
 
     const contentType = response.headers.get('content-type') ?? '';
@@ -459,6 +484,7 @@ export async function callAgentApi(
       return parseJsonResponse(payload);
     }
     if (contentType.includes('text/event-stream')) {
+      refreshProgress();
       return await readEventStream(
         response,
         (chunk) => {
