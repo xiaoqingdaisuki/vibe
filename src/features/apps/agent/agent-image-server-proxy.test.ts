@@ -31,7 +31,7 @@ test('forwards an image prompt and adapts the generated data URL', async (t) => 
 
   assert.equal(response.status, 200);
   assert.deepEqual(response.body, { imageDataUrl: 'data:image/png;base64,aGVsbG8=' });
-  assert.equal(upstreamUrl, 'http://agent.test/images/generations');
+  assert.equal(upstreamUrl, 'http://agent.test/v1/images/generations');
   assert.deepEqual(JSON.parse(String(upstreamBody)), { prompt: '紫色的山谷' });
   assert.equal(new Headers(upstreamHeaders).get('authorization'), `Bearer ${TEST_AGENT_API_SECRET}`);
 });

@@ -86,7 +86,7 @@ export interface AgentCapabilities {
   };
 }
 
-const AGENT_CONVERSATIONS_URL = '/api/agent/v1/conversations';
+const AGENT_CONVERSATIONS_URL = '/api/conversations';
 const CONNECTION_ERROR_MESSAGE = '无法连接 AI助手服务，请检查接口地址或网络后重试';
 const EMPTY_RESPONSE_MESSAGE = 'AI助手接口未返回有效内容，请稍后重试';
 
@@ -241,7 +241,7 @@ export async function createAgentConversation(title: string, userId: string, sig
 // 获取 Agent 能力配置，决定文档是否在发送后继续留在临时会话状态。
 export async function getAgentCapabilities(userId: string, signal?: AbortSignal): Promise<AgentCapabilities> {
   const query = new URLSearchParams({ user_id: userId });
-  const response = await fetch(`/api/agent/v1/capabilities?${query}`, { signal }).catch((error: unknown) => {
+  const response = await fetch(`/api/capabilities?${query}`, { signal }).catch((error: unknown) => {
     if (isAbortError(error) || signal?.aborted) throw new DOMException('Aborted', 'AbortError');
     throw new Error(CONNECTION_ERROR_MESSAGE);
   });

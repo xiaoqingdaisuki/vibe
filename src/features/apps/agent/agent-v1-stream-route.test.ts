@@ -15,7 +15,7 @@ test('passes the route request signal to the streaming proxy', async () => {
       contentType: 'text/event-stream',
     };
   };
-  const request = new Request('http://localhost/api/agent/v1/conversations/conv_123/messages/stream', {
+  const request = new Request('http://localhost/api/conversations/conv_123/messages/stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ content: '测试', user_id: 'web_user123' }),

@@ -312,7 +312,7 @@ test('loads persisted messages from the v1 conversation API', async (t) => {
 
   const messages = await getAgentConversationMessages('conv_1', 'web_user123');
 
-  assert.equal(requestUrl, '/api/agent/v1/conversations/conv_1/messages?user_id=web_user123');
+  assert.equal(requestUrl, '/api/conversations/conv_1/messages?user_id=web_user123');
   assert.deepEqual(messages, [
     { id: 'msg_1', role: 'user', content: '你好', createdAt: '2026-08-03T08:00:00.000Z' },
     { id: 'msg_2', role: 'assistant', content: '你好！', createdAt: '2026-08-03T08:00:01.000Z' },
@@ -334,7 +334,7 @@ test('deletes the server conversation and surfaces failures instead of orphaning
   await deleteAgentConversation('conv_1', 'web_user123');
   await assert.rejects(() => deleteAgentConversation('conv_2', 'web_user123'), /删除会话失败/);
   assert.deepEqual(requests, [
-    '/api/agent/v1/conversations/conv_1?user_id=web_user123',
-    '/api/agent/v1/conversations/conv_2?user_id=web_user123',
+    '/api/conversations/conv_1?user_id=web_user123',
+    '/api/conversations/conv_2?user_id=web_user123',
   ]);
 });

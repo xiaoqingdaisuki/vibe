@@ -32,7 +32,7 @@ test('deletes a conversation without a JSON content type for its empty request b
   const result = await proxyDeleteAgentConversation('conv_123', 'web_user123');
 
   assert.equal(result.status, 200);
-  assert.equal(upstreamUrl, 'https://agent.test/api/v1/conversations/conv_123');
+  assert.equal(upstreamUrl, 'https://agent.test/v1/conversations/conv_123');
   assert.equal(upstreamInit?.method, 'DELETE');
   assert.equal(upstreamInit?.body, null);
   const headers = new Headers(upstreamInit?.headers);
@@ -88,7 +88,7 @@ test('creates a conversation through the Agent v1 API', async (t) => {
 
   assert.equal(result.status, 201);
   assert.deepEqual(result.body, { id: 'conv_123' });
-  assert.equal(upstreamUrl, 'http://agent.test/api/v1/conversations');
+  assert.equal(upstreamUrl, 'http://agent.test/v1/conversations');
   assert.deepEqual(JSON.parse(String(upstreamBody)), { title: '你好', mode: 'chat', user_id: 'web_user123' });
   assert.equal(new Headers(upstreamHeaders).get('authorization'), `Bearer ${TEST_AGENT_API_SECRET}`);
   assert.equal(new Headers(upstreamHeaders).get('x-agent-user-id'), 'web_user123');
@@ -120,7 +120,7 @@ test('streams only the current message through the Agent v1 conversation API', a
 
   assert.equal(result.status, 200);
   assert.ok('stream' in result);
-  assert.equal(upstreamUrl, 'http://agent.test/api/v1/conversations/conv_123/messages/stream');
+  assert.equal(upstreamUrl, 'http://agent.test/v1/conversations/conv_123/messages/stream');
   assert.deepEqual(JSON.parse(String(upstreamBody)), { content: '只发送当前问题', user_id: 'web_user123' });
 });
 
@@ -219,7 +219,7 @@ test('retrieves conversation history through the Agent v1 API', async (t) => {
 
   assert.equal(result.status, 200);
   assert.deepEqual(result.body, { messages: [{ id: 'msg_1', role: 'user', content: '你好' }] });
-  assert.equal(upstreamUrl, 'http://agent.test/api/v1/conversations/conv_123/messages');
+  assert.equal(upstreamUrl, 'http://agent.test/v1/conversations/conv_123/messages');
 });
 
 test('retrieves memory capability for attachment lifecycle decisions', async (t) => {
@@ -247,5 +247,5 @@ test('retrieves memory capability for attachment lifecycle decisions', async (t)
 
   assert.equal(result.status, 200);
   assert.equal(result.body.memory_enabled, false);
-  assert.equal(upstreamUrl, 'http://agent.test/api/v1/capabilities');
+  assert.equal(upstreamUrl, 'http://agent.test/v1/capabilities');
 });

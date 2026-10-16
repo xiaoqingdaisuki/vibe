@@ -2,7 +2,7 @@ export interface GeneratedImage {
   imageDataUrl: string;
 }
 
-const IMAGE_API_URL = '/api/agent/images';
+const IMAGE_API_URL = '/api/images';
 
 // 从API错误响应中提取可读错误消息
 function getErrorMessage(payload: unknown, status: number): string {

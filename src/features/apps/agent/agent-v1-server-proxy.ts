@@ -149,7 +149,7 @@ export async function proxyCreateAgentConversation(payload: unknown): Promise<Js
   }
 
   const upstream = await fetchUpstream({
-    pathname: '/api/v1/conversations',
+    pathname: '/v1/conversations',
     init: {
       method: 'POST',
       body: JSON.stringify({ title, mode: 'chat', user_id: userId }),
@@ -172,7 +172,7 @@ export async function proxyGetAgentCapabilities(userId: string): Promise<JsonPro
   if (!USER_ID_PATTERN.test(userId)) {
     return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
   }
-  const upstream = await fetchUpstream({ pathname: '/api/v1/capabilities', init: { method: 'GET' }, userId });
+  const upstream = await fetchUpstream({ pathname: '/v1/capabilities', init: { method: 'GET' }, userId });
   if (!(upstream instanceof Response)) return upstream;
   if (!upstream.ok) return adaptUpstreamError(upstream);
   const payload: unknown = await upstream.json().catch(() => null);
@@ -232,7 +232,7 @@ export async function proxyStreamAgentMessage(
   }
 
   const upstream = await fetchUpstream({
-    pathname: `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages/stream`,
+    pathname: `/v1/conversations/${encodeURIComponent(conversationId)}/messages/stream`,
     init: {
       method: 'POST',
       body,
@@ -261,7 +261,7 @@ export async function proxyDeleteAgentConversation(conversationId: string, userI
     return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
   }
   const upstream = await fetchUpstream({
-    pathname: `/api/v1/conversations/${encodeURIComponent(conversationId)}`,
+    pathname: `/v1/conversations/${encodeURIComponent(conversationId)}`,
     init: { method: 'DELETE' },
     userId,
   });
@@ -282,7 +282,7 @@ export async function proxyGetAgentConversationMessages(
     return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');
   }
   const upstream = await fetchUpstream({
-    pathname: `/api/v1/conversations/${encodeURIComponent(conversationId)}/messages`,
+    pathname: `/v1/conversations/${encodeURIComponent(conversationId)}/messages`,
     init: { method: 'GET' },
     userId,
   });

@@ -33,7 +33,7 @@ function getImageApiUrl(): string | null {
   try {
     const url = new URL(baseUrl);
     if (url.protocol !== 'http:' && url.protocol !== 'https:') return null;
-    return new URL('/images/generations', url).toString();
+    return new URL('/v1/images/generations', url).toString();
   } catch {
     return null;
   }
