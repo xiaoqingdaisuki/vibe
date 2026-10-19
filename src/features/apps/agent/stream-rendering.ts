@@ -9,10 +9,23 @@ export interface LatestValueBatch<T> {
 }
 
 export interface StreamingTextPresenter {
+  append(chunk: string): void;
   push(value: string): void;
   drain(): Promise<void>;
   current(): string;
   cancel(): void;
+}
+
+export interface TextFrameScheduler {
+  now(): number;
+  request(callback: () => void): () => void;
+}
+
+interface StreamingTextOptions {
+  intervalMs: number;
+  maxCharsPerTick: number;
+  publish: (value: string) => void;
+  scheduler?: TextFrameScheduler;
 }
 
 // 合并窗口内的最新快照，不按分片排队，完成或停止时可立即收敛
@@ -52,88 +65,113 @@ export function createLatestValueBatch<T>(intervalMs: number, publish: (value: T
   return { push, flush, cancel };
 }
 
-// 将突发收到的全文按显示游标推进，避免网络合并后一次性替换整段内容
-export function createStreamingTextPresenter(
-  intervalMs: number,
-  maxCharsPerTick: number,
-  publish: (value: string) => void,
-): StreamingTextPresenter {
+// 优先跟随浏览器绘制调度，非浏览器测试环境使用定时器回退
+function createTextFrameScheduler(intervalMs: number): TextFrameScheduler {
+  return {
+    now: () => performance.now(),
+    // 返回当前帧的取消函数，保证停止和卸载时没有残留回调
+    request(callback) {
+      if (typeof requestAnimationFrame === 'function') {
+        const id = requestAnimationFrame(callback);
+        return () => cancelAnimationFrame(id);
+      }
+      const id = setTimeout(callback, intervalMs);
+      return () => clearTimeout(id);
+    },
+  };
+}
+
+// 按实际经过时间推进游标，每帧只扫描新增字符并限制最大推进量
+export function createStreamingTextPresenter({
+  intervalMs,
+  maxCharsPerTick,
+  publish,
+  scheduler = createTextFrameScheduler(intervalMs),
+}: StreamingTextOptions): StreamingTextPresenter {
   let target = '';
   let visible = '';
-  let timer: ReturnType<typeof setTimeout> | undefined;
-  let finishResolve: (() => void) | undefined;
+  let cursor = 0;
+  let credit = 0;
+  let lastFrameAt = 0;
+  let cancelFrame: (() => void) | undefined;
+  let cancelled = false;
+  const waiters: (() => void)[] = [];
 
-  // 完成当前显示目标时唤醒发送流程，确保最终状态不会提前切换成全文
+  // 显示追上目标或被取消时统一结束等待，不遗留未完成的发送流程
   const resolveFinish = () => {
-    if (finishResolve && visible === target) {
-      const resolve = finishResolve;
-      finishResolve = undefined;
-      resolve();
+    if (cursor === target.length || cancelled) {
+      for (const resolve of waiters.splice(0)) resolve();
     }
   };
 
-  // 按固定刷新间隔推进不超过配置上限的字符数
+  // 根据帧间时间分配字符预算，主线程停顿后也不突然倾倒积压全文
   const tick = () => {
-    timer = undefined;
-    const targetChars = Array.from(target);
-    const visibleLength = Array.from(visible).length;
-    if (visibleLength < targetChars.length) {
-      const backlog = targetChars.length - visibleLength;
-      const step = Math.min(maxCharsPerTick, backlog);
-      visible = targetChars.slice(0, visibleLength + step).join('');
+    cancelFrame = undefined;
+    if (cancelled) return;
+    const now = scheduler.now();
+    const elapsed = Math.min(intervalMs, Math.max(0, now - lastFrameAt));
+    lastFrameAt = now;
+    credit = Math.min(maxCharsPerTick, credit + (elapsed * maxCharsPerTick) / intervalMs);
+    const budget = Math.floor(credit);
+    const before = cursor;
+    let advanced = 0;
+    while (advanced < budget && cursor < target.length) {
+      cursor += (target.codePointAt(cursor) ?? 0) > 0xffff ? 2 : 1;
+      advanced++;
+    }
+    credit -= advanced;
+    if (cursor !== before) {
+      visible = target.slice(0, cursor);
       publish(visible);
     }
-    if (visible !== target) timer = setTimeout(tick, intervalMs);
+    if (!cancelled && cursor < target.length) cancelFrame = scheduler.request(tick);
     resolveFinish();
   };
 
-  // 仅在显示目标尚未追上时安排一次计时器，避免重复定时器和渲染竞争
+  // 空闲期间不积累字符预算，新分片到达后再唤醒绘制循环
   const schedule = () => {
-    if (timer === undefined && visible !== target) timer = setTimeout(tick, intervalMs);
+    if (!cancelled && cancelFrame === undefined && cursor < target.length) {
+      lastFrameAt = scheduler.now();
+      credit = 0;
+      cancelFrame = scheduler.request(tick);
+    }
   };
 
-  // 接收最新完整目标文本，但只推进可见游标而不阻塞网络读取
+  // 直接追加网络增量，避免每个小分片都比较或重新拆分整篇文本
+  const append = (chunk: string) => {
+    if (cancelled || !chunk) return;
+    target += chunk;
+    schedule();
+  };
+
+  // 仅在JSON响应或最终正文修正时替换目标，普通SSE分片走追加路径
   const push = (value: string) => {
-    if (value === target) return;
+    if (cancelled || value === target) return;
     target = value;
     if (!target.startsWith(visible)) {
+      cursor = 0;
       visible = '';
       publish('');
     }
     schedule();
   };
 
-  // 等待当前目标完整显示，网络突发时仍保留可见的打字过程
-  const drain = () => {
-    if (visible === target) return Promise.resolve();
-    if (!finishResolve) {
-      return new Promise<void>((resolve) => {
-        finishResolve = resolve;
-        schedule();
-      });
-    }
+  // 等待显示追上当前目标，取消时也会结束等待
+  const drain = (): Promise<void> => {
+    if (cancelled || cursor === target.length) return Promise.resolve();
     return new Promise<void>((resolve) => {
-      const previousResolve = finishResolve;
-      if (!previousResolve) {
-        finishResolve = resolve;
-        schedule();
-        return;
-      }
-      finishResolve = () => {
-        previousResolve();
-        resolve();
-      };
+      waiters.push(resolve);
+      schedule();
     });
   };
 
   // 暂停显示推进并保留当前可见文本，停止请求时不会继续追加内容
   const cancel = () => {
-    if (timer !== undefined) clearTimeout(timer);
-    timer = undefined;
-    const resolve = finishResolve;
-    finishResolve = undefined;
-    resolve?.();
+    cancelled = true;
+    cancelFrame?.();
+    cancelFrame = undefined;
+    resolveFinish();
   };
 
-  return { push, drain, current: () => visible, cancel };
+  return { append, push, drain, current: () => visible, cancel };
 }

@@ -1,9 +1,11 @@
 'use client';
 
-import { memo, useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { renderBlockMarkdown } from './render-markdown';
 import { createLatestValueBatch, MARKDOWN_RENDER_INTERVAL_MS } from './stream-rendering';
 import type { LatestValueBatch } from './stream-rendering';
+import { createStreamingMarkdownParser } from './streaming-markdown-parser';
+import type { MarkdownStreamSnapshot } from './streaming-markdown-parser';
 import styles from './styles/Agent.module.css';
 
 interface StreamingMarkdownProps {
@@ -11,42 +13,58 @@ interface StreamingMarkdownProps {
   isStreaming: boolean;
 }
 
-// 隔离昂贵解析，只有低频Markdown快照变化时才重新生成HTML
-const ParsedMarkdown = memo(function ParsedMarkdown({ content }: { content: string }) {
-  return <div dangerouslySetInnerHTML={{ __html: renderBlockMarkdown(content) }} />;
+const EMPTY_SNAPSHOT: MarkdownStreamSnapshot = { blocks: [], offset: 0 };
+
+// 复用已结束块的DOM，后续分片不重新解析或替换历史段落
+const ParsedMarkdownBlock = memo(function ParsedMarkdownBlock({ html }: { html: string }) {
+  return <div dangerouslySetInnerHTML={{ __html: html }} />;
 });
 
-// 每100ms更新Markdown，期间收到的新文本直接展示，结束时立即渲染全文
+// 未完成的代码直接更新文本节点，避免长围栏反复解析和重建
+function StreamingTail({ content }: { content: string }) {
+  const source = content.trimStart();
+  if (source.startsWith('```')) {
+    const newline = source.indexOf('\n');
+    const code = newline === -1 ? '' : source.slice(newline + 1).replace(/\n```[^\n]*\n?$/, '');
+    return (
+      <pre>
+        <code>{code}</code>
+      </pre>
+    );
+  }
+  return <div className={styles.streamingText}>{content}</div>;
+}
+
+// 按100ms确认已完成的Markdown块，绘制帧只更新末尾文本
 export function StreamingMarkdown({ content, isStreaming }: StreamingMarkdownProps) {
-  const [parsedContent, setParsedContent] = useState('');
+  const [snapshot, setSnapshot] = useState<MarkdownStreamSnapshot>(EMPTY_SNAPSHOT);
   const batchRef = useRef<LatestValueBatch<string> | null>(null);
 
-  // 为当前消息维护独立解析窗口，并在卸载时清理
+  // 为每条消息建立独立解析缓存，组件卸载时取消待执行解析
   useEffect(() => {
-    const batch = createLatestValueBatch(MARKDOWN_RENDER_INTERVAL_MS, setParsedContent);
+    const parse = createStreamingMarkdownParser();
+    const batch = createLatestValueBatch<string>(MARKDOWN_RENDER_INTERVAL_MS, (value) => setSnapshot(parse(value)));
     batchRef.current = batch;
     return () => batch.cancel();
   }, []);
 
-  // 更新待解析快照，使用固定窗口避免持续流输入导致解析饥饿
+  // 流输入只更新待确认快照，结束时由最后一个块一次性补齐排版
   useEffect(() => {
     if (isStreaming) batchRef.current?.push(content);
     else batchRef.current?.cancel();
   }, [content, isStreaming]);
 
-  if (!isStreaming) {
-    return (
-      <div className={styles.md}>
-        <ParsedMarkdown content={content} />
-      </div>
-    );
-  }
+  const current = content.length < snapshot.offset ? EMPTY_SNAPSHOT : snapshot;
+  const tail = content.slice(current.offset);
+  // 最终排版仅解析尚未完成的尾部，历史块继续复用
+  const finalHtml = useMemo(() => (isStreaming ? '' : renderBlockMarkdown(tail)), [tail, isStreaming]);
 
-  const prefix = content.startsWith(parsedContent) ? parsedContent : '';
   return (
     <div className={styles.md}>
-      {prefix ? <ParsedMarkdown content={prefix} /> : null}
-      <span className={styles.streamingText}>{content.slice(prefix.length)}</span>
+      {current.blocks.map((block) => (
+        <ParsedMarkdownBlock key={block.start} html={block.html} />
+      ))}
+      {isStreaming ? <StreamingTail content={tail} /> : <ParsedMarkdownBlock html={finalHtml} />}
     </div>
   );
 }

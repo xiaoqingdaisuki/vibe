@@ -239,16 +239,16 @@ export function useAgentChat(): AgentChatState {
       setConnectionStatus('connecting');
 
       let streamed = '';
-      // 每30ms推进有限字符，网络合并时仍保留可见的打字过程
-      const textPresenter = createStreamingTextPresenter(
-        TEXT_RENDER_INTERVAL_MS,
-        TEXT_RENDER_MAX_CHARS_PER_TICK,
-        (content) => {
+      // 跟随绘制帧推进文本，每帧最多50字符并保持原有平均输出速度
+      const textPresenter = createStreamingTextPresenter({
+        intervalMs: TEXT_RENDER_INTERVAL_MS,
+        maxCharsPerTick: TEXT_RENDER_MAX_CHARS_PER_TICK,
+        publish: (content) => {
           setMessages((current) =>
             current.map((message) => (message.id === assistantId ? { ...message, content } : message)),
           );
         },
-      );
+      });
       controller.signal.addEventListener('abort', textPresenter.cancel, { once: true });
 
       // SSE接收只更新显示目标，不等待React渲染完成
@@ -256,7 +256,7 @@ export function useAgentChat(): AgentChatState {
         streamed += chunk;
         setConnectionStatus('connected');
         setToolProgress(null);
-        textPresenter.push(streamed);
+        textPresenter.append(chunk);
       };
 
       // 工具状态及整段输出即时更新到独立区域，保留此前已收到的结果

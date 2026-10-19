@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { renderBlockMarkdown } from './render-markdown.ts';
+import { createStreamingMarkdownParser } from './streaming-markdown-parser.ts';
 
 test('streaming Markdown prefixes always render without blocking', () => {
   const partialInputs = [
@@ -44,4 +45,36 @@ test('renders multiline paragraphs and blockquotes with line breaks', () => {
   assert.match(markup, /<p>第一行<br>第二行<\/p>/);
   assert.match(markup, /<blockquote><p>引用一<br>引用二<\/p><\/blockquote>/);
   assert.doesNotMatch(markup, /&lt;br&gt;/);
+});
+
+test('retains completed Markdown blocks while a long code fence grows', () => {
+  const parse = createStreamingMarkdownParser();
+  const prefix = '稳定段落。\n\n';
+  const first = parse(prefix);
+  const openCode = prefix + '```ts\nconst text = "<script>";\n\n';
+  const second = parse(openCode);
+  assert.equal(second.blocks, first.blocks);
+  assert.equal(second.offset, prefix.length);
+  const complete = openCode + 'console.log(text);\n```\n\n最终段落。';
+  const third = parse(complete);
+  assert.equal(third.blocks[0], first.blocks[0]);
+  assert.equal(third.blocks.length, 2);
+  const html = third.blocks.map((block) => block.html).join('') + renderBlockMarkdown(complete.slice(third.offset));
+  assert.equal(html, renderBlockMarkdown(complete));
+  assert.match(html, /&lt;script&gt;/);
+});
+
+test('matches final Markdown for fragmented boundaries and resets on replacement', () => {
+  const content = '# 标题\n\n- 第一项\n- 第二项\n\n> 引用一\n> 引用二\n\n尾部。';
+  const parse = createStreamingMarkdownParser();
+  for (let end = 1; end <= content.length; end++) {
+    const source = content.slice(0, end);
+    const snapshot = parse(source);
+    const html =
+      snapshot.blocks.map((block) => block.html).join('') + renderBlockMarkdown(source.slice(snapshot.offset));
+    assert.equal(html, renderBlockMarkdown(source));
+  }
+  const replacement = parse('替换后的内容。\n\n');
+  assert.equal(replacement.blocks.length, 1);
+  assert.equal(replacement.blocks[0].html, '<p>替换后的内容。</p>');
 });
