@@ -15,7 +15,6 @@ import type {
   AgentSessionDocument,
   AgentSuggestionCard,
   AgentToolProgress,
-  AgentTextDelivery,
 } from './agent-api';
 import type { AgentConnectionStatus } from './chat-status';
 import {
@@ -24,7 +23,11 @@ import {
   readStoredConversationId,
   writeStoredConversationId,
 } from './conversation-storage';
-import { createLatestValueBatch, TEXT_RENDER_INTERVAL_MS } from './stream-rendering';
+import {
+  createStreamingTextPresenter,
+  TEXT_RENDER_INTERVAL_MS,
+  TEXT_RENDER_MAX_CHARS_PER_TICK,
+} from './stream-rendering';
 
 export interface ChatMessage {
   id: string;
@@ -236,21 +239,24 @@ export function useAgentChat(): AgentChatState {
       setConnectionStatus('connecting');
 
       let streamed = '';
-      // 每30ms发布最新全文快照，窗口内的多个分片合并为一次状态更新
-      const textBatch = createLatestValueBatch<string>(TEXT_RENDER_INTERVAL_MS, (content) => {
-        setMessages((current) =>
-          current.map((message) => (message.id === assistantId ? { ...message, content } : message)),
-        );
-      });
-      controller.signal.addEventListener('abort', textBatch.cancel, { once: true });
+      // 每30ms推进有限字符，网络合并时仍保留可见的打字过程
+      const textPresenter = createStreamingTextPresenter(
+        TEXT_RENDER_INTERVAL_MS,
+        TEXT_RENDER_MAX_CHARS_PER_TICK,
+        (content) => {
+          setMessages((current) =>
+            current.map((message) => (message.id === assistantId ? { ...message, content } : message)),
+          );
+        },
+      );
+      controller.signal.addEventListener('abort', textPresenter.cancel, { once: true });
 
-      // SSE接收不等待绘制，已生成的完整答案立即收敛显示
-      const updateStreamed = (chunk: string, delivery?: AgentTextDelivery) => {
+      // SSE接收只更新显示目标，不等待React渲染完成
+      const updateStreamed = (chunk: string) => {
         streamed += chunk;
         setConnectionStatus('connected');
         setToolProgress(null);
-        textBatch.push(streamed);
-        if (delivery?.immediate) textBatch.flush();
+        textPresenter.push(streamed);
       };
 
       // 工具状态及整段输出即时更新到独立区域，保留此前已收到的结果
@@ -299,8 +305,13 @@ export function useAgentChat(): AgentChatState {
           updateToolProgress,
         );
 
-        textBatch.cancel();
         const completeContent = response.content || streamed;
+        if (completeContent !== streamed) {
+          streamed = completeContent;
+          textPresenter.push(completeContent);
+        }
+        await textPresenter.drain();
+        if (controller.signal.aborted) throw new DOMException('Aborted', 'AbortError');
         setMessages((current) =>
           current.map((message) =>
             message.id === assistantId
@@ -317,11 +328,12 @@ export function useAgentChat(): AgentChatState {
         streamingCompleteIdsRef.current.add(assistantId);
         setStreamingCompleteIds((prev) => new Set([...prev, assistantId]));
       } catch (requestError) {
-        textBatch.cancel();
+        const visibleContent = textPresenter.current();
+        textPresenter.cancel();
         if (isAbortError(requestError)) {
           setMessages((current) =>
             current.map((message) =>
-              message.id === assistantId ? { ...message, content: streamed, isStreaming: false } : message,
+              message.id === assistantId ? { ...message, content: visibleContent, isStreaming: false } : message,
             ),
           );
           setConnectionStatus(streamed ? 'connected' : 'idle');
@@ -332,8 +344,8 @@ export function useAgentChat(): AgentChatState {
           setConnectionStatus('error');
         }
       } finally {
-        textBatch.cancel();
-        controller.signal.removeEventListener('abort', textBatch.cancel);
+        textPresenter.cancel();
+        controller.signal.removeEventListener('abort', textPresenter.cancel);
         if (abortRef.current === controller) {
           abortRef.current = null;
           setIsStreaming(false);

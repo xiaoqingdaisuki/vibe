@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createLatestValueBatch, MARKDOWN_RENDER_INTERVAL_MS, TEXT_RENDER_INTERVAL_MS } from './stream-rendering.ts';
+import {
+  createLatestValueBatch,
+  createStreamingTextPresenter,
+  MARKDOWN_RENDER_INTERVAL_MS,
+  TEXT_RENDER_INTERVAL_MS,
+  TEXT_RENDER_MAX_CHARS_PER_TICK,
+} from './stream-rendering.ts';
 
 test('coalesces bursts at 30ms while Markdown receives only the newest 100ms snapshot', (t) => {
   t.mock.timers.enable({ apis: ['setTimeout', 'Date'] });
@@ -45,6 +51,21 @@ test('flushes the latest final answer immediately and cancels pending updates on
   batch.cancel();
   t.mock.timers.tick(100);
   assert.deepEqual(values, ['complete answer']);
+});
+
+test('keeps a burst response visibly incremental in 50-character steps', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const values: string[] = [];
+  const presenter = createStreamingTextPresenter(30, TEXT_RENDER_MAX_CHARS_PER_TICK, (value) => values.push(value));
+  presenter.push('a'.repeat(100));
+  const drained = presenter.drain();
+  t.mock.timers.tick(30);
+  assert.equal(values[0].length, 50);
+  t.mock.timers.tick(30);
+  assert.equal(values[1].length, 100);
+  await drained;
+  assert.equal(presenter.current(), 'a'.repeat(100));
+  presenter.cancel();
 });
 
 test('aligns later Markdown updates to the last publication without an extra text window', (t) => {
