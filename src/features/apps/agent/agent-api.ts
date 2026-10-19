@@ -89,6 +89,7 @@ export interface AgentCapabilities {
 const AGENT_CONVERSATIONS_URL = '/api/conversations';
 const CONNECTION_ERROR_MESSAGE = '无法连接 AI助手服务，请检查接口地址或网络后重试';
 const EMPTY_RESPONSE_MESSAGE = 'AI助手接口未返回有效内容，请稍后重试';
+const STREAM_RENDER_INTERVAL_MS = 60;
 
 export class AgentHttpError extends Error {
   readonly status: number;
@@ -351,9 +352,9 @@ async function fetchAgent(request: AgentApiRequest, signal?: AbortSignal): Promi
 }
 
 // 将同一网络批次中的事件交还浏览器，确保React绘制中间状态
-async function yieldToBrowserPaint(): Promise<void> {
+async function yieldToBrowserPaint(delayMs = 0): Promise<void> {
   if (typeof window === 'undefined') return;
-  await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+  await new Promise<void>((resolve) => window.setTimeout(resolve, delayMs));
 }
 
 // 读取SSE流式响应，实时处理内容块和工具进度事件
@@ -388,7 +389,7 @@ async function readEventStream(
       if (payload) {
         fullContent += payload;
         onChunk(payload);
-        await yieldToBrowserPaint();
+        await yieldToBrowserPaint(STREAM_RENDER_INTERVAL_MS);
       }
       return false;
     }
@@ -414,7 +415,7 @@ async function readEventStream(
     if (delta) {
       fullContent += delta;
       onChunk(delta);
-      await yieldToBrowserPaint();
+      await yieldToBrowserPaint(STREAM_RENDER_INTERVAL_MS);
     }
 
     return false;
