@@ -89,7 +89,7 @@ export interface AgentCapabilities {
 const AGENT_CONVERSATIONS_URL = '/api/conversations';
 const CONNECTION_ERROR_MESSAGE = '无法连接 AI助手服务，请检查接口地址或网络后重试';
 const EMPTY_RESPONSE_MESSAGE = 'AI助手接口未返回有效内容，请稍后重试';
-const STREAM_RENDER_INTERVAL_MS = 60;
+const STREAM_RENDER_INTERVAL_MS = 30;
 
 export class AgentHttpError extends Error {
   readonly status: number;
