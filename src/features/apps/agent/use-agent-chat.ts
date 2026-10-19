@@ -15,6 +15,7 @@ import type {
   AgentSessionDocument,
   AgentSuggestionCard,
   AgentToolProgress,
+  AgentTextDelivery,
 } from './agent-api';
 import type { AgentConnectionStatus } from './chat-status';
 import {
@@ -23,6 +24,7 @@ import {
   readStoredConversationId,
   writeStoredConversationId,
 } from './conversation-storage';
+import { createLatestValueBatch, TEXT_RENDER_INTERVAL_MS } from './stream-rendering';
 
 export interface ChatMessage {
   id: string;
@@ -31,6 +33,7 @@ export interface ChatMessage {
   timestamp: number;
   isStreaming?: boolean;
   suggestionCards?: AgentSuggestionCard[];
+  toolCalls?: AgentToolProgress[];
 }
 
 export interface SendMessageOptions {
@@ -195,128 +198,161 @@ export function useAgentChat(): AgentChatState {
   }, []);
 
   // 发送消息并处理流式响应
-  const sendMessage = useCallback(async (
-    text: string,
-    {
-      appendUser = true,
-      sessionDocuments,
-      documentAttachmentIds,
-      images,
-      files,
-    }: SendMessageOptions = {},
-  ) => {
-    const trimmed = text.trim();
-    const hasAttachments = Boolean(sessionDocuments?.length || documentAttachmentIds?.length || images?.length || files?.length);
-    if ((!trimmed && !hasAttachments) || abortRef.current || isRestoringRef.current) return;
+  const sendMessage = useCallback(
+    async (
+      text: string,
+      { appendUser = true, sessionDocuments, documentAttachmentIds, images, files }: SendMessageOptions = {},
+    ) => {
+      const trimmed = text.trim();
+      const hasAttachments = Boolean(
+        sessionDocuments?.length || documentAttachmentIds?.length || images?.length || files?.length,
+      );
+      if ((!trimmed && !hasAttachments) || abortRef.current || isRestoringRef.current) return;
 
-    const controller = new AbortController();
-    abortRef.current = controller;
+      const controller = new AbortController();
+      abortRef.current = controller;
 
-    const userMessage: ChatMessage = {
-      id: generateId(),
-      role: 'user',
-      content: trimmed || '已上传附件，请分析这些内容',
-      timestamp: Date.now(),
-    };
-    const assistantId = generateId();
-    const assistantMessage: ChatMessage = {
-      id: assistantId,
-      role: 'assistant',
-      content: '',
-      timestamp: Date.now(),
-      isStreaming: true,
-    };
-    setMessages((current) =>
-      appendUser ? [...current, userMessage, assistantMessage] : [...current, assistantMessage],
-    );
-    setInput('');
-    setError(null);
-    setToolProgress(null);
-    setIsStreaming(true);
-    setConnectionStatus('connecting');
-
-    let streamed = '';
-    // 每个有效分片立即写入状态，避免快速流在节流窗口内留下空白气泡
-    const updateStreamed = (chunk: string) => {
-      streamed += chunk;
-      setConnectionStatus('connected');
+      const userMessage: ChatMessage = {
+        id: generateId(),
+        role: 'user',
+        content: trimmed || '已上传附件，请分析这些内容',
+        timestamp: Date.now(),
+      };
+      const assistantId = generateId();
+      const assistantMessage: ChatMessage = {
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        timestamp: Date.now(),
+        isStreaming: true,
+      };
+      setMessages((current) =>
+        appendUser ? [...current, userMessage, assistantMessage] : [...current, assistantMessage],
+      );
+      setInput('');
+      setError(null);
       setToolProgress(null);
-      setMessages((current) =>
-        current.map((message) => (message.id === assistantId ? { ...message, content: streamed } : message)),
-      );
-    };
+      setIsStreaming(true);
+      setConnectionStatus('connecting');
 
-    try {
-      let conversationId = conversationIdRef.current;
-      const userId = userIdRef.current;
-      if (!userId) throw new Error('用户会话初始化失败，请刷新页面后重试');
-      if (!conversationId) {
-        conversationId = await createAgentConversation(trimmed || '附件分析', userId, controller.signal);
-        conversationIdRef.current = conversationId;
-        const storage = getBrowserStorage();
-        if (storage) writeStoredConversationId(storage, userId, conversationId);
-        setHasConversation(true);
-      }
-      const response: AgentApiResponse = await callAgentApi(
-        {
-          conversationId,
-          content: trimmed,
-          userId,
-          sessionDocuments,
-          documentAttachmentIds,
-          images,
-          files,
-        },
-        updateStreamed,
-        controller.signal,
-        setToolProgress,
-      );
+      let streamed = '';
+      // 每30ms发布最新全文快照，窗口内的多个分片合并为一次状态更新
+      const textBatch = createLatestValueBatch<string>(TEXT_RENDER_INTERVAL_MS, (content) => {
+        setMessages((current) =>
+          current.map((message) => (message.id === assistantId ? { ...message, content } : message)),
+        );
+      });
+      controller.signal.addEventListener('abort', textBatch.cancel, { once: true });
 
-      const completeContent = response.content || streamed;
-      setMessages((current) =>
-        current.map((message) =>
-          message.id === assistantId
-            ? {
-                ...message,
-                content: completeContent,
-                isStreaming: false,
-                suggestionCards: response.suggestionCards,
-              }
-            : message,
-        ),
-      );
-      setConnectionStatus('connected');
-      streamingCompleteIdsRef.current.add(assistantId);
-      setStreamingCompleteIds((prev) => new Set([...prev, assistantId]));
-    } catch (requestError) {
-      if (isAbortError(requestError)) {
+      // SSE接收不等待绘制，已生成的完整答案立即收敛显示
+      const updateStreamed = (chunk: string, delivery?: AgentTextDelivery) => {
+        streamed += chunk;
+        setConnectionStatus('connected');
+        setToolProgress(null);
+        textBatch.push(streamed);
+        if (delivery?.immediate) textBatch.flush();
+      };
+
+      // 工具状态及整段输出即时更新到独立区域，保留此前已收到的结果
+      const updateToolProgress = (progress: AgentToolProgress) => {
+        setConnectionStatus('connected');
+        setToolProgress(progress);
+        setMessages((current) =>
+          current.map((message) => {
+            if (message.id !== assistantId) return message;
+            const calls = message.toolCalls || [];
+            const index = calls.findIndex(
+              (call) => (call.callId || call.toolName) === (progress.callId || progress.toolName),
+            );
+            const toolCalls =
+              index < 0
+                ? [...calls, progress]
+                : calls.map((call, callIndex) => (callIndex === index ? { ...call, ...progress } : call));
+            return { ...message, toolCalls };
+          }),
+        );
+      };
+
+      try {
+        let conversationId = conversationIdRef.current;
+        const userId = userIdRef.current;
+        if (!userId) throw new Error('用户会话初始化失败，请刷新页面后重试');
+        if (!conversationId) {
+          conversationId = await createAgentConversation(trimmed || '附件分析', userId, controller.signal);
+          conversationIdRef.current = conversationId;
+          const storage = getBrowserStorage();
+          if (storage) writeStoredConversationId(storage, userId, conversationId);
+          setHasConversation(true);
+        }
+        const response: AgentApiResponse = await callAgentApi(
+          {
+            conversationId,
+            content: trimmed,
+            userId,
+            sessionDocuments,
+            documentAttachmentIds,
+            images,
+            files,
+          },
+          updateStreamed,
+          controller.signal,
+          updateToolProgress,
+        );
+
+        textBatch.cancel();
+        const completeContent = response.content || streamed;
         setMessages((current) =>
           current.map((message) =>
-            message.id === assistantId ? { ...message, content: streamed, isStreaming: false } : message,
+            message.id === assistantId
+              ? {
+                  ...message,
+                  content: completeContent,
+                  isStreaming: false,
+                  suggestionCards: response.suggestionCards,
+                }
+              : message,
           ),
         );
-        setConnectionStatus(streamed ? 'connected' : 'idle');
-      } else {
-        const message = requestError instanceof Error ? requestError.message : '请求失败，请稍后重试';
-        setError(message);
-        setMessages((current) => current.filter((item) => item.id !== assistantId));
-        setConnectionStatus('error');
+        setConnectionStatus('connected');
+        streamingCompleteIdsRef.current.add(assistantId);
+        setStreamingCompleteIds((prev) => new Set([...prev, assistantId]));
+      } catch (requestError) {
+        textBatch.cancel();
+        if (isAbortError(requestError)) {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantId ? { ...message, content: streamed, isStreaming: false } : message,
+            ),
+          );
+          setConnectionStatus(streamed ? 'connected' : 'idle');
+        } else {
+          const message = requestError instanceof Error ? requestError.message : '请求失败，请稍后重试';
+          setError(message);
+          setMessages((current) => current.filter((item) => item.id !== assistantId));
+          setConnectionStatus('error');
+        }
+      } finally {
+        textBatch.cancel();
+        controller.signal.removeEventListener('abort', textBatch.cancel);
+        if (abortRef.current === controller) {
+          abortRef.current = null;
+          setIsStreaming(false);
+          setToolProgress(null);
+        }
       }
-    } finally {
-      if (abortRef.current === controller) {
-        abortRef.current = null;
-        setIsStreaming(false);
-        setToolProgress(null);
-      }
-    }
-  }, []);
+    },
+    [],
+  );
 
   // 重试最后一条用户消息
-  const retryLast = useCallback((options: SendMessageOptions = {}) => {
-    setError(null);
-    const lastUserMessage = messagesRef.current.findLast((message) => message.role === 'user');
-    if (lastUserMessage) void sendMessage(lastUserMessage.content, { appendUser: false, ...options });
-  }, [sendMessage]);
+  const retryLast = useCallback(
+    (options: SendMessageOptions = {}) => {
+      setError(null);
+      const lastUserMessage = messagesRef.current.findLast((message) => message.role === 'user');
+      if (lastUserMessage) void sendMessage(lastUserMessage.content, { appendUser: false, ...options });
+    },
+    [sendMessage],
+  );
 
   // 中止当前流式生成
   const stopStreaming = useCallback(() => {

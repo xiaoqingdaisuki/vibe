@@ -261,6 +261,79 @@ test('forwards tool progress events without adding them to the assistant respons
   assert.deepEqual(progress, ['web_search:started', 'web_search:completed']);
 });
 
+test('reads text bursts and whole tool output without animation delays or control text leakage', async (t) => {
+  const output = '<script>private tool text</script>'.repeat(1_000);
+  const encoder = new TextEncoder();
+  let stream!: ReadableStreamDefaultController<Uint8Array>;
+  installFetchMock(
+    t,
+    async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            stream = controller;
+          },
+        }),
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      ),
+  );
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const text: string[] = [];
+  const progress: { status: string; output?: string; callId?: string }[] = [];
+  const pending = callAgentApi(
+    REQUEST,
+    (value) => text.push(value),
+    undefined,
+    (value) => progress.push(value),
+  );
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  stream.enqueue(
+    encoder.encode(
+      [
+        'event: agent.start\ndata: {"message":"internal status","content":"not a reply"}\n\n',
+        'event: tool\ndata: "not assistant text"\n\n',
+        'event: tool.output\ndata: {"content":"missing tool name"}\n\n',
+        ...Array.from({ length: 100 }, () => 'event: text\ndata: {"delta":"a"}\n\n'),
+        'event: tool\ndata: {"tool_name":"web_search","status":"started","call_id":"call-1"}\n\n',
+        `event: tool.output\ndata: ${JSON.stringify({ tool_name: 'web_search', call_id: 'call-1', output })}\n\n`,
+      ].join(''),
+    ),
+  );
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(text.length, 100);
+  assert.equal(progress[0].status, 'started');
+  assert.equal(progress[1].output, output);
+  assert.equal(progress[1].callId, 'call-1');
+  stream.enqueue(
+    encoder.encode('event: text\ndata: {"delta":"final","delivery":"immediate"}\n\nevent: done\ndata: {"ok":true}\n\n'),
+  );
+  const response = await pending;
+  assert.equal(response.content, 'a'.repeat(100) + 'final');
+});
+
+test('preserves immediate delivery and multiline SSE data across network boundaries', async (t) => {
+  const bytes = new TextEncoder().encode(
+    'event: text\r\ndata: {"delta":\r\ndata: "完整答案","delivery":"immediate"}\r\n\r\ndata: [DONE]\r\n\r\n',
+  );
+  installFetchMock(
+    t,
+    async () =>
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            for (const byte of bytes) controller.enqueue(Uint8Array.of(byte));
+            controller.close();
+          },
+        }),
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      ),
+  );
+  const delivered: unknown[] = [];
+  const response = await callAgentApi(REQUEST, (text, delivery) => delivered.push({ text, delivery }));
+  assert.equal(response.content, '完整答案');
+  assert.deepEqual(delivered, [{ text: '完整答案', delivery: { immediate: true } }]);
+});
+
 test('surfaces a structured error received after an SSE stream starts', async (t) => {
   installFetchMock(
     t,

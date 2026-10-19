@@ -66,6 +66,12 @@ export interface AgentToolProgress {
   toolName: string;
   status: 'started' | 'completed' | 'failed';
   message: string;
+  callId?: string;
+  output?: string;
+}
+
+export interface AgentTextDelivery {
+  immediate: boolean;
 }
 
 export interface AgentConversationMessage {
@@ -89,7 +95,6 @@ export interface AgentCapabilities {
 const AGENT_CONVERSATIONS_URL = '/api/conversations';
 const CONNECTION_ERROR_MESSAGE = '无法连接 AI助手服务，请检查接口地址或网络后重试';
 const EMPTY_RESPONSE_MESSAGE = 'AI助手接口未返回有效内容，请稍后重试';
-const STREAM_RENDER_INTERVAL_MS = 30;
 
 export class AgentHttpError extends Error {
   readonly status: number;
@@ -192,17 +197,26 @@ function getToolProgressMessage(toolName: string, status: AgentToolProgress['sta
   };
   const label = labels[toolName] ?? '信息查询';
   if (status === 'started') return `正在${label}…`;
-  if (status === 'completed') return `${label}完成，正在整理结果…`;
+  if (status === 'completed') return `${label}完成`;
   return `${label}未完成，正在继续处理…`;
 }
 
 // 解析流式事件中的工具进度信息
-function parseToolProgress(payload: Record<string, unknown>): AgentToolProgress | undefined {
-  if (payload.event !== 'tool') return undefined;
+function parseToolProgress(payload: Record<string, unknown>, eventName: string): AgentToolProgress | undefined {
+  const event = eventName || getTextField(payload, ['event', 'type']);
+  if (event !== 'tool' && event !== 'tool.output') return undefined;
   const toolName = getTextField(payload, ['tool_name']);
-  const status = getTextField(payload, ['status']);
+  const status = event === 'tool.output' ? 'completed' : getTextField(payload, ['status']);
   if (!toolName || (status !== 'started' && status !== 'completed' && status !== 'failed')) return undefined;
-  return { toolName, status, message: getToolProgressMessage(toolName, status) };
+  const callId = getTextField(payload, ['call_id']);
+  const output = getTextField(payload, event === 'tool.output' ? ['output', 'content', 'text'] : ['output']);
+  return {
+    toolName,
+    status,
+    message: getToolProgressMessage(toolName, status),
+    ...(callId ? { callId } : {}),
+    ...(output !== undefined ? { output } : {}),
+  };
 }
 
 // 读取HTTP错误响应的可读错误信息
@@ -351,16 +365,10 @@ async function fetchAgent(request: AgentApiRequest, signal?: AbortSignal): Promi
   }
 }
 
-// 将同一网络批次中的事件交还浏览器，确保React绘制中间状态
-async function yieldToBrowserPaint(delayMs = 0): Promise<void> {
-  if (typeof window === 'undefined') return;
-  await new Promise<void>((resolve) => window.setTimeout(resolve, delayMs));
-}
-
 // 读取SSE流式响应，实时处理内容块和工具进度事件
 async function readEventStream(
   response: Response,
-  onChunk: (chunk: string) => void,
+  onChunk: (chunk: string, delivery?: AgentTextDelivery) => void,
   signal?: AbortSignal,
   onToolProgress?: (progress: AgentToolProgress) => void,
 ): Promise<AgentApiResponse> {
@@ -370,39 +378,51 @@ async function readEventStream(
   const decoder = new TextDecoder();
   let fullContent = '';
   let lineBuffer = '';
+  let eventName = '';
+  let dataLines: string[] = [];
   let suggestionCards: AgentSuggestionCard[] | undefined;
   const cancelRead = () => {
     void reader.cancel().catch(() => undefined);
   };
   signal?.addEventListener('abort', cancelRead, { once: true });
 
-  // 解析单行SSE事件，并在业务状态更新后让浏览器完成绘制
-  const consumeLine = async (line: string): Promise<boolean> => {
-    if (!line.startsWith('data:')) return false;
-    const payload = line.slice(5).trim();
-    if (payload === '[DONE]') return true;
+  // 按SSE事件边界分类分发，网络读取不等待动画或Markdown解析
+  const consumeEvent = (): boolean => {
+    const name = eventName;
+    const payload = dataLines.join('\n').trim();
+    eventName = '';
+    dataLines = [];
+    if (name === 'done' || payload === '[DONE]') return true;
+    if (!payload) return false;
+    if (name && !['text', 'message', 'tool', 'tool.output', 'error'].includes(name)) return false;
 
     let parsed: unknown;
     try {
       parsed = JSON.parse(payload);
     } catch {
-      if (payload) {
+      if (!name || name === 'text' || name === 'message') {
         fullContent += payload;
         onChunk(payload);
-        await yieldToBrowserPaint(STREAM_RENDER_INTERVAL_MS);
       }
       return false;
     }
 
+    if ((name === 'tool' || name === 'tool.output') && !isRecord(parsed)) return false;
+    if (name === 'error' && !isRecord(parsed)) {
+      throw new Error(typeof parsed === 'string' ? parsed : 'AI助手处理失败');
+    }
     if (isRecord(parsed)) {
-      const streamError = getJsonErrorMessage(parsed);
-      if (streamError) throw new Error(streamError);
-      const toolProgress = parseToolProgress(parsed);
+      const toolProgress = parseToolProgress(parsed, name);
       if (toolProgress) {
         onToolProgress?.(toolProgress);
-        await yieldToBrowserPaint();
         return false;
       }
+      if (name === 'tool' || name === 'tool.output') return false;
+      if (name === 'error' || parsed.error !== undefined || parsed.ok === false) {
+        throw new Error(getJsonErrorMessage(parsed) ?? 'AI助手处理失败');
+      }
+      const kind = name || getTextField(parsed, ['event', 'type']);
+      if (kind && kind !== 'text' && kind !== 'message') return false;
       suggestionCards = parseSuggestionCards(parsed.suggestionCards) ?? suggestionCards;
     }
 
@@ -414,10 +434,18 @@ async function readEventStream(
           : '';
     if (delta) {
       fullContent += delta;
-      onChunk(delta);
-      await yieldToBrowserPaint(STREAM_RENDER_INTERVAL_MS);
+      const immediate = isRecord(parsed) && (parsed.delivery === 'immediate' || parsed.replayed === true);
+      onChunk(delta, { immediate });
     }
 
+    return false;
+  };
+
+  // 累积多行data并识别event名称，忽略心跳与事件ID
+  const consumeLine = (line: string): boolean => {
+    if (line === '') return consumeEvent();
+    if (line.startsWith('event:')) eventName = line.slice(6).trim();
+    if (line.startsWith('data:')) dataLines.push(line.slice(5).replace(/^ /, ''));
     return false;
   };
 
@@ -434,12 +462,14 @@ async function readEventStream(
       lineBuffer = lines.pop() ?? '';
 
       for (const line of lines) {
-        if (await consumeLine(line)) return requireContent({ content: fullContent, suggestionCards });
+        if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+        if (consumeLine(line)) return requireContent({ content: fullContent, suggestionCards });
       }
     }
 
     lineBuffer += decoder.decode();
-    await consumeLine(lineBuffer);
+    consumeLine(lineBuffer);
+    consumeEvent();
     return requireContent({ content: fullContent, suggestionCards });
   } finally {
     signal?.removeEventListener('abort', cancelRead);
@@ -451,7 +481,7 @@ async function readEventStream(
 // 对外统一的AI API调用入口，自动处理JSON和SSE响应
 export async function callAgentApi(
   request: AgentApiRequest,
-  onChunk: (chunk: string) => void,
+  onChunk: (chunk: string, delivery?: AgentTextDelivery) => void,
   signal?: AbortSignal,
   onToolProgress?: (progress: AgentToolProgress) => void,
 ): Promise<AgentApiResponse> {
@@ -498,9 +528,9 @@ export async function callAgentApi(
       refreshProgress();
       return await readEventStream(
         response,
-        (chunk) => {
+        (chunk, delivery) => {
           refreshProgress();
-          onChunk(chunk);
+          onChunk(chunk, delivery);
         },
         combinedSignal,
         (progress) => {

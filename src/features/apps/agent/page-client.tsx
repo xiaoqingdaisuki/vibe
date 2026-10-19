@@ -11,18 +11,14 @@ import type {
 import { getAgentConnectionStatusLabel } from './chat-status';
 import type { AgentConnectionStatus } from './chat-status';
 import { copyText } from './clipboard';
-import { renderBlockMarkdown } from './render-markdown';
+import { StreamingMarkdown } from './streaming-markdown';
+import type { AgentToolProgress } from './agent-api';
 import { ImageGenerator } from './image-generator';
 import styles from './styles/Agent.module.css';
 import { useAgentChat } from './use-agent-chat';
 import type { SendMessageOptions } from './use-agent-chat';
 import { useChatScroll } from './use-chat-scroll';
 import { getTypewriterAnimationDuration, shouldAnimateTypewriter } from './typewriter';
-
-// 渲染markdown内容为HTML
-function MarkdownContent({ content }: { content: string }) {
-  return <div className={styles.md} dangerouslySetInnerHTML={{ __html: renderBlockMarkdown(content) }} />;
-}
 
 // 流式回复完成后保留全文，并播放不遮挡内容的光标动画
 function TypewriterContent({
@@ -52,7 +48,7 @@ function TypewriterContent({
 
   return (
     <>
-      <MarkdownContent content={content} />
+      <StreamingMarkdown content={content} isStreaming={isStreaming} />
       {!isStreaming && shouldShowCompletionCursor ? <span className={styles.cursor} aria-hidden="true" /> : null}
     </>
   );
@@ -403,6 +399,7 @@ function AssistantMessageBubble({
   suggestionCards,
   onSuggestionSelect,
   isStreamingComplete,
+  toolCalls,
 }: {
   content: string;
   timestamp: number;
@@ -410,6 +407,7 @@ function AssistantMessageBubble({
   suggestionCards?: SuggestionCard[];
   onSuggestionSelect: (payload: string) => void;
   isStreamingComplete: boolean;
+  toolCalls?: AgentToolProgress[];
 }) {
   const hasContent = content && content.length > 0;
   const contentRef = useRef<HTMLDivElement>(null);
@@ -420,6 +418,21 @@ function AssistantMessageBubble({
         <AgentIcon />
       </div>
       <div className={styles.bubbleWrap}>
+        {toolCalls?.length ? (
+          <div className={styles.toolCalls} aria-label="工具调用">
+            {toolCalls.map((call) => (
+              <div key={call.callId || call.toolName} className={styles.toolCall}>
+                <div role="status">{call.message}</div>
+                {call.output ? (
+                  <details>
+                    <summary>查看工具结果</summary>
+                    <pre>{call.output}</pre>
+                  </details>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        ) : null}
         <div ref={contentRef} className={`${styles.bubble} ${styles.bubbleAssistant}`}>
           {hasContent ? (
             <>
@@ -921,10 +934,11 @@ export default function AgentChat() {
           {messages.map((message) =>
             message.role === 'user' ? (
               <UserMessageBubble key={message.id} content={message.content} timestamp={message.timestamp} />
-            ) : message.content ? (
+            ) : message.content || message.toolCalls?.length ? (
               <AssistantMessageBubble
                 key={message.id}
                 content={message.content}
+                toolCalls={message.toolCalls}
                 timestamp={message.timestamp}
                 isStreaming={message.isStreaming ?? false}
                 suggestionCards={message.suggestionCards}
@@ -936,7 +950,8 @@ export default function AgentChat() {
 
           {isStreaming &&
           messages[messages.length - 1]?.role === 'assistant' &&
-          !messages[messages.length - 1]?.content ? (
+          !messages[messages.length - 1]?.content &&
+          !messages[messages.length - 1]?.toolCalls?.length ? (
             <div className={`${styles.row} ${styles.rowAssistant}`}>
               <div className={styles.msgAvatar} aria-hidden="true">
                 <AgentIcon />
