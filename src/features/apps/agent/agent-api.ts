@@ -350,6 +350,12 @@ async function fetchAgent(request: AgentApiRequest, signal?: AbortSignal): Promi
   }
 }
 
+// 将同一网络批次中的事件交还浏览器，确保React绘制中间状态
+async function yieldToBrowserPaint(): Promise<void> {
+  if (typeof window === 'undefined') return;
+  await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+}
+
 // 读取SSE流式响应，实时处理内容块和工具进度事件
 async function readEventStream(
   response: Response,
@@ -369,7 +375,8 @@ async function readEventStream(
   };
   signal?.addEventListener('abort', cancelRead, { once: true });
 
-  const consumeLine = (line: string): boolean => {
+  // 解析单行SSE事件，并在业务状态更新后让浏览器完成绘制
+  const consumeLine = async (line: string): Promise<boolean> => {
     if (!line.startsWith('data:')) return false;
     const payload = line.slice(5).trim();
     if (payload === '[DONE]') return true;
@@ -381,6 +388,7 @@ async function readEventStream(
       if (payload) {
         fullContent += payload;
         onChunk(payload);
+        await yieldToBrowserPaint();
       }
       return false;
     }
@@ -391,6 +399,7 @@ async function readEventStream(
       const toolProgress = parseToolProgress(parsed);
       if (toolProgress) {
         onToolProgress?.(toolProgress);
+        await yieldToBrowserPaint();
         return false;
       }
       suggestionCards = parseSuggestionCards(parsed.suggestionCards) ?? suggestionCards;
@@ -405,6 +414,7 @@ async function readEventStream(
     if (delta) {
       fullContent += delta;
       onChunk(delta);
+      await yieldToBrowserPaint();
     }
 
     return false;
@@ -423,12 +433,12 @@ async function readEventStream(
       lineBuffer = lines.pop() ?? '';
 
       for (const line of lines) {
-        if (consumeLine(line)) return requireContent({ content: fullContent, suggestionCards });
+        if (await consumeLine(line)) return requireContent({ content: fullContent, suggestionCards });
       }
     }
 
     lineBuffer += decoder.decode();
-    consumeLine(lineBuffer);
+    await consumeLine(lineBuffer);
     return requireContent({ content: fullContent, suggestionCards });
   } finally {
     signal?.removeEventListener('abort', cancelRead);

@@ -213,6 +213,27 @@ test('streams SSE chunks split across network boundaries', async (t) => {
   assert.deepEqual(chunks, ['你好']);
 });
 
+test('delivers each SSE text event separately when one network read contains many events', async (t) => {
+  installFetchMock(
+    t,
+    async () =>
+      new Response(
+        [
+          'event: text\ndata: {"delta":"第一段"}\n\n',
+          'event: text\ndata: {"delta":"第二段"}\n\n',
+          'event: done\ndata: {"ok":true}\n\ndata: [DONE]\n\n',
+        ].join(''),
+        { headers: { 'Content-Type': 'text/event-stream' } },
+      ),
+  );
+
+  const chunks: string[] = [];
+  const response = await callAgentApi(REQUEST, (chunk) => chunks.push(chunk));
+
+  assert.equal(response.content, '第一段第二段');
+  assert.deepEqual(chunks, ['第一段', '第二段']);
+});
+
 test('forwards tool progress events without adding them to the assistant response', async (t) => {
   installFetchMock(
     t,
