@@ -1,3 +1,5 @@
+/** 验证GBA 模拟器：模拟器加载与运行控制的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { GbaEmulator } from './emulator.ts';

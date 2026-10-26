@@ -1,3 +1,5 @@
+/** 验证AI 助手：流式文本分帧发布与批处理调度的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {

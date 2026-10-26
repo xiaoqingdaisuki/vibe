@@ -1,3 +1,5 @@
+/** 速记本：本地数据校验与持久化 */
+
 import type { NoteEntry } from './types';
 
 export const NOTE_STORAGE_KEY = 'note:v2:entries';
@@ -63,17 +65,20 @@ function parseLegacyNotes(raw: string | null): NoteEntry[] {
     if (!Array.isArray(parsed)) return [];
 
     return parsed
-      .map((value): NoteEntry | null => {
-        if (!isRecord(value)) return null;
-        const label = typeof value.label === 'string' ? value.label.trim() : '';
-        const command = typeof value.command === 'string' ? value.command.trim() : '';
-        const content = [label, command].filter(Boolean).join('\n');
-        if (!content || typeof value.id !== 'string') return null;
+      .map(
+        // 校验旧版命令记录并迁移为带时间信息的笔记
+        (value): NoteEntry | null => {
+          if (!isRecord(value)) return null;
+          const label = typeof value.label === 'string' ? value.label.trim() : '';
+          const command = typeof value.command === 'string' ? value.command.trim() : '';
+          const content = [label, command].filter(Boolean).join('\n');
+          if (!content || typeof value.id !== 'string') return null;
 
-        const createdAt = isTimestamp(value.createdAt) ? value.createdAt : Date.now();
-        const updatedAt = isTimestamp(value.updatedAt) ? value.updatedAt : createdAt;
-        return { id: value.id, content: content.slice(0, MAX_NOTE_CONTENT_LENGTH), createdAt, updatedAt };
-      })
+          const createdAt = isTimestamp(value.createdAt) ? value.createdAt : Date.now();
+          const updatedAt = isTimestamp(value.updatedAt) ? value.updatedAt : createdAt;
+          return { id: value.id, content: content.slice(0, MAX_NOTE_CONTENT_LENGTH), createdAt, updatedAt };
+        },
+      )
       .filter((note): note is NoteEntry => note !== null)
       .slice(0, MAX_NOTE_COUNT);
   } catch {
@@ -161,6 +166,7 @@ export function subscribeNotes(callback: () => void): () => void {
   listeners.add(callback);
   if (isFirst && typeof window !== 'undefined') window.addEventListener('storage', onStorage);
 
+  // 移除当前订阅，并在无订阅时释放全局存储监听
   return () => {
     listeners.delete(callback);
     if (listeners.size === 0 && typeof window !== 'undefined') window.removeEventListener('storage', onStorage);

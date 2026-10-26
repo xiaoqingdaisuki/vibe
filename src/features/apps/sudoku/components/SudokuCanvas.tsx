@@ -1,3 +1,5 @@
+/** 数独：数独棋盘画布组件 */
+
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { getSudokuKeyboardCommand } from '../game-state';
 import styles from '../styles/Sudoku.module.css';
@@ -32,6 +34,7 @@ interface SudokuCanvasProps {
 // 从 CSS 变量读取数独画布颜色
 function readCanvasColors(): CanvasColors {
   const computed = getComputedStyle(document.documentElement);
+  // 读取并去除主题变量值两端的空白
   const read = (name: string) => computed.getPropertyValue(name).trim();
 
   return {
@@ -89,32 +92,35 @@ function drawBoard({ canvas, puzzle, values, selectedIndex, incorrectBoxIndexes,
 
   const selectedValue = values[selectedIndex];
 
-  values.forEach((value, index) => {
-    const row = Math.floor(index / GRID_SIZE);
-    const column = index % GRID_SIZE;
-    const x = column * CELL_SIZE;
-    const y = row * CELL_SIZE;
+  values.forEach(
+    // 绘制格子高亮与数字，并区分初始题目和用户填写
+    (value, index) => {
+      const row = Math.floor(index / GRID_SIZE);
+      const column = index % GRID_SIZE;
+      const x = column * CELL_SIZE;
+      const y = row * CELL_SIZE;
 
-    if (index === selectedIndex) {
-      context.fillStyle = colors.accentWash;
-      context.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-    } else if (selectedValue !== 0 && value === selectedValue) {
-      context.fillStyle = colors.accentWash;
-      context.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-    } else if (isRelatedCell(index, selectedIndex)) {
-      context.fillStyle = colors.accentFaint;
-      context.fillRect(x, y, CELL_SIZE, CELL_SIZE);
-    }
+      if (index === selectedIndex) {
+        context.fillStyle = colors.accentWash;
+        context.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+      } else if (selectedValue !== 0 && value === selectedValue) {
+        context.fillStyle = colors.accentWash;
+        context.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+      } else if (isRelatedCell(index, selectedIndex)) {
+        context.fillStyle = colors.accentFaint;
+        context.fillRect(x, y, CELL_SIZE, CELL_SIZE);
+      }
 
-    if (value === 0) return;
+      if (value === 0) return;
 
-    const isGiven = puzzle[index] !== 0;
-    context.fillStyle = isGiven ? colors.foreground : colors.accent;
-    context.font = `${isGiven ? 700 : 600} 28px Inter, sans-serif`;
-    context.textAlign = 'center';
-    context.textBaseline = 'middle';
-    context.fillText(String(value), x + CELL_SIZE / 2, y + CELL_SIZE / 2 + 1);
-  });
+      const isGiven = puzzle[index] !== 0;
+      context.fillStyle = isGiven ? colors.foreground : colors.accent;
+      context.font = `${isGiven ? 700 : 600} 28px Inter, sans-serif`;
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText(String(value), x + CELL_SIZE / 2, y + CELL_SIZE / 2 + 1);
+    },
+  );
 
   for (let line = 0; line <= GRID_SIZE; line += 1) {
     const position = line * CELL_SIZE;
@@ -131,13 +137,21 @@ function drawBoard({ canvas, puzzle, values, selectedIndex, incorrectBoxIndexes,
     context.stroke();
   }
 
-  incorrectBoxIndexes.forEach((boxIndex) => {
-    const boxRow = Math.floor(boxIndex / 3);
-    const boxColumn = boxIndex % 3;
-    context.strokeStyle = colors.error;
-    context.lineWidth = 4;
-    context.strokeRect(boxColumn * CELL_SIZE * 3 + 2, boxRow * CELL_SIZE * 3 + 2, CELL_SIZE * 3 - 4, CELL_SIZE * 3 - 4);
-  });
+  incorrectBoxIndexes.forEach(
+    // 按九宫格位置绘制错误边框
+    (boxIndex) => {
+      const boxRow = Math.floor(boxIndex / 3);
+      const boxColumn = boxIndex % 3;
+      context.strokeStyle = colors.error;
+      context.lineWidth = 4;
+      context.strokeRect(
+        boxColumn * CELL_SIZE * 3 + 2,
+        boxRow * CELL_SIZE * 3 + 2,
+        CELL_SIZE * 3 - 4,
+        CELL_SIZE * 3 - 4,
+      );
+    },
+  );
 
   if (hasFocus) {
     const row = Math.floor(selectedIndex / GRID_SIZE);
@@ -188,27 +202,32 @@ export function SudokuCanvas({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hasFocus, setHasFocus] = useState(false);
 
+  // 使用最新棋盘状态与主题颜色绘制数独画布
   const drawLatestBoard = useEffectEvent(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     drawBoard({ canvas, puzzle, values, selectedIndex, incorrectBoxIndexes, hasFocus, colors: readCanvasColors() });
   });
 
+  // 棋盘数据、选中格或焦点变化时重绘画布
   useEffect(() => {
     drawLatestBoard();
   }, [puzzle, values, selectedIndex, incorrectBoxIndexes, hasFocus]);
 
+  // 监听主题属性变化以同步重绘数独画布
   useEffect(() => {
     const observer = new MutationObserver(drawLatestBoard);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => observer.disconnect();
   }, []);
 
+  // 将点击坐标转换为格子索引并通知选中
   const handleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const index = getCellIndex(event.currentTarget, event.clientX, event.clientY);
     if (index !== null) onSelect(index);
   };
 
+  // 解析键盘命令并执行选格、填数或擦除操作
   const handleKeyDown = (event: React.KeyboardEvent<HTMLCanvasElement>) => {
     const command = getSudokuKeyboardCommand(event.key, selectedIndex);
     if (!command) return;

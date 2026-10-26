@@ -1,3 +1,5 @@
+/** GBA 模拟器：ROM 加载、模拟器生命周期与存档同步 */
+
 import {
   useEffect,
   useRef,
@@ -207,6 +209,7 @@ export function useGbaSession(): GbaSession {
     animationFrameId = window.requestAnimationFrame(() => {
       if (dialog) getFocusableElements(dialog)[0]?.focus();
     });
+    // 关闭金手指界面时恢复滚动与焦点，并清理监听和绘制任务
     return () => {
       window.removeEventListener('keydown', handleCheatKeyDown);
       window.cancelAnimationFrame(animationFrameId);
@@ -266,12 +269,14 @@ export function useGbaSession(): GbaSession {
     frameReadyRef.current = false;
     setHasRenderedFrame(false);
     const nextEmulator = await createGbaEmulator(canvasRef.current, {
+      // 首帧到达时仅为当前加载任务更新画面就绪状态
       onFrame: () => {
         if (!isCurrentLoad(requestId)) return;
         if (frameReadyRef.current) return;
         frameReadyRef.current = true;
         if (mountedRef.current) setHasRenderedFrame(true);
       },
+      // 当前模拟器产生存档变更时标记需要持久化
       onSaveDirty: () => {
         if (isCurrentLoad(requestId)) saveDirtyRef.current = true;
       },
@@ -319,11 +324,15 @@ export function useGbaSession(): GbaSession {
     setLoadingMessage('正在读取 ROM…');
     let loadingEmulator: GbaEmulator | null = null;
     try {
-      const nextRom = await readGbaRom(file, ({ loaded, total }) => {
-        if (isCurrentLoad(requestId)) {
-          setLoadingMessage(`正在读取 ROM… ${Math.round((loaded / total) * 100)}%`);
-        }
-      });
+      const nextRom = await readGbaRom(
+        file,
+        // 仅为当前加载任务更新 ROM 文件读取进度
+        ({ loaded, total }) => {
+          if (isCurrentLoad(requestId)) {
+            setLoadingMessage(`正在读取 ROM… ${Math.round((loaded / total) * 100)}%`);
+          }
+        },
+      );
       if (!isCurrentLoad(requestId)) return;
       if (!(await stopCurrentEmulator(requestId))) return;
       setRom(nextRom);
@@ -389,10 +398,10 @@ export function useGbaSession(): GbaSession {
           await Reflect.apply(lockOrientation, window.screen.orientation, ['landscape']);
         }
       } catch {
-        // 部分浏览器只支持全屏，不支持脚本锁定方向。
+        // 部分浏览器只支持全屏，不支持脚本锁定方向
       }
     } catch {
-      // 当前浏览器拒绝全屏时保持普通页面布局。
+      // 当前浏览器拒绝全屏时保持普通页面布局
     }
   }
 
@@ -583,7 +592,7 @@ export function useGbaSession(): GbaSession {
         try {
           window.screen.orientation?.unlock();
         } catch {
-          // 浏览器不支持解锁方向时无需额外处理。
+          // 浏览器不支持解锁方向时无需额外处理
         }
       }
     }
@@ -631,6 +640,7 @@ export function useGbaSession(): GbaSession {
     window.addEventListener('keyup', handleKeyUp);
     window.addEventListener('blur', releaseAllButtons);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    // 卸载输入监听，避免模拟器停止后继续接收键盘事件
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
@@ -651,6 +661,7 @@ export function useGbaSession(): GbaSession {
   // 组件卸载时保存存档并释放 WASM 资源
   useEffect(() => {
     mountedRef.current = true;
+    // 卸载时使加载任务失效、保存存档并释放模拟器资源
     return () => {
       loadRequestRef.current += 1;
       mountedRef.current = false;

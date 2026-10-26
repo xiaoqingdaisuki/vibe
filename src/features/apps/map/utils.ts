@@ -1,3 +1,5 @@
+/** 地图：格式化与转换工具 */
+
 import type { Coordinate, MapView, Place } from './types';
 
 // 把服务错误转换为可以直接显示的提示

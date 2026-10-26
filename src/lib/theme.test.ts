@@ -1,3 +1,5 @@
+/** 验证管理明暗主题的初始化、切换与持久化的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { runInNewContext } from 'node:vm';

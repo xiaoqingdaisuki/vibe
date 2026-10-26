@@ -1,3 +1,5 @@
+/** 冒险岛图鉴：筛选条件与地址栏同步 */
+
 // 从查询字符串读取并解码怪物筛选关键词
 export function getMaplestoryFilterValue(search: string): string {
   return new URLSearchParams(search).get('filter') ?? '';

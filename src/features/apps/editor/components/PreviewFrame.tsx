@@ -1,3 +1,5 @@
+/** 在线编辑器：隔离预览窗口组件 */
+
 'use client';
 
 import { useEffect, useRef, useState, type ReactElement } from 'react';
@@ -83,6 +85,7 @@ export function PreviewFrame({ code, theme }: PreviewFrameProps): ReactElement {
 
   // 接收且仅接收当前沙箱会话主动发出的运行消息
   useEffect(() => {
+    // 验证预览窗口及会话来源后更新就绪状态或运行诊断
     function handleMessage(event: MessageEvent<unknown>): void {
       if (event.source !== iframeRef.current?.contentWindow) return;
 
@@ -124,12 +127,16 @@ export function PreviewFrame({ code, theme }: PreviewFrameProps): ReactElement {
       return;
     }
 
-    const timeoutId = window.setTimeout(() => {
-      previousCodeRef.current = code;
-      setDiagnostics([]);
-      setFrame(createFrameState(code, themeRef.current));
-      setPreviewState(getPreviewStateAfterCommand('restart'));
-    }, 300);
+    const timeoutId = window.setTimeout(
+      // 延迟重建预览文档，重置诊断与运行状态
+      () => {
+        previousCodeRef.current = code;
+        setDiagnostics([]);
+        setFrame(createFrameState(code, themeRef.current));
+        setPreviewState(getPreviewStateAfterCommand('restart'));
+      },
+      300,
+    );
 
     return () => window.clearTimeout(timeoutId);
   }, [code, frame, previewState]);

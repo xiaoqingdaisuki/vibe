@@ -1,3 +1,5 @@
+/** GBA 模拟器：客户端页面与交互编排 */
+
 'use client';
 
 import { type PointerEvent as ReactPointerEvent } from 'react';

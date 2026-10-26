@@ -1,3 +1,5 @@
+/** RSS 阅读器：订阅阅读界面的布局、主题与响应式样式 */
+
 .container {
   display: flex;
   flex-direction: column;
@@ -24,7 +26,7 @@
   color: var(--color-foreground-muted);
 }
 
-/* ---- section ---- */
+/* 内容区块 */
 
 .section {
   display: flex;
@@ -77,7 +79,7 @@
   color: var(--color-error);
 }
 
-/* ---- feeds section ---- */
+/* 订阅源列表区块 */
 
 .feedsSection {
   display: flex;
@@ -152,7 +154,7 @@
   color: var(--color-foreground-muted);
 }
 
-/* ---- feed section ---- */
+/* 单个订阅源区块 */
 
 .feedSection {
   border: 1px solid var(--color-border);
@@ -249,7 +251,7 @@
   flex-direction: column;
 }
 
-/* ---- item card ---- */
+/* 文章卡片 */
 
 .itemCard {
   display: flex;
@@ -342,7 +344,7 @@
   opacity: 1;
 }
 
-/* ---- empty ---- */
+/* 空状态 */
 
 .empty {
   display: flex;

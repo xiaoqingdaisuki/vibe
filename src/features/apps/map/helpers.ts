@@ -1,3 +1,5 @@
+/** 地图：输入校验与交互辅助逻辑 */
+
 import type { Coordinate } from './types';
 
 // 解析经纬度输入，并拒绝缺失、非数值和越界坐标

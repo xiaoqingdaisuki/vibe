@@ -1,3 +1,5 @@
+# 配置桌面发布产物、运行资源与 Windows 安装方式
+
 appId: com.xiaoqingdaisuki.vibe
 productName: vibe
 artifactName: vibe.${ext}

@@ -1,3 +1,5 @@
+/** GBA 模拟器：金手指代码解析与校验 */
+
 import type { GbaCheat } from './types';
 
 // 规范化多行金手指代码，保留每一行供 mGBA 解析
@@ -57,11 +59,14 @@ export function sanitizeGbaCheats(value: unknown): GbaCheat[] {
   const ids = new Set<string>();
   return value
     .map((entry, index) => sanitizeGbaCheat(entry, index))
-    .filter((entry): entry is GbaCheat => {
-      if (!entry || ids.has(entry.id)) return false;
-      ids.add(entry.id);
-      return true;
-    });
+    .filter(
+      // 剔除无效或标识重复的金手指条目
+      (entry): entry is GbaCheat => {
+        if (!entry || ids.has(entry.id)) return false;
+        ids.add(entry.id);
+        return true;
+      },
+    );
 }
 
 // 按 mGBA .cheats 格式序列化金手指，让核心自动识别代码类型

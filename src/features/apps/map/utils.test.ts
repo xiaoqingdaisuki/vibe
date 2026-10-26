@@ -1,3 +1,5 @@
+/** 验证地图：格式化与转换工具的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createShareUrl, parseSharedView, isCoordinate, formatDistance, formatDuration, getMapScale } from './utils.ts';

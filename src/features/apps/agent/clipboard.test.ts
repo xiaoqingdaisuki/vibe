@@ -1,3 +1,5 @@
+/** 验证AI 助手：兼容多种浏览器的文本复制的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

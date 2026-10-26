@@ -1,3 +1,5 @@
+/** 扫雷：难度选择组件 */
+
 import { cn } from '@/lib/utils';
 import { CUSTOM_LIMITS, DIFFICULTY_PRESETS } from '../engine';
 import type { BoardConfig, DifficultyId } from '../types';

@@ -1,3 +1,5 @@
+/** 冒险岛图鉴：类型与数据契约 */
+
 export interface MonsterStats {
   level: number | null;
   experience: number | null;

@@ -1,3 +1,5 @@
+/** 放置角色游戏：职业、物品与掉落静态配置 */
+
 import type {
   ClassDef,
   ClassType,
@@ -66,7 +68,7 @@ export const SKILLS: SkillDef[] = [
     effect: { type: 'buff', value: 0.5, target: 'self' },
     maxLevel: 10,
     classRequired: 'warrior',
-    cooldown: 99, // once per combat
+    cooldown: 99, // 每场战斗仅触发一次
   },
   {
     id: 'war_cry',
@@ -77,7 +79,7 @@ export const SKILLS: SkillDef[] = [
     effect: { type: 'buff', value: 0.3, target: 'self' },
     maxLevel: 10,
     classRequired: 'warrior',
-    cooldown: 99, // once per combat
+    cooldown: 99, // 每场战斗仅触发一次
   },
   // 法师技能
   {
@@ -111,7 +113,7 @@ export const SKILLS: SkillDef[] = [
     effect: { type: 'buff', value: 0.3, target: 'self' },
     maxLevel: 10,
     classRequired: 'mage',
-    cooldown: 99, // once per combat
+    cooldown: 99, // 每场战斗仅触发一次
   },
   // 盗贼技能
   {
@@ -134,7 +136,7 @@ export const SKILLS: SkillDef[] = [
     effect: { type: 'buff', value: 1.0, target: 'self' },
     maxLevel: 10,
     classRequired: 'rogue',
-    cooldown: 99, // once per combat
+    cooldown: 99, // 每场战斗仅触发一次
   },
   {
     id: 'poison_blade',
@@ -149,10 +151,10 @@ export const SKILLS: SkillDef[] = [
   },
 ];
 
-// ── Skill Activation Categories ────────────────────────────────────────────
-// damage: activates every combat round (伤害型)
-// heal:   activates only when HP < 35% (治疗型)
-// buff:   activates once per combat, at round start (增益型)
+// 技能触发类型
+// 伤害型技能每回合尝试触发
+// 治疗型技能仅在生命值低于百分之三十五时触发
+// 增益型技能在回合开始时尝试触发，每场战斗仅生效一次
 
 export const SKILL_CATEGORY: Record<string, 'damage' | 'heal' | 'buff'> = {
   power_strike: 'damage',
@@ -166,7 +168,7 @@ export const SKILL_CATEGORY: Record<string, 'damage' | 'heal' | 'buff'> = {
   poison_blade: 'damage',
 };
 
-// Difficulty tiers: stat multiplier = 1 + tier * 0.4
+// 难度层级的属性倍率为一加层级乘以 0.4
 export interface DifficultyTier {
   tier: number;
   name: string;
@@ -183,11 +185,11 @@ export const DIFFICULTY_TIERS: DifficultyTier[] = [
   { tier: 5, name: '不可能', minLevel: 30, maxLevel: 30, description: '理论上无法到达' },
 ];
 
-// ── Equipment Stat Curves ────────────────────────────────────────────────────
-// Quadratic formulas for base stat value at a given level.
-// Level 1 = ~4, Level 10 = ~4-6, Level 25 = ~14-22 base per slot.
-// Combined with rarity bonus (×1 to ×64), this produces reasonable endgame numbers
-// without the old array-based system's inflated values.
+// 装备属性曲线
+// 使用二次曲线计算指定等级的基础属性
+// 每个槽位一级基础值约为 4，十级约为 4 至 6，二十五级约为 14 至 22
+// 结合一至六十四倍稀有度加成，限制后期属性增长
+// 避免旧数组配置造成属性数值过高
 
 // 计算武器主属性成长值（随等级二次增长）
 // 计算武器主属性成长值（随等级二次增长）
@@ -209,10 +211,10 @@ function accStat(lv: number): number {
 
 // 装备属性倍率：紫装起适配高等级怪物的生命、防御和攻击成长
 
-// ── Rarity System ──────────────────────────────────────────────────────────
+// 稀有度系统
 // 灰色 → 绿 → 蓝 → 紫 → 橙 → 红 → 金色
-// Drop rate from a COMMON chest (higher chests multiply each tier):
-//   common 65%, uncommon 8%, rare 22%, epic 3.5%, legendary 2.5%, mythic 0.15%, transcendent 0.001%
+// 普通宝箱基础掉率，更高品质宝箱会放大各档概率
+// 普通至超越七档掉率依次为 65%、8%、22%、3.5%、2.5%、0.15%、0.001%
 
 export const RARITY_ORDER: ItemDef['rarity'][] = [
   'common',
@@ -244,9 +246,9 @@ export const RARITY_COLORS: Record<ItemRarity, string> = {
   transcendent: '#fbbf24', // 金
 };
 
-// Individual drop probability for each rarity from a common chest.
-// These are TRUE probabilities — the rollRarity function treats them as
-// cumulative thresholds from highest to lowest rarity.
+// 普通宝箱中各稀有度的独立掉落概率
+// rollRarity 将独立概率转换为累计阈值
+// 累计阈值按稀有度从高到低构建
 // 灰68% / 绿22% / 蓝8% / 紫1.5% / 橙0.5% / 红0.1% / 金0.001%
 export const RARITY_BASE_CHANCE: Record<ItemRarity, number> = {
   common: 0.68, // 68%
@@ -258,7 +260,7 @@ export const RARITY_BASE_CHANCE: Record<ItemRarity, number> = {
   transcendent: 0.00001, // 0.001%
 };
 
-// How many times each chest multiplies the rarity chance
+// 各类宝箱对稀有度概率的放大倍数
 export const CHEST_RARITY_MULTIPLIER: Record<ItemRarity, number> = {
   common: 1,
   uncommon: 3,
@@ -269,7 +271,7 @@ export const CHEST_RARITY_MULTIPLIER: Record<ItemRarity, number> = {
   transcendent: 100,
 };
 
-// ── Rarity helpers ──────────────────────────────────────────────────────────
+// 稀有度辅助逻辑
 
 // 根据宝箱品质随机roll出物品稀有度
 export function rollRarity(chestRarity: ItemRarity): ItemRarity {
@@ -277,8 +279,8 @@ export function rollRarity(chestRarity: ItemRarity): ItemRarity {
   const roll = Math.random();
   const minimumRarityIndex = RARITY_ORDER.indexOf(chestRarity);
 
-  // Build cumulative thresholds from highest to lowest rarity
-  // Each entry is the upper bound (inclusive) for that rarity
+  // 按稀有度从高到低构建累计阈值
+  // 各条目表示对应稀有度的累计概率上界，包含边界
   const tiers = RARITY_ORDER.slice(minimumRarityIndex).toReversed();
   let cumulative = 0;
 
@@ -315,36 +317,21 @@ export function recalcItemStats(
   return buildItemStats(baseItem.minLevel, newRarity, slot);
 }
 
-// ── Skill System ────────────────────────────────────────────────────────────
-// Each skill level adds +20% to the base effect value.
-// Level-up requires 1000 uses per level.
-// Levels 1-8: guaranteed on 1000 uses.
-// Levels 9-10: 50% chance on 1000 uses.
+// 技能系统
+// 技能每升一级，基础效果提高百分之二十
+// 技能每级需要使用一千次
+// 一至八级累计一千次使用后必定升级
+// 九级升至十级时累计一千次使用后有一半概率成功
 
 export const SKILL_USES_PER_LEVEL = 1000;
 
-/**
- * Returns the scaled effect value for a skill at a given level.
- * Level 1 = base value, each additional level +20%.
- */
-// 获取技能在指定等级的缩放效果值
+// 计算技能等级效果，一级使用基础值，此后每级增加百分之二十
 export function getSkillEffectValue(skillDef: SkillDef, skillLevel: number): number {
   const base = skillDef.effect.value;
   return Math.floor(base * (1 + (skillLevel - 1) * 0.2) * 100) / 100;
 }
 
-/**
- * Attempts to level up a skill.
- * Each level requires 1000 uses.
- * Levels 1-8: guaranteed success at 1000 uses.
- * Levels 9-10: 50% success chance at 1000 uses. On failure, progress resets to 0.
- *
- * @param skillUsage - the per-skill usage counter (modified in-place on failure)
- * @param skillId - the skill ID
- * @param currentLevel - current skill level
- * @returns { leveledUp, newLevel, usage } where usage is the counter AFTER this attempt
- */
-// 尝试升级技能，每1000使用次数升级一次
+// 每千次使用尝试升级，九级升十级成功率减半，失败时清空本次进度
 export function tryLevelUpSkill(
   skillUsage: Record<string, number>,
   skillId: string,
@@ -357,26 +344,26 @@ export function tryLevelUpSkill(
   const usage = (skillUsage[skillId] ?? 0) + 1;
   skillUsage[skillId] = usage;
 
-  // Every level requires exactly 1000 uses
+  // 每级固定需要使用一千次
   if (usage < SKILL_USES_PER_LEVEL) {
     return { leveledUp: false, newLevel: currentLevel, usage };
   }
 
-  // Hit 1000 uses — attempt level-up
+  // 累计一千次使用后尝试升级
   if (currentLevel >= 9 && Math.random() >= 0.5) {
-    // 50% fail at Lv.9/10: reset progress
+    // 九级升十级失败时重置进度
     skillUsage[skillId] = 0;
     return { leveledUp: false, newLevel: currentLevel, usage: 0 };
   }
 
-  // Success: level up and reset counter
+  // 升级成功时提高等级并重置计数
   skillUsage[skillId] = 0;
   return { leveledUp: true, newLevel: currentLevel + 1, usage: 0 };
 }
 
-// ── Stat Builder ───────────────────────────────────────────────────────────
-// Returns stats for a given slot + class + level + rarity combo.
-// scaleWithClass=true → the per-class stats dict is stored; resolved at equip time.
+// 属性构建逻辑
+// 根据槽位、职业、等级与稀有度生成属性
+// scaleWithClass 为真时保存职业属性映射，并在装备时解析
 
 // 构建装备的属性数据（含职业缩放和稀有度加成）
 function buildItemStats(
@@ -397,7 +384,7 @@ function buildItemStats(
     };
   } else if (slot === 'armor') {
     const base = armorStat(lv);
-    // All armor provides VIT (defense stat), keeping it simple and uniform
+    // 所有护甲统一提供体力作为防御属性
     stats = {
       warrior: { vit: Math.floor(base * bonus) },
       mage: { vit: Math.floor(base * bonus) },
@@ -416,7 +403,6 @@ function buildItemStats(
   return { stats, scaleWithClass: true, mainStatValue: 0 };
 }
 
-// Resolve per-class stats dict to the actual class's stats
 // 判断属性数据是否为扁平格式（非职业缩放格式）
 function isFlatStats(stats: ItemStats): stats is Partial<Stats> {
   const flatStats = stats as Partial<Stats>;
@@ -429,16 +415,11 @@ export function resolveStatsForClass(stats: ItemStats | undefined, classId: Clas
   return isFlatStats(stats) ? stats : stats[classId];
 }
 
-/**
- * Extract the main combat stat value from an item's stats.
- * Handles both formats:
- *   - Pre-equip:  { mage: { int: 10 } } (per-class dict, scaleWithClass=true)
- *   - Post-equip: { int: 10 } (resolved flat stats, scaleWithClass cleared)
- */
+// 按职业读取装备前后两种属性结构中的主属性数值
 export function resolveMainStatValue(stats: ItemStats | undefined, classId: ClassType): number {
   if (!stats) return 0;
 
-  // Pre-equip: nested class dict { classId: { mainStat: value } }
+  // 装备前使用按职业嵌套的主属性映射
   if (!isFlatStats(stats)) {
     const classStats = stats[classId];
     if (classId === 'warrior') return classStats.str || 0;
@@ -446,13 +427,13 @@ export function resolveMainStatValue(stats: ItemStats | undefined, classId: Clas
     if (classId === 'rogue') return classStats.dex || 0;
   }
 
-  // Post-equip: flat resolved stats { str: 10 } or { int: 10 }
+  // 装备后使用已解析的扁平力量或智力属性
   const flatStats = stats as Partial<Stats>;
   const statKey = classId === 'warrior' ? 'str' : classId === 'mage' ? 'int' : 'dex';
   return flatStats[statKey] || 0;
 }
 
-// ── Equipment Name Tables ───────────────────────────────────────────────────
+// 装备名称表
 const WEAPON_NAMES = [
   '铁',
   '钢',
@@ -510,14 +491,9 @@ const ARMOR_NAMES = [
 const WEAPON_LABEL: Record<string, string> = { warrior: '剑', mage: '法杖', rogue: '匕首' };
 const ARMOR_LABEL: Record<string, string> = { warrior: '战甲', mage: '长袍', rogue: '皮衣' };
 
-// ── Item Generation ────────────────────────────────────────────────────────
+// 物品生成逻辑
 
-/**
- * Generates a random item level for chest rewards.
- * Normal rarities: [max(1, charLevel-1), min(25, charLevel+1)] — only within ±1 of character level
- * Transcendent (最稀有): always at character level (special logic)
- */
-// 为宝箱奖励生成物品等级（仅限角色等级±1）
+// 奖励等级限制为一至二十五级，普通品质取角色等级正负一，超越品质取当前等级
 function getChestItemLevel(charLevel: number, rarity: ItemRarity): number {
   if (rarity === 'transcendent') {
     // 超越品质特殊逻辑：始终等于角色等级
@@ -529,22 +505,16 @@ function getChestItemLevel(charLevel: number, rarity: ItemRarity): number {
   return Math.floor(Math.random() * (hi - lo + 1)) + lo;
 }
 
-/**
- * Generate all equipment definitions.
- * Items are pre-rolled with random rarity (so the database has variety).
- * When a chest is opened, the engine picks from these pools and re-rolls rarity
- * according to chest tier via rollRarity().
- */
-// 生成所有装备定义（按职业、等级随机属性）
+// 按职业与等级预生成随机品质装备池，开箱时再按宝箱品质重抽稀有度
 function generateEquipment(): ItemDef[] {
   const items: ItemDef[] = [];
   const SLOTS: Array<'weapon' | 'armor' | 'accessory'> = ['weapon', 'armor', 'accessory'];
 
   for (const cls of CLASSES) {
-    // Per-level weapon & armor (25 per class per slot)
+    // 为每个职业的武器与护甲槽位生成二十五档等级装备
     for (let level = 1; level <= 25; level++) {
       for (const slot of SLOTS.slice(0, 2)) {
-        const rarity = rollRarity('common'); // random base rarity
+        const rarity = rollRarity('common'); // 随机生成基础稀有度
         const { stats, scaleWithClass } = buildItemStats(level, rarity, slot);
         const mat =
           slot === 'weapon'
@@ -567,7 +537,7 @@ function generateEquipment(): ItemDef[] {
       }
     }
 
-    // Accessories (8 per class, fixed names)
+    // 每个职业生成八件固定名称的饰品
     const accNames = ['力量护符', '敏捷戒指', '智慧之戒', '体力项链', '幸运饰品', '勇者勋章', '守护之盾', '王者之冠'];
     const accMinLevels = [3, 5, 10, 15, 18, 22, 25, 25];
 
@@ -592,34 +562,29 @@ function generateEquipment(): ItemDef[] {
   return items;
 }
 
-/**
- * Get a random equipment ItemDef from the pool, with rarity re-rolled
- * according to the opening chest's tier and level restricted to the
- * character's level range.
- */
-// 从装备池随机获取一件装备（按宝箱品质重roll稀有度）
+// 从装备池选取物品，按宝箱品质重抽稀有度并按角色等级生成属性
 export function randomEquipItem(chestRarity: ItemRarity, charLevel: number): ItemDef | undefined {
-  // Chests can drop ANY class's equipment — class restriction is enforced at equip time
+  // 宝箱可以掉落任意职业装备，职业限制在穿戴时检查
   const allEquip = ITEMS.filter((it) => it.type === 'equipment');
   if (allEquip.length === 0) return undefined;
 
-  // Pick a random base item
+  // 随机选择一件基础装备
   const base = allEquip[Math.floor(Math.random() * allEquip.length)];
   if (!base) return undefined;
 
-  // Re-roll rarity based on chest tier
+  // 根据宝箱等级重新抽取稀有度
   const newRarity = rollRarity(chestRarity);
 
-  // Generate level within [1, charLevel+3] (closest to charLevel)
-  // Transcendent items always drop at character level
+  // 生成接近角色当前等级的物品等级
+  // 超越品质物品始终使用角色当前等级
   const level = getChestItemLevel(charLevel, newRarity);
 
-  // Rebuild stats for the new rarity (keeping same slot)
+  // 保留装备槽位，并按新稀有度重建属性
   const slot = base.slot || 'weapon';
   const isAccessory = slot === 'accessory';
   const { stats, scaleWithClass } = buildItemStats(level, newRarity, slot);
 
-  // Accessories keep their original fixed name; weapons/armor get material-based names
+  // 饰品保留固定名称，武器与护甲按材质生成名称
   const name = isAccessory
     ? base.name
     : `${WEAPON_NAMES[Math.min(level - 1, WEAPON_NAMES.length - 1)]}${slot === 'weapon' ? WEAPON_LABEL[base.id.split('_')[0]] : ARMOR_LABEL[base.id.split('_')[0]]}`;
@@ -645,7 +610,7 @@ export function createGeneratedEquipmentId(base: ItemDef, level: number, rarity:
 }
 
 export const ITEMS: ItemDef[] = [
-  // Treasure chests (7 tiers)
+  // 七档品质的宝箱
   {
     id: 'common_chest',
     name: '普通宝箱',
@@ -702,7 +667,7 @@ export const ITEMS: ItemDef[] = [
     description: '开启后随机获得超越物品',
     minLevel: 1,
   },
-  // Skill books (legendary rarity, 1% flat drop from any chest)
+  // 传说品质技能书，任意宝箱均有百分之一概率掉落
   {
     id: 'skill_book_warrior',
     name: '战士技能书',
@@ -727,15 +692,15 @@ export const ITEMS: ItemDef[] = [
     description: '随机学习一个盗贼技能',
     minLevel: 1,
   },
-  // Generated equipment
+  // 自动生成的装备
   ...generateEquipment(),
 ];
 
-// Monster loot: one shared base lootTable for all 30 monsters.
-// Base probabilities (at tier 1):
-//   common=30%, uncommon=4%, rare=0.8%, epic=0.3%, legendary=0.03%, mythic=0.003%, transcendent=0.0003%
-// Higher rarity chances scale with the monster's static difficulty tier:
-//   each tier adds +10% to all non-common chest chances (capped at 100%).
+// 三十种怪物共享同一份基础掉落表
+// 第一档难度的基础概率
+// 普通至超越宝箱概率依次为 30%、4%、0.8%、0.3%、0.03%、0.003%、0.0003%
+// 高品质宝箱概率随怪物静态难度层级缩放
+// 每提升一档难度，非普通宝箱概率增加百分之十，上限为百分之百
 const CHEST_LOOT_BASE: LootEntry[] = [
   { itemId: 'common_chest', chance: 0.3, minCount: 1, maxCount: 1 },
   { itemId: 'uncommon_chest', chance: 0.04, minCount: 1, maxCount: 1 },
@@ -746,12 +711,7 @@ const CHEST_LOOT_BASE: LootEntry[] = [
   { itemId: 'transcendent_chest', chance: 0.000003, minCount: 1, maxCount: 1 },
 ];
 
-/**
- * Returns a tier-scaled loot table based on the monster's static difficulty tier.
- * Common chest is always included. Higher rarity chances scale +10% per tier above 1 (capped at 100%).
- * @param tier - static difficulty tier (1 = easy, max 5 = impossible)
- * @returns scaled loot entries
- */
+// 按静态难度层级缩放各项基础掉落概率，并限制最大概率
 export function getTierLootTable(tier: number): LootEntry[] {
   const scale = 1 + (tier - 1) * 0.1;
   return CHEST_LOOT_BASE.map((entry) => ({
@@ -761,94 +721,118 @@ export function getTierLootTable(tier: number): LootEntry[] {
 }
 
 export const MONSTERS: MonsterDef[] = [
-  // Level 1-5: Slime family
-  ...Array.from({ length: 5 }, (_, i) => {
-    const level = i + 1;
-    return {
-      id: `slime_${level}`,
-      name: level <= 2 ? '小史莱姆' : level <= 4 ? '绿色史莱姆' : '巨型史莱姆',
-      hp: 30 + level * 12,
-      atk: 3 + level * 2,
-      def: 1 + level * 0.5,
-      expReward: 15 + level * 3,
-      goldReward: 5 + level * 2,
-      lootTable: CHEST_LOOT_BASE,
-    };
-  }),
-  // Level 6-10: Goblin family
-  ...Array.from({ length: 5 }, (_, i) => {
-    const level = i + 6;
-    return {
-      id: `goblin_${level}`,
-      name: level <= 7 ? '哥布林' : level <= 9 ? '哥布林战士' : '哥布林队长',
-      hp: 50 + level * 15,
-      atk: 6 + level * 3,
-      def: 2 + level * 0.8,
-      expReward: 25 + level * 4,
-      goldReward: 8 + level * 3,
-      lootTable: CHEST_LOOT_BASE,
-    };
-  }),
-  // Level 11-15: Skeleton family
-  ...Array.from({ length: 5 }, (_, i) => {
-    const level = i + 11;
-    return {
-      id: `skeleton_${level}`,
-      name: level <= 12 ? '骷髅兵' : level <= 14 ? '骷髅弓手' : '骷髅领主',
-      hp: 80 + level * 20,
-      atk: 10 + level * 3.5,
-      def: 4 + level * 1,
-      expReward: 40 + level * 5,
-      goldReward: 12 + level * 4,
-      lootTable: CHEST_LOOT_BASE,
-    };
-  }),
-  // Level 16-20: Orc family
-  ...Array.from({ length: 5 }, (_, i) => {
-    const level = i + 16;
-    return {
-      id: `orc_${level}`,
-      name: level <= 17 ? '兽人' : level <= 19 ? '兽人战士' : '兽人督军',
-      hp: 120 + level * 25,
-      atk: 16 + level * 4,
-      def: 6 + level * 1.2,
-      expReward: 60 + level * 6,
-      goldReward: 18 + level * 5,
-      lootTable: CHEST_LOOT_BASE,
-    };
-  }),
-  // Level 21-25: Demon family
-  ...Array.from({ length: 5 }, (_, i) => {
-    const level = i + 21;
-    return {
-      id: `demon_${level}`,
-      name: level <= 22 ? '恶魔' : level <= 24 ? '恶魔骑士' : '恶魔领主',
-      hp: 200 + level * 35,
-      atk: 25 + level * 5,
-      def: 10 + level * 1.5,
-      expReward: 100 + level * 8,
-      goldReward: 30 + level * 7,
-      lootTable: CHEST_LOOT_BASE,
-    };
-  }),
-  // Level 26-30: Dragon family (theoretical)
-  ...Array.from({ length: 5 }, (_, i) => {
-    const level = i + 26;
-    return {
-      id: `dragon_${level}`,
-      name: level <= 27 ? '幼龙' : level <= 29 ? '古龙' : '龙王',
-      hp: 400 + level * 50,
-      atk: 40 + level * 6,
-      def: 15 + level * 2,
-      expReward: 200 + level * 15,
-      goldReward: 50 + level * 10,
-      lootTable: CHEST_LOOT_BASE,
-    };
-  }),
+  // 一至五级史莱姆族
+  ...Array.from(
+    { length: 5 },
+    // 生成一至五级史莱姆的属性、奖励与掉落配置
+    (_, i) => {
+      const level = i + 1;
+      return {
+        id: `slime_${level}`,
+        name: level <= 2 ? '小史莱姆' : level <= 4 ? '绿色史莱姆' : '巨型史莱姆',
+        hp: 30 + level * 12,
+        atk: 3 + level * 2,
+        def: 1 + level * 0.5,
+        expReward: 15 + level * 3,
+        goldReward: 5 + level * 2,
+        lootTable: CHEST_LOOT_BASE,
+      };
+    },
+  ),
+  // 六至十级哥布林族
+  ...Array.from(
+    { length: 5 },
+    // 生成六至十级哥布林的属性、奖励与掉落配置
+    (_, i) => {
+      const level = i + 6;
+      return {
+        id: `goblin_${level}`,
+        name: level <= 7 ? '哥布林' : level <= 9 ? '哥布林战士' : '哥布林队长',
+        hp: 50 + level * 15,
+        atk: 6 + level * 3,
+        def: 2 + level * 0.8,
+        expReward: 25 + level * 4,
+        goldReward: 8 + level * 3,
+        lootTable: CHEST_LOOT_BASE,
+      };
+    },
+  ),
+  // 十一至十五级骷髅族
+  ...Array.from(
+    { length: 5 },
+    // 生成十一至十五级骷髅的属性、奖励与掉落配置
+    (_, i) => {
+      const level = i + 11;
+      return {
+        id: `skeleton_${level}`,
+        name: level <= 12 ? '骷髅兵' : level <= 14 ? '骷髅弓手' : '骷髅领主',
+        hp: 80 + level * 20,
+        atk: 10 + level * 3.5,
+        def: 4 + level * 1,
+        expReward: 40 + level * 5,
+        goldReward: 12 + level * 4,
+        lootTable: CHEST_LOOT_BASE,
+      };
+    },
+  ),
+  // 十六至二十级兽人族
+  ...Array.from(
+    { length: 5 },
+    // 生成十六至二十级兽人的属性、奖励与掉落配置
+    (_, i) => {
+      const level = i + 16;
+      return {
+        id: `orc_${level}`,
+        name: level <= 17 ? '兽人' : level <= 19 ? '兽人战士' : '兽人督军',
+        hp: 120 + level * 25,
+        atk: 16 + level * 4,
+        def: 6 + level * 1.2,
+        expReward: 60 + level * 6,
+        goldReward: 18 + level * 5,
+        lootTable: CHEST_LOOT_BASE,
+      };
+    },
+  ),
+  // 二十一至二十五级恶魔族
+  ...Array.from(
+    { length: 5 },
+    // 生成二十一至二十五级恶魔的属性、奖励与掉落配置
+    (_, i) => {
+      const level = i + 21;
+      return {
+        id: `demon_${level}`,
+        name: level <= 22 ? '恶魔' : level <= 24 ? '恶魔骑士' : '恶魔领主',
+        hp: 200 + level * 35,
+        atk: 25 + level * 5,
+        def: 10 + level * 1.5,
+        expReward: 100 + level * 8,
+        goldReward: 30 + level * 7,
+        lootTable: CHEST_LOOT_BASE,
+      };
+    },
+  ),
+  // 二十六至三十级龙族，作为理论高等级配置
+  ...Array.from(
+    { length: 5 },
+    // 生成二十六至三十级龙族的属性、奖励与掉落配置
+    (_, i) => {
+      const level = i + 26;
+      return {
+        id: `dragon_${level}`,
+        name: level <= 27 ? '幼龙' : level <= 29 ? '古龙' : '龙王',
+        hp: 400 + level * 50,
+        atk: 40 + level * 6,
+        def: 15 + level * 2,
+        expReward: 200 + level * 15,
+        goldReward: 50 + level * 10,
+        lootTable: CHEST_LOOT_BASE,
+      };
+    },
+  ),
 ];
 
 export const SHOP_ITEMS: ShopItem[] = [
-  // Green (uncommon) equipment — weapon and armor only, per class/level
+  // 按职业与等级出售优秀品质的武器和护甲
   ...ITEMS.filter(
     (item) =>
       item.type === 'equipment' && item.rarity === 'uncommon' && (item.slot === 'weapon' || item.slot === 'armor'),
@@ -859,7 +843,7 @@ export const SHOP_ITEMS: ShopItem[] = [
     minLevel: item.minLevel,
   })),
 
-  // Chests (1K - 1M)
+  // 宝箱售价从一千至一百万金币
   { itemId: 'common_chest', price: 1_000, currency: 'gold' as const },
   { itemId: 'uncommon_chest', price: 10_000, currency: 'gold' as const },
   { itemId: 'rare_chest', price: 50_000, currency: 'gold' as const },

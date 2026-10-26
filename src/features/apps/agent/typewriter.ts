@@ -1,3 +1,5 @@
+/** AI 助手：回复完成动画的长度与时长策略 */
+
 const MAX_ANIMATED_CONTENT_CHARS = 600;
 const COMPLETION_CURSOR_DURATION_MS = 720;
 

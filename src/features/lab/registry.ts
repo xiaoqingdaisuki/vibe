@@ -1,3 +1,5 @@
+/** Lab 应用目录：公开应用注册信息 */
+
 import type { LabApp } from './types';
 
 const registeredLabApps: LabApp[] = [

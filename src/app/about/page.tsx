@@ -1,3 +1,5 @@
+/** 关于页面路由，展示作者信息与项目理念 */
+
 import Link from 'next/link';
 import { PageHeader } from '@/components/shared/PageHeader';
 import { siteConfig } from '@/lib/site';
@@ -33,7 +35,7 @@ export default function AboutPage() {
           </p>
         </div>
 
-        {/* Horizontal rule + GitHub link */}
+        {/* 分隔线与 GitHub 链接 */}
         <div className="mt-10 pt-6 border-top-base">
           <Link
             href={siteConfig.social.github}

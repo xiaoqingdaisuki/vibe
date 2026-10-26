@@ -1,3 +1,5 @@
+/** 扫雷：棋盘 SVG 素材生成与图像缓存 */
+
 export interface BoardAssets {
   flag: HTMLImageElement;
   mine: HTMLImageElement;
@@ -21,12 +23,15 @@ function loadSvgImage(svg: string): Promise<HTMLImageElement> {
   const cachedImage = imageCache.get(svg);
   if (cachedImage) return cachedImage;
 
-  const imagePromise = new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.addEventListener('load', () => resolve(image), { once: true });
-    image.addEventListener('error', () => reject(new Error('扫雷 SVG 素材加载失败。')), { once: true });
-    image.src = toSvgDataUrl(svg);
-  });
+  const imagePromise = new Promise<HTMLImageElement>(
+    // 加载 SVG 图像并将成功或失败转换为可缓存的异步结果
+    (resolve, reject) => {
+      const image = new Image();
+      image.addEventListener('load', () => resolve(image), { once: true });
+      image.addEventListener('error', () => reject(new Error('扫雷 SVG 素材加载失败。')), { once: true });
+      image.src = toSvgDataUrl(svg);
+    },
+  );
 
   imageCache.set(svg, imagePromise);
   return imagePromise;

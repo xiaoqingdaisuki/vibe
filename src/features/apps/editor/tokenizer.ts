@@ -1,3 +1,5 @@
+/** 在线编辑器：代码语法高亮分词 */
+
 import type { EditorLanguage } from './types';
 
 export type SyntaxTokenKind =

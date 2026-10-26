@@ -1,3 +1,5 @@
+/** 放置角色游戏：角色属性面板组件 */
+
 'use client';
 
 import type { Character, GameInteraction } from '../types';
@@ -22,8 +24,7 @@ const SLOT_NAMES = {
   accessory: '饰品',
 } as const;
 
-// 根据等级获取难度名称和 tier
-// 根据角色等级获取难度 tier 信息
+// 根据角色等级获取难度名称与层级信息
 function getDifficultyInfo(level: number): { name: string; tier: number } {
   const tier = DIFFICULTY_TIERS.find((entry) => level >= entry.minLevel && level <= entry.maxLevel);
   return tier ? { name: tier.name, tier: tier.tier } : { name: '未知', tier: 1 };
@@ -120,22 +121,25 @@ export function CharacterPanel({ character, onAction }: CharacterPanelProps) {
       <div className={styles.section}>
         <h3 className={styles.sectionTitle}>装备</h3>
         <div className={styles.equipment}>
-          {Object.entries(SLOT_NAMES).map(([slot, label]) => {
-            const item = character.equipment[slot];
-            return (
-              <div key={slot} className={styles.equipSlot}>
-                <span className={styles.equipSlotLabel}>{label}</span>
-                {item ? (
-                  <div className={styles.equipItem}>
-                    <span className={styles.equipItemName}>{item.name}</span>
-                    <RarityBadge rarity={item.rarity} />
-                  </div>
-                ) : (
-                  <span className={styles.emptySlot}>-</span>
-                )}
-              </div>
-            );
-          })}
+          {Object.entries(SLOT_NAMES).map(
+            // 按装备槽展示已穿戴物品，空槽保留占位
+            ([slot, label]) => {
+              const item = character.equipment[slot];
+              return (
+                <div key={slot} className={styles.equipSlot}>
+                  <span className={styles.equipSlotLabel}>{label}</span>
+                  {item ? (
+                    <div className={styles.equipItem}>
+                      <span className={styles.equipItemName}>{item.name}</span>
+                      <RarityBadge rarity={item.rarity} />
+                    </div>
+                  ) : (
+                    <span className={styles.emptySlot}>-</span>
+                  )}
+                </div>
+              );
+            },
+          )}
         </div>
       </div>
 
@@ -146,7 +150,7 @@ export function CharacterPanel({ character, onAction }: CharacterPanelProps) {
         </div>
       </div>
 
-      {/* Bag Capacity */}
+      {/* 背包容量 */}
       <div className={styles.section}>
         <div className={styles.bagSection}>
           <div className={styles.bagInfo}>

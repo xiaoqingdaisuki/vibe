@@ -1,3 +1,5 @@
+/** 地图：客户端页面与交互编排 */
+
 'use client';
 
 import Link from 'next/link';
@@ -93,6 +95,7 @@ export default function MapApp() {
     onToolResult: setNotice,
     onNotice: setNotice,
     getPadding: getMapPadding,
+    // 记录定位地点，在用户尚未操作时聚焦地图并提示定位精度
     onLocation: (location, active) => {
       setCurrentLocation(location.place);
       if (!hasInteracted.current) active.focus(location.place);
@@ -152,6 +155,7 @@ export default function MapApp() {
     }
     document.addEventListener('keydown', onKey);
     document.addEventListener('pointerdown', onOutside);
+    // 面板关闭或卸载时移除键盘与外部点击监听
     return () => {
       document.removeEventListener('keydown', onKey);
       document.removeEventListener('pointerdown', onOutside);
@@ -394,10 +398,13 @@ export default function MapApp() {
               label="搜索地点"
               value={keyword}
               selected={null}
-              onChange={(value, selected) => {
-                setKeyword(value);
-                if (selected) selectPlace(selected);
-              }}
+              onChange={
+                // 同步搜索关键词，并在建议包含地点时直接选择
+                (value, selected) => {
+                  setKeyword(value);
+                  if (selected) selectPlace(selected);
+                }
+              }
               placeholder="搜索地点、地址或关键词"
               disabled={!ready}
             />
@@ -499,10 +506,13 @@ export default function MapApp() {
             type="button"
             className={styles.iconButton}
             aria-label="关闭面板"
-            onClick={() => {
-              setPanel(null);
-              panelTriggerRef.current?.focus();
-            }}
+            onClick={
+              // 关闭当前面板并将焦点还给触发按钮
+              () => {
+                setPanel(null);
+                panelTriggerRef.current?.focus();
+              }
+            }
           >
             <MapIcon name="close" />
           </button>
@@ -551,11 +561,14 @@ export default function MapApp() {
               saved={library.favorites.some((item) => item.id === place.id)}
               onFavorite={toggleFavorite}
               onRoute={goTo}
-              onNearby={(selected) => {
-                setNearby(true);
-                setKeyword('');
-                void searchPlaces({ keyword: '', city, center: selected.location, radius, page: 1 });
-              }}
+              onNearby={
+                // 以选中地点为中心开始附近搜索并清空旧关键词
+                (selected) => {
+                  setNearby(true);
+                  setKeyword('');
+                  void searchPlaces({ keyword: '', city, center: selected.location, radius, page: 1 });
+                }
+              }
               onShare={() => void share()}
             />
           ) : null}
@@ -565,19 +578,25 @@ export default function MapApp() {
               currentLocation={currentLocation}
               destination={destination}
               onPlan={showPlans}
-              onClear={() => {
-                setRoute(null);
-                controller?.clearRoute();
-              }}
+              onClear={
+                // 清空路线状态并移除地图上的路线图层
+                () => {
+                  setRoute(null);
+                  controller?.clearRoute();
+                }
+              }
               onError={setError}
             />
             {route ? (
               <RouteResultsPanel
                 {...route}
-                onSelect={(plan) => {
-                  setRoute({ ...route, selected: plan.id });
-                  controller?.showRoute(plan, route.request);
-                }}
+                onSelect={
+                  // 更新选中方案并在地图上显示对应路线
+                  (plan) => {
+                    setRoute({ ...route, selected: plan.id });
+                    controller?.showRoute(plan, route.request);
+                  }
+                }
               />
             ) : null}
           </div>
@@ -615,10 +634,13 @@ export default function MapApp() {
                       className={styles.chip}
                       key={value}
                       disabled={!ready}
-                      onClick={() => {
-                        setKeyword(value);
-                        void searchPlaces({ keyword: value, city, page: 1 });
-                      }}
+                      onClick={
+                        // 将历史记录恢复为关键词并重新发起地点搜索
+                        () => {
+                          setKeyword(value);
+                          void searchPlaces({ keyword: value, city, page: 1 });
+                        }
+                      }
                     >
                       {value}
                     </button>
@@ -675,10 +697,13 @@ export default function MapApp() {
                 <select
                   value={appearance.style}
                   disabled={!ready}
-                  onChange={(event) => {
-                    const style = event.target.value;
-                    if (style === 'normal' || style === 'whitesmoke' || style === 'dark') changeAppearance({ style });
-                  }}
+                  onChange={
+                    // 只接受支持的地图样式值并更新外观
+                    (event) => {
+                      const style = event.target.value;
+                      if (style === 'normal' || style === 'whitesmoke' || style === 'dark') changeAppearance({ style });
+                    }
+                  }
                 >
                   <option value="normal">标准</option>
                   <option value="whitesmoke">简洁灰白</option>
@@ -768,10 +793,13 @@ export default function MapApp() {
             type="button"
             className={styles.iconButton}
             aria-label="关闭提示"
-            onClick={() => {
-              setNotice('');
-              setError('');
-            }}
+            onClick={
+              // 同时清除普通提示与错误提示
+              () => {
+                setNotice('');
+                setError('');
+              }
+            }
           >
             <MapIcon name="close" />
           </button>

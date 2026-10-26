@@ -1,3 +1,5 @@
+/** AI 助手：图像生成请求与响应解析 */
+
 export interface GeneratedImage {
   imageDataUrl: string;
 }

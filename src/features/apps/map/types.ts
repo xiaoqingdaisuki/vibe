@@ -1,3 +1,5 @@
+/** 地图：类型与数据契约 */
+
 export type Coordinate = [number, number];
 export type TravelMode = 'driving' | 'transit' | 'walking' | 'riding';
 export type DrawingTool = 'distance' | 'area' | 'marker' | 'polyline' | 'polygon' | 'rectangle' | 'circle';

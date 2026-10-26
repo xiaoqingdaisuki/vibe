@@ -1,3 +1,5 @@
+/** 在线编辑器：代码输入与高亮组件 */
+
 import {
   useEffect,
   useRef,
@@ -208,15 +210,18 @@ export function CodeEditor({
 
   // 切换指定作用域的展开状态，保留其他独立作用域的选择
   function handleToggleFold(region: CodeFoldRegion): void {
-    setCollapsedRegionKeys((current) => {
-      const next = new Set(current);
-      if (next.has(region.key)) {
-        next.delete(region.key);
-      } else {
-        next.add(region.key);
-      }
-      return next;
-    });
+    setCollapsedRegionKeys(
+      // 复制折叠集合后切换当前区域，避免修改原状态
+      (current) => {
+        const next = new Set(current);
+        if (next.has(region.key)) {
+          next.delete(region.key);
+        } else {
+          next.add(region.key);
+        }
+        return next;
+      },
+    );
   }
 
   // 鼠标操作折叠按钮时保持输入框焦点与现有光标位置
@@ -258,64 +263,70 @@ export function CodeEditor({
 
       <div className={styles.editorSurface}>
         <div ref={lineNumbersRef} className={styles.lineNumbers} aria-label="代码折叠控制">
-          {foldedCodeView.lines.map((line) => {
-            if (line.type === 'placeholder') {
+          {foldedCodeView.lines.map(
+            // 根据折叠占位与区域状态渲染行号和折叠按钮
+            (line) => {
+              if (line.type === 'placeholder') {
+                return (
+                  <div key={line.key} className={styles.lineNumberRow} aria-hidden="true">
+                    <span className={styles.foldPlaceholder}>…</span>
+                  </div>
+                );
+              }
+
+              const region = line.foldRegion;
+              const isCollapsed = region ? collapsedRegionKeys.has(region.key) : false;
               return (
-                <div key={line.key} className={styles.lineNumberRow} aria-hidden="true">
-                  <span className={styles.foldPlaceholder}>…</span>
+                <div key={line.key} className={styles.lineNumberRow}>
+                  {region ? (
+                    <button
+                      className={styles.foldButton}
+                      type="button"
+                      onClick={() => handleToggleFold(region)}
+                      onMouseDown={handleFoldPointerDown}
+                      aria-expanded={!isCollapsed}
+                      aria-label={`${isCollapsed ? '展开' : '收起'}第 ${line.lineNumber} 行作用域`}
+                      title={`${isCollapsed ? '展开' : '收起'}作用域`}
+                    >
+                      <svg
+                        className={styles.foldIcon}
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M11.7637 17.2041L10.1729 15.6133L10.1758 15.6104L3.28125 8.71582L4.87207 7.125L11.7666 14.0195L18.6582 7.12793L20.249 8.71875L11.7637 17.2041Z"
+                          fill="currentColor"
+                        />
+                      </svg>
+                    </button>
+                  ) : (
+                    <span className={styles.foldPlaceholder} aria-hidden="true" />
+                  )}
+                  <span className={styles.lineNumberText}>{line.lineNumber}</span>
                 </div>
               );
-            }
-
-            const region = line.foldRegion;
-            const isCollapsed = region ? collapsedRegionKeys.has(region.key) : false;
-            return (
-              <div key={line.key} className={styles.lineNumberRow}>
-                {region ? (
-                  <button
-                    className={styles.foldButton}
-                    type="button"
-                    onClick={() => handleToggleFold(region)}
-                    onMouseDown={handleFoldPointerDown}
-                    aria-expanded={!isCollapsed}
-                    aria-label={`${isCollapsed ? '展开' : '收起'}第 ${line.lineNumber} 行作用域`}
-                    title={`${isCollapsed ? '展开' : '收起'}作用域`}
-                  >
-                    <svg
-                      className={styles.foldIcon}
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="24"
-                      height="24"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      aria-hidden="true"
-                    >
-                      <path
-                        d="M11.7637 17.2041L10.1729 15.6133L10.1758 15.6104L3.28125 8.71582L4.87207 7.125L11.7666 14.0195L18.6582 7.12793L20.249 8.71875L11.7637 17.2041Z"
-                        fill="currentColor"
-                      />
-                    </svg>
-                  </button>
-                ) : (
-                  <span className={styles.foldPlaceholder} aria-hidden="true" />
-                )}
-                <span className={styles.lineNumberText}>{line.lineNumber}</span>
-              </div>
-            );
-          })}
+            },
+          )}
         </div>
         <pre ref={codeLayerRef} className={styles.codeLayer} aria-hidden="true">
           <code>
-            {tokens.map((token, index) => {
-              const className = TOKEN_CLASS_NAMES[token.kind];
-              if (!className) return <span key={`${token.kind}-${index}`}>{token.value}</span>;
+            {tokens.map(
+              // 按分词类型选择高亮样式，未知类型保留原文本
+              (token, index) => {
+                const className = TOKEN_CLASS_NAMES[token.kind];
+                if (!className) return <span key={`${token.kind}-${index}`}>{token.value}</span>;
 
-              return (
-                <span key={`${token.kind}-${index}`} className={className}>
-                  {token.value}
-                </span>
-              );
-            })}
+                return (
+                  <span key={`${token.kind}-${index}`} className={className}>
+                    {token.value}
+                  </span>
+                );
+              },
+            )}
           </code>
         </pre>
         <textarea

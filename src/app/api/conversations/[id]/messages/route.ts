@@ -1,3 +1,5 @@
+/** 代理指定 AI 会话的历史消息查询 */
+
 import { NextResponse } from 'next/server';
 
 import { proxyGetAgentConversationMessages } from '@/features/apps/agent/agent-v1-server-proxy';

@@ -1,3 +1,5 @@
+/** 冒险岛图鉴：怪物筛选、排序与表格数据模型 */
+
 import type { MapleMonster, MonsterDrop, MonsterStats } from './types';
 
 export type MonsterSortKey = 'dropCount' | keyof MonsterStats;
@@ -56,12 +58,15 @@ export function getMonsterTableResult(
     ? monsters.filter((monster) => containsQuery(monster, normalizedQuery))
     : monsters;
   const multiplier = sortDirection === 'ascending' ? 1 : -1;
-  const sortedMonsters = filteredMonsters.toSorted((left, right) => {
-    const leftValue = getSortValue(left, sortKey, normalizedQuery);
-    const rightValue = getSortValue(right, sortKey, normalizedQuery);
+  const sortedMonsters = filteredMonsters.toSorted(
+    // 读取排序键对应值，并按指定方向比较怪物
+    (left, right) => {
+      const leftValue = getSortValue(left, sortKey, normalizedQuery);
+      const rightValue = getSortValue(right, sortKey, normalizedQuery);
 
-    return leftValue < rightValue ? -1 * multiplier : leftValue > rightValue ? multiplier : 0;
-  });
+      return leftValue < rightValue ? -1 * multiplier : leftValue > rightValue ? multiplier : 0;
+    },
+  );
   return {
     filteredMonsters,
     sortedMonsters,

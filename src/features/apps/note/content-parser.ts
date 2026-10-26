@@ -1,3 +1,5 @@
+/** 速记本：文本、命令与代码围栏解析 */
+
 export type NoteContentBlock = { type: 'text'; content: string } | { type: 'code'; content: string; language: string };
 
 const CODE_FENCE_PATTERN = /^\s*```([^\s`]*)?\s*$/;

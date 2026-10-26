@@ -1,3 +1,5 @@
+/** 验证在线编辑器：基于语法树的 JavaScript 执行包装的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

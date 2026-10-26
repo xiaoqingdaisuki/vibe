@@ -1,3 +1,5 @@
+/** 技能参考：技能说明的安全富文本渲染 */
+
 import { createElement, type ReactNode } from 'react';
 
 // 判断 URL 是否为安全的外部链接（仅 http/https）
@@ -10,7 +12,7 @@ function isSafeExternalUrl(value: string): boolean {
   }
 }
 
-// 将单行文本中的 inline 标记渲染为 React 节点
+// 将单行文本中的行内标记渲染为 React 节点
 function renderInline(text: string): ReactNode[] {
   const matches = text.matchAll(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\([^)]+\))/g);
   const nodes: ReactNode[] = [];
@@ -70,12 +72,14 @@ export function renderSkillNotes(content: string): ReactNode[] {
   let paragraph: string[] = [];
   let listItems: string[] = [];
 
+  // 将积累的段落行转换为节点并清空缓冲
   const flushParagraph = () => {
     if (paragraph.length === 0) return;
     blocks.push(createElement('p', { key: `p-${blocks.length}` }, ...renderInline(paragraph.join(' '))));
     paragraph = [];
   };
 
+  // 将积累的列表项转换为列表节点并清空缓冲
   const flushList = () => {
     if (listItems.length === 0) return;
     blocks.push(

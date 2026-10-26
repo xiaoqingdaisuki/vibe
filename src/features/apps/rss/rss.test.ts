@@ -1,3 +1,5 @@
+/** 验证RSS 阅读器：订阅源展示与异常恢复的回归行为 */
+
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 import test from 'node:test';

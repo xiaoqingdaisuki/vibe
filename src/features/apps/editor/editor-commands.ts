@@ -1,3 +1,5 @@
+/** 在线编辑器：选区编辑与缩进命令 */
+
 export interface TextEditResult {
   value: string;
   selectionStart: number;
@@ -55,10 +57,13 @@ function getRemovableIndent(line: string, indent: string): number {
 function getOutdentedPosition(lineStarts: number[], removedLengths: number[], position: number): number {
   let adjustment = 0;
 
-  lineStarts.forEach((lineStart, index) => {
-    if (position <= lineStart) return;
-    adjustment -= Math.min(removedLengths[index], position - lineStart);
-  });
+  lineStarts.forEach(
+    // 按各行移除的缩进量调整当前选区偏移
+    (lineStart, index) => {
+      if (position <= lineStart) return;
+      adjustment -= Math.min(removedLengths[index], position - lineStart);
+    },
+  );
 
   return position + adjustment;
 }
@@ -71,13 +76,16 @@ export function outdentCode({ value, selectionStart, selectionEnd, indent }: Ind
   const removedLengths: number[] = [];
   let offset = firstLineStart;
 
-  const nextLines = selectedLines.map((line) => {
-    lineStarts.push(offset);
-    const removable = getRemovableIndent(line, indent);
-    removedLengths.push(removable);
-    offset += line.length + 1;
-    return line.slice(removable);
-  });
+  const nextLines = selectedLines.map(
+    // 移除选中行的缩进，并记录选区修正所需的长度
+    (line) => {
+      lineStarts.push(offset);
+      const removable = getRemovableIndent(line, indent);
+      removedLengths.push(removable);
+      offset += line.length + 1;
+      return line.slice(removable);
+    },
+  );
 
   return {
     value: `${value.slice(0, firstLineStart)}${nextLines.join('\n')}${value.slice(lastLineEnd)}`,

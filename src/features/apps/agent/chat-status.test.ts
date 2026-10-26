@@ -1,3 +1,5 @@
+/** 验证AI 助手：连接状态与提示文案映射的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getAgentConnectionStatusLabel } from './chat-status.ts';

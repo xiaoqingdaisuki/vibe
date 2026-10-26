@@ -1,3 +1,5 @@
+/** 表单输入组件 */
+
 import { forwardRef, useId, type ReactNode } from 'react';
 
 import styles from './Input.module.css';

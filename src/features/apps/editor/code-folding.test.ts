@@ -1,3 +1,5 @@
+/** 验证在线编辑器：代码折叠区域识别与可见行映射的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

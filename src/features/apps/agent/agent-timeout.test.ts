@@ -1,3 +1,5 @@
+/** 验证AI 助手：服务端请求超时配置的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

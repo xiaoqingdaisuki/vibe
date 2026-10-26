@@ -1,3 +1,5 @@
+/** 验证博客：文章正文组件的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { renderToStaticMarkup } from 'react-dom/server';

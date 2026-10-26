@@ -1,4 +1,6 @@
-# ---- Dependencies ----
+# 忽略依赖、构建产物、本地环境与临时文件
+
+# 依赖与构建产物
 node_modules/
 .pnpm-store/
 .turbo/
@@ -12,7 +14,7 @@ bun.lockb
 desktop/.build/
 desktop/release/
 
-# ---- Environment ----
+# 本地环境与密钥
 .env
 .env.local
 .env.*.local
@@ -20,7 +22,7 @@ desktop/release/
 *.pem
 *.key
 
-# ---- Logs / Temp ----
+# 日志与临时文件
 *.log
 logs/
 tmp/
@@ -32,19 +34,19 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# ---- AI / Coding agents ----
+# AI 编程助手本地配置
 .claude/
 .codex/
 .agents/
 
-# ---- OS ----
+# 操作系统文件
 .DS_Store
 Thumbs.db
 desktop.ini
 ehthumbs.db
 $RECYCLE.BIN/
 
-# ---- Editors ----
+# 编辑器本地文件
 .idea/
 *.swp
 *.swo

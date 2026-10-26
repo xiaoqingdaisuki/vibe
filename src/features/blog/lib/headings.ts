@@ -1,3 +1,5 @@
+/** 博客：文章标题提取与锚点生成 */
+
 export type BlogHeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
 
 export interface BlogHeading {

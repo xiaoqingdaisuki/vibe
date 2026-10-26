@@ -1,3 +1,5 @@
+/** 站点页脚组件 */
+
 import Link from 'next/link';
 import { siteConfig } from '@/lib/site';
 

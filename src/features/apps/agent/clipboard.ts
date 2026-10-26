@@ -1,3 +1,5 @@
+/** AI 助手：兼容多种浏览器的文本复制 */
+
 // 使用旧版textarea方式复制文本，兼容无clipboard API的浏览器
 function copyWithLegacyTextarea(text: string): boolean {
   if (typeof document === 'undefined') return false;

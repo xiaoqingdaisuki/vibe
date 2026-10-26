@@ -1,3 +1,5 @@
+/** GBA 模拟器：游戏存档的浏览器存储 */
+
 import type { GbaSaveRecord } from './types';
 
 const DATABASE_NAME = 'vibe-gba';
@@ -30,52 +32,67 @@ function openDatabase(): Promise<IDBDatabase> {
     return Promise.reject(new Error('当前浏览器不支持 IndexedDB，无法保存游戏进度。'));
   }
 
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
-    request.onerror = () => reject(request.error ?? new Error('无法打开存档数据库。'));
-    request.onupgradeneeded = () => {
-      const database = request.result;
-      if (!database.objectStoreNames.contains(STORE_NAME)) {
-        database.createObjectStore(STORE_NAME, { keyPath: 'romHash' });
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-  });
+  return new Promise(
+    // 打开版本化存档数据库并绑定升级与连接结果处理
+    (resolve, reject) => {
+      const request = indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
+      request.onerror = () => reject(request.error ?? new Error('无法打开存档数据库。'));
+      request.onupgradeneeded =
+        // 数据库升级时按 ROM 哈希创建缺失的存档对象仓库
+        () => {
+          const database = request.result;
+          if (!database.objectStoreNames.contains(STORE_NAME)) {
+            database.createObjectStore(STORE_NAME, { keyPath: 'romHash' });
+          }
+        };
+      request.onsuccess = () => resolve(request.result);
+    },
+  );
 }
 
 // 从 IndexedDB 读取指定 ROM 的存档
 export async function loadGbaSave(romHash: string): Promise<GbaSaveRecord | null> {
   const database = await openDatabase();
 
-  return new Promise((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, 'readonly');
-    const request = transaction.objectStore(STORE_NAME).get(romHash);
-    request.onerror = () => {
-      database.close();
-      reject(request.error ?? new Error('读取游戏存档失败。'));
-    };
-    request.onsuccess = () => {
-      database.close();
-      const value: unknown = request.result;
-      if (!isGbaSaveRecord(value, romHash)) {
-        resolve(null);
-        return;
-      }
-      resolve({ ...value, data: value.data.slice(0) });
-    };
-  });
+  return new Promise(
+    // 按 ROM 哈希读取存档，并在请求结束后关闭数据库
+    (resolve, reject) => {
+      const transaction = database.transaction(STORE_NAME, 'readonly');
+      const request = transaction.objectStore(STORE_NAME).get(romHash);
+      request.onerror =
+        // 读取失败时关闭数据库并返回可读错误
+        () => {
+          database.close();
+          reject(request.error ?? new Error('读取游戏存档失败。'));
+        };
+      request.onsuccess =
+        // 校验读取结果后返回独立的存档数据副本
+        () => {
+          database.close();
+          const value: unknown = request.result;
+          if (!isGbaSaveRecord(value, romHash)) {
+            resolve(null);
+            return;
+          }
+          resolve({ ...value, data: value.data.slice(0) });
+        };
+    },
+  );
 }
 
 // 将当前游戏存档写入 IndexedDB，并复制字节避免后续内存变化影响记录
 export async function saveGbaSave(record: GbaSaveRecord): Promise<void> {
   const database = await openDatabase();
 
-  await new Promise<void>((resolve, reject) => {
-    const transaction = database.transaction(STORE_NAME, 'readwrite');
-    transaction.objectStore(STORE_NAME).put({ ...record, data: record.data.slice(0) });
-    transaction.onerror = () => reject(transaction.error ?? new Error('写入游戏存档失败。'));
-    transaction.oncomplete = () => resolve();
-  }).finally(() => database.close());
+  await new Promise<void>(
+    // 通过读写事务保存独立存档副本并等待事务提交
+    (resolve, reject) => {
+      const transaction = database.transaction(STORE_NAME, 'readwrite');
+      transaction.objectStore(STORE_NAME).put({ ...record, data: record.data.slice(0) });
+      transaction.onerror = () => reject(transaction.error ?? new Error('写入游戏存档失败。'));
+      transaction.oncomplete = () => resolve();
+    },
+  ).finally(() => database.close());
 }
 
 // 请求浏览器尽量保留当前站点的 IndexedDB 数据

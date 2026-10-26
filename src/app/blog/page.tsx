@@ -1,3 +1,5 @@
+/** 博客列表路由，加载并展示已发布文章 */
+
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { BlogCard } from '@/features/blog/components/BlogCard';

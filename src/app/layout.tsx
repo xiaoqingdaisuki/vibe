@@ -1,3 +1,5 @@
+/** 站点根布局，组合元数据、主题初始化与公共页面外壳 */
+
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
 import { SiteHeader } from '@/components/layout/SiteHeader';

@@ -1,3 +1,5 @@
+/** GBA 模拟器：类型与数据契约 */
+
 export type GbaPhase = 'empty' | 'loading' | 'running' | 'paused' | 'error';
 
 export type GbaButton = 'a' | 'b' | 'select' | 'start' | 'right' | 'left' | 'up' | 'down' | 'r' | 'l';

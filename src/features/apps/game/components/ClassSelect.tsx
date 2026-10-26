@@ -1,3 +1,5 @@
+/** 放置角色游戏：职业选择组件 */
+
 'use client';
 
 import type { ClassType } from '../types';

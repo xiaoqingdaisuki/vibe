@@ -1,3 +1,5 @@
+/** 主题切换组件 */
+
 'use client';
 
 import { useSyncExternalStore } from 'react';
@@ -75,6 +77,7 @@ export function ThemeToggle() {
   const theme = useSyncExternalStore(subscribeToTheme, getThemeSnapshot, getServerThemeSnapshot);
   const nextTheme = getNextTheme(theme);
 
+  // 切换并持久化主题，再通知其他界面同步更新
   const handleToggle = () => {
     toggleTheme({
       root: document.documentElement,

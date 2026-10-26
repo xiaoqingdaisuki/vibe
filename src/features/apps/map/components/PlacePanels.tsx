@@ -1,3 +1,5 @@
+/** 地图：地点列表与详情面板组件 */
+
 import { EmptyState } from '@/components/shared/EmptyState';
 import type { Place, RoutePlan, RouteRequest, SearchResult } from '../types';
 import { createNavigationUrl, formatDistance, formatDuration } from '../utils';

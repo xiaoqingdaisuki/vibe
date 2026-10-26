@@ -1,3 +1,5 @@
+/** 验证GBA 模拟器：金手指代码解析与校验的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createGbaCheat, normalizeGbaCheatCode, sanitizeGbaCheats, serializeGbaCheats } from './cheats.ts';

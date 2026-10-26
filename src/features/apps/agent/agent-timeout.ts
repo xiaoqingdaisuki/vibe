@@ -1,3 +1,5 @@
+/** AI 助手：服务端请求超时配置 */
+
 import {
   DEFAULT_AGENT_STREAM_IDLE_TIMEOUT_MS,
   DEFAULT_AGENT_STREAM_TIMEOUT_MS,

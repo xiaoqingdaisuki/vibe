@@ -1,3 +1,5 @@
+/** 放置角色游戏：背包筛选与物品操作组件 */
+
 'use client';
 
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
@@ -109,16 +111,19 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
   const [detailItem, setDetailItem] = useState<Item | null>(null);
   const detailCloseButtonRef = useRef<HTMLButtonElement>(null);
 
+  // 详情弹窗打开时转移焦点并支持 Escape，关闭时恢复原焦点
   useEffect(() => {
     if (!detailItem) return;
 
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const frame = requestAnimationFrame(() => detailCloseButtonRef.current?.focus());
+    // 按下 Escape 时关闭物品详情弹窗
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setDetailItem(null);
     };
 
     document.addEventListener('keydown', handleKeyDown);
+    // 关闭详情时移除按键监听、取消聚焦任务并恢复原焦点
     return () => {
       cancelAnimationFrame(frame);
       document.removeEventListener('keydown', handleKeyDown);
@@ -126,33 +131,46 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
     };
   }, [detailItem]);
 
+  // 切换物品类型筛选且保留其他已选类型
   const toggleTypeFilter = useCallback((type: string) => {
-    setTypeFilter((prev) => {
-      const next = new Set(prev);
-      if (next.has(type)) next.delete(type);
-      else next.add(type);
-      return next;
-    });
+    setTypeFilter(
+      // 复制类型筛选集合并切换当前类型
+      (prev) => {
+        const next = new Set(prev);
+        if (next.has(type)) next.delete(type);
+        else next.add(type);
+        return next;
+      },
+    );
   }, []);
 
+  // 切换物品稀有度筛选且保留其他已选稀有度
   const toggleRarityFilter = useCallback((rarity: ItemRarity) => {
-    setRarityFilter((prev) => {
-      const next = new Set(prev);
-      if (next.has(rarity)) next.delete(rarity);
-      else next.add(rarity);
-      return next;
-    });
+    setRarityFilter(
+      // 复制稀有度筛选集合并切换当前稀有度
+      (prev) => {
+        const next = new Set(prev);
+        if (next.has(rarity)) next.delete(rarity);
+        else next.add(rarity);
+        return next;
+      },
+    );
   }, []);
 
+  // 切换指定物品分组的折叠状态
   const toggleCollapse = useCallback((groupKey: string) => {
-    setCollapsedGroups((prev) => {
-      const next = new Set(prev);
-      if (next.has(groupKey)) next.delete(groupKey);
-      else next.add(groupKey);
-      return next;
-    });
+    setCollapsedGroups(
+      // 复制折叠集合并切换当前物品分组
+      (prev) => {
+        const next = new Set(prev);
+        if (next.has(groupKey)) next.delete(groupKey);
+        else next.add(groupKey);
+        return next;
+      },
+    );
   }, []);
 
+  // 阻止点击冒泡并切换物品收藏状态
   const toggleFavorite = useCallback(
     (itemName: string, e: React.MouseEvent) => {
       e.stopPropagation();
@@ -161,6 +179,7 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
     [onAction],
   );
 
+  // 按类型出售符合稀有度筛选且未收藏的物品
   const handleOneClickSellForType = useCallback(
     (itemType: string) => {
       const itemIdsToSell: string[] = [];
@@ -183,10 +202,12 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
     [rarityFilter, character.inventory, character.favorites, onAction],
   );
 
+  // 提交背包整理操作
   const handleSort = useCallback(() => {
     onAction({ type: 'sort' });
   }, [onAction]);
 
+  // 按筛选条件收集物品，并按排序规则生成有序类型分组
   const grouped = useMemo(() => {
     const groups = new Map<string, Item[]>();
 
@@ -200,20 +221,23 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
     }
 
     for (const items of groups.values()) {
-      items.sort((a, b) => {
-        if (sortBy === 'rarity') {
-          const rDiff = RARITY_INDEX[b.rarity] - RARITY_INDEX[a.rarity];
-          if (rDiff !== 0) return rDiff;
-        }
-        if (sortBy === 'level') {
-          const lDiff = (b.minLevel || 0) - (a.minLevel || 0);
-          if (lDiff !== 0) return lDiff;
-        }
-        if (sortBy === 'name') {
-          return a.name.localeCompare(b.name);
-        }
-        return 0;
-      });
+      items.sort(
+        // 根据当前排序条件比较物品的稀有度、等级或名称
+        (a, b) => {
+          if (sortBy === 'rarity') {
+            const rDiff = RARITY_INDEX[b.rarity] - RARITY_INDEX[a.rarity];
+            if (rDiff !== 0) return rDiff;
+          }
+          if (sortBy === 'level') {
+            const lDiff = (b.minLevel || 0) - (a.minLevel || 0);
+            if (lDiff !== 0) return lDiff;
+          }
+          if (sortBy === 'name') {
+            return a.name.localeCompare(b.name);
+          }
+          return 0;
+        },
+      );
     }
 
     const sortedGroups = new Map<string, Item[]>();
@@ -225,6 +249,7 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
     return sortedGroups;
   }, [character.inventory, typeFilter, rarityFilter, sortBy]);
 
+  // 在各类型分组中合并相同物品并统计数量
   const aggregated = useMemo(() => {
     const result = new Map<string, { item: Item; count: number }[]>();
     for (const [type, items] of grouped) {
@@ -241,6 +266,7 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
     return result;
   }, [grouped]);
 
+  // 判断物品名称是否在角色收藏列表中
   const isFavorite = useCallback(
     (itemName: string) => {
       return character.favorites.includes(itemName);
@@ -248,6 +274,7 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
     [character.favorites],
   );
 
+  // 根据物品类型与职业限制判断是否可装备
   const canEquip = useCallback(
     (item: Item): boolean => {
       if (item.type !== 'equipment') return false;
@@ -257,6 +284,7 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
     [character.class],
   );
 
+  // 为不匹配当前角色的装备生成职业限制提示
   const getItemClassLabel = useCallback(
     (item: Item): string | null => {
       if (!item.classRequired || item.classRequired === character.class) return null;
@@ -269,7 +297,7 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
 
   return (
     <div className={styles.container}>
-      {/* Filter Row */}
+      {/* 筛选栏 */}
       <div className={styles.filterRow}>
         <div className={styles.filterGroup}>
           <span className={styles.filterLabel}>类型</span>
@@ -313,10 +341,13 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
               <button
                 key={key}
                 className={`${styles.pill} ${sortBy === key ? styles.pillActive : ''}`}
-                onClick={() => {
-                  setSortBy(key);
-                  handleSort();
-                }}
+                onClick={
+                  // 切换展示排序条件并触发背包整理
+                  () => {
+                    setSortBy(key);
+                    handleSort();
+                  }
+                }
               >
                 {label}
               </button>
@@ -324,7 +355,7 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
           </div>
         </div>
 
-        {/* One-click sell buttons */}
+        {/* 一键出售按钮 */}
         <div className={styles.filterGroup}>
           <span className={styles.filterLabel}>一键出售</span>
           <div className={styles.oneClickSellGroup}>
@@ -348,141 +379,148 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
         </div>
       </div>
 
-      {/* Inventory Groups */}
+      {/* 背包物品分组 */}
       <div className={styles.list}>
         {aggregated.size === 0 ? (
           <p className={styles.empty}>背包是空的。</p>
         ) : (
-          Array.from(aggregated.entries()).map(([type, items]) => {
-            const isCollapsed = collapsedGroups.has(type);
-            const groupRarity =
-              items.length > 0
-                ? items.reduce<ItemRarity>(
-                    (best, { item }) => (RARITY_INDEX[item.rarity] > RARITY_INDEX[best] ? item.rarity : best),
-                    items[0].item.rarity,
-                  )
-                : 'common';
+          Array.from(aggregated.entries()).map(
+            // 按物品类型渲染分组，并用组内最高稀有度标记分隔线
+            ([type, items]) => {
+              const isCollapsed = collapsedGroups.has(type);
+              const groupRarity =
+                items.length > 0
+                  ? items.reduce<ItemRarity>(
+                      (best, { item }) => (RARITY_INDEX[item.rarity] > RARITY_INDEX[best] ? item.rarity : best),
+                      items[0].item.rarity,
+                    )
+                  : 'common';
 
-            return (
-              <div key={type} className={styles.group}>
-                <button className={styles.groupHeader} onClick={() => toggleCollapse(type)}>
-                  <span className={styles.groupArrow}>{isCollapsed ? '▸' : '▾'}</span>
-                  <span className={styles.groupTitle}>
-                    {TYPE_LABELS[type] || type}（{items.length}）
-                  </span>
-                  <span className={`${styles.groupLine} ${RARITY_CLASS_NAMES[groupRarity]}`} />
-                </button>
+              return (
+                <div key={type} className={styles.group}>
+                  <button className={styles.groupHeader} onClick={() => toggleCollapse(type)}>
+                    <span className={styles.groupArrow}>{isCollapsed ? '▸' : '▾'}</span>
+                    <span className={styles.groupTitle}>
+                      {TYPE_LABELS[type] || type}（{items.length}）
+                    </span>
+                    <span className={`${styles.groupLine} ${RARITY_CLASS_NAMES[groupRarity]}`} />
+                  </button>
 
-                {!isCollapsed && (
-                  <div className={styles.groupItems}>
-                    {items.map(({ item, count }) => {
-                      const equippable = canEquip(item);
-                      const classLabel = getItemClassLabel(item);
-                      const fav = isFavorite(item.name);
-                      const comparison = item.type === 'equipment' ? getEquipComparison(item, character) : null;
-                      const sellPrice = getSellPrice(item);
-                      const statPreview = item.type === 'equipment' ? getItemStatsPreview(item, character.class) : '';
-                      const showDetail =
-                        item.rarity === 'epic' ||
-                        item.rarity === 'legendary' ||
-                        item.rarity === 'mythic' ||
-                        item.rarity === 'transcendent';
+                  {!isCollapsed && (
+                    <div className={styles.groupItems}>
+                      {items.map(
+                        // 计算装备限制、收藏和属性对比，渲染聚合后的物品卡片
+                        ({ item, count }) => {
+                          const equippable = canEquip(item);
+                          const classLabel = getItemClassLabel(item);
+                          const fav = isFavorite(item.name);
+                          const comparison = item.type === 'equipment' ? getEquipComparison(item, character) : null;
+                          const sellPrice = getSellPrice(item);
+                          const statPreview =
+                            item.type === 'equipment' ? getItemStatsPreview(item, character.class) : '';
+                          const showDetail =
+                            item.rarity === 'epic' ||
+                            item.rarity === 'legendary' ||
+                            item.rarity === 'mythic' ||
+                            item.rarity === 'transcendent';
 
-                      return (
-                        <div
-                          key={item.id}
-                          className={`${styles.itemCard} ${RARITY_CLASS_NAMES[item.rarity]} ${fav ? styles.itemFav : ''}`}
-                        >
-                          <div className={styles.itemTop}>
-                            <span className={styles.itemName}>{item.name}</span>
-                            <span className={styles.itemCount}>x{count}</span>
-                            <button
-                              className={`${styles.favBtn} ${fav ? styles.favActive : ''}`}
-                              onClick={(e) => toggleFavorite(item.name, e)}
-                              title={fav ? '取消收藏' : '收藏'}
-                            >
-                              ★
-                            </button>
-                            <RarityBadge rarity={item.rarity} />
-                          </div>
-
-                          <div className={styles.itemMeta}>
-                            <span className={styles.itemType}>{TYPE_LABELS[item.type] || item.type}</span>
-                            {item.minLevel && <span className={styles.itemLevel}>Lv.{item.minLevel}</span>}
-                            {classLabel && <span className={styles.classBadge}>{classLabel}专属</span>}
-                          </div>
-
-                          {statPreview && <div className={styles.itemStats}>{statPreview}</div>}
-
-                          {comparison && (
+                          return (
                             <div
-                              className={`${styles.itemComparison} ${comparison.startsWith('↑') ? styles.comparisonGood : styles.comparisonBad}`}
+                              key={item.id}
+                              className={`${styles.itemCard} ${RARITY_CLASS_NAMES[item.rarity]} ${fav ? styles.itemFav : ''}`}
                             >
-                              {comparison}
-                            </div>
-                          )}
+                              <div className={styles.itemTop}>
+                                <span className={styles.itemName}>{item.name}</span>
+                                <span className={styles.itemCount}>x{count}</span>
+                                <button
+                                  className={`${styles.favBtn} ${fav ? styles.favActive : ''}`}
+                                  onClick={(e) => toggleFavorite(item.name, e)}
+                                  title={fav ? '取消收藏' : '收藏'}
+                                >
+                                  ★
+                                </button>
+                                <RarityBadge rarity={item.rarity} />
+                              </div>
 
-                          <div className={styles.itemActions}>
-                            {equippable && item.slot && (
-                              <button
-                                onClick={() => onAction({ type: 'equip', slot: item.slot!, itemId: item.id })}
-                                className={`${styles.actionBtn} ${styles.equipBtn}`}
-                              >
-                                装备
-                              </button>
-                            )}
-                            {!equippable && item.type === 'equipment' && (
-                              <span className={styles.lockHint}>
-                                {item.classRequired && item.classRequired !== character.class
-                                  ? `${CLASS_NAME_MAP[item.classRequired] || item.classRequired}专属`
-                                  : item.minLevel && character.level < item.minLevel
-                                    ? `需要 Lv.${item.minLevel}`
-                                    : '无法装备'}
-                              </span>
-                            )}
-                            {item.type === 'chest' && (
-                              <button
-                                onClick={() => onAction({ type: 'open', itemId: item.id })}
-                                className={`${styles.actionBtn} ${styles.openBtn}`}
-                              >
-                                开启
-                              </button>
-                            )}
-                            {item.type === 'skill_book' && (
-                              <button
-                                onClick={() => onAction({ type: 'use', itemId: item.id })}
-                                className={`${styles.actionBtn} ${styles.skillBtn}`}
-                              >
-                                使用
-                              </button>
-                            )}
-                            <button
-                              onClick={() => onAction({ type: 'sell', itemId: item.id })}
-                              className={`${styles.actionBtn} ${styles.sellBtn}`}
-                            >
-                              出售 +{sellPrice}
-                            </button>
-                            {showDetail && (
-                              <button
-                                onClick={() => setDetailItem(item)}
-                                className={`${styles.actionBtn} ${styles.detailBtn}`}
-                              >
-                                详情
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })
+                              <div className={styles.itemMeta}>
+                                <span className={styles.itemType}>{TYPE_LABELS[item.type] || item.type}</span>
+                                {item.minLevel && <span className={styles.itemLevel}>Lv.{item.minLevel}</span>}
+                                {classLabel && <span className={styles.classBadge}>{classLabel}专属</span>}
+                              </div>
+
+                              {statPreview && <div className={styles.itemStats}>{statPreview}</div>}
+
+                              {comparison && (
+                                <div
+                                  className={`${styles.itemComparison} ${comparison.startsWith('↑') ? styles.comparisonGood : styles.comparisonBad}`}
+                                >
+                                  {comparison}
+                                </div>
+                              )}
+
+                              <div className={styles.itemActions}>
+                                {equippable && item.slot && (
+                                  <button
+                                    onClick={() => onAction({ type: 'equip', slot: item.slot!, itemId: item.id })}
+                                    className={`${styles.actionBtn} ${styles.equipBtn}`}
+                                  >
+                                    装备
+                                  </button>
+                                )}
+                                {!equippable && item.type === 'equipment' && (
+                                  <span className={styles.lockHint}>
+                                    {item.classRequired && item.classRequired !== character.class
+                                      ? `${CLASS_NAME_MAP[item.classRequired] || item.classRequired}专属`
+                                      : item.minLevel && character.level < item.minLevel
+                                        ? `需要 Lv.${item.minLevel}`
+                                        : '无法装备'}
+                                  </span>
+                                )}
+                                {item.type === 'chest' && (
+                                  <button
+                                    onClick={() => onAction({ type: 'open', itemId: item.id })}
+                                    className={`${styles.actionBtn} ${styles.openBtn}`}
+                                  >
+                                    开启
+                                  </button>
+                                )}
+                                {item.type === 'skill_book' && (
+                                  <button
+                                    onClick={() => onAction({ type: 'use', itemId: item.id })}
+                                    className={`${styles.actionBtn} ${styles.skillBtn}`}
+                                  >
+                                    使用
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => onAction({ type: 'sell', itemId: item.id })}
+                                  className={`${styles.actionBtn} ${styles.sellBtn}`}
+                                >
+                                  出售 +{sellPrice}
+                                </button>
+                                {showDetail && (
+                                  <button
+                                    onClick={() => setDetailItem(item)}
+                                    className={`${styles.actionBtn} ${styles.detailBtn}`}
+                                  >
+                                    详情
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        },
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            },
+          )
         )}
       </div>
 
-      {/* Item Detail Modal */}
+      {/* 物品详情弹窗 */}
       {detailItem && (
         <div
           className={styles.modalOverlay}
@@ -510,56 +548,71 @@ export function InventoryPanel({ character, onAction }: InventoryPanelProps) {
               {detailItem.minLevel && <span>需要 Lv.{detailItem.minLevel}</span>}
             </div>
             {detailItem.stats &&
-              (() => {
-                const resolved = resolveStatsForClass(detailItem.stats, character.class);
-                if (!resolved) return null;
-                return (
-                  <div className={styles.modalStats}>
-                    {Object.entries(resolved).map(([stat, val]) => {
-                      if ((val as number) <= 0) return null;
-                      const labels: Record<string, string> = {
-                        str: 'STR',
-                        dex: 'DEX',
-                        int: 'INT',
-                        vit: 'VIT',
-                        luk: 'LUK',
-                      };
-                      return (
-                        <span key={stat} className={styles.modalStatItem}>
-                          {labels[stat] || stat} +{val as number}
-                        </span>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
+              (
+                // 按当前职业解析详情装备属性并生成属性列表
+                () => {
+                  const resolved = resolveStatsForClass(detailItem.stats, character.class);
+                  if (!resolved) return null;
+                  return (
+                    <div className={styles.modalStats}>
+                      {Object.entries(resolved).map(
+                        // 仅显示正数属性，并将属性键转换为缩写标签
+                        ([stat, val]) => {
+                          if ((val as number) <= 0) return null;
+                          const labels: Record<string, string> = {
+                            str: 'STR',
+                            dex: 'DEX',
+                            int: 'INT',
+                            vit: 'VIT',
+                            luk: 'LUK',
+                          };
+                          return (
+                            <span key={stat} className={styles.modalStatItem}>
+                              {labels[stat] || stat} +{val as number}
+                            </span>
+                          );
+                        },
+                      )}
+                    </div>
+                  );
+                }
+              )()}
             {detailItem.description && <p className={styles.modalDesc}>{detailItem.description}</p>}
             <div className={styles.modalActions}>
               {canEquip(detailItem) && detailItem.slot && (
                 <button
-                  onClick={() => {
-                    onAction({ type: 'equip', slot: detailItem.slot!, itemId: detailItem.id });
-                    setDetailItem(null);
-                  }}
+                  onClick={
+                    // 装备详情中的物品并关闭弹窗
+                    () => {
+                      onAction({ type: 'equip', slot: detailItem.slot!, itemId: detailItem.id });
+                      setDetailItem(null);
+                    }
+                  }
                   className={`${styles.actionBtn} ${styles.equipBtn}`}
                 >
                   装备
                 </button>
               )}
               <button
-                onClick={() => {
-                  onAction({ type: 'sell', itemId: detailItem.id });
-                  setDetailItem(null);
-                }}
+                onClick={
+                  // 出售详情中的物品并关闭弹窗
+                  () => {
+                    onAction({ type: 'sell', itemId: detailItem.id });
+                    setDetailItem(null);
+                  }
+                }
                 className={`${styles.actionBtn} ${styles.sellBtn}`}
               >
                 出售 +{getSellPrice(detailItem)}
               </button>
               <button
-                onClick={(e) => {
-                  toggleFavorite(detailItem.name, e);
-                  setDetailItem(null);
-                }}
+                onClick={
+                  // 切换详情物品的收藏状态并关闭弹窗
+                  (e) => {
+                    toggleFavorite(detailItem.name, e);
+                    setDetailItem(null);
+                  }
+                }
                 className={`${styles.actionBtn} ${isFavorite(detailItem.name) ? styles.favActive : ''}`}
               >
                 {isFavorite(detailItem.name) ? '★ 已收藏' : '☆ 收藏'}

@@ -1,3 +1,5 @@
+/** 扫雷：游戏操作图标组件 */
+
 interface IconProps {
   className?: string;
 }

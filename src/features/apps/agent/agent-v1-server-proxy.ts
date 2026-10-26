@@ -1,3 +1,5 @@
+/** AI 助手：上游接口代理与响应转发 */
+
 import { getAgentRequestTimeoutMs, getAgentStreamTimeoutMs } from './agent-timeout.ts';
 
 interface JsonProxyResult {
@@ -167,7 +169,7 @@ export async function proxyCreateAgentConversation(payload: unknown): Promise<Js
   return { status: 201, body: { id } };
 }
 
-// 代理获取助手能力配置，供前端决定附件的临时生命周期。
+// 代理获取助手能力配置，供前端决定附件的临时生命周期
 export async function proxyGetAgentCapabilities(userId: string): Promise<JsonProxyResult> {
   if (!USER_ID_PATTERN.test(userId)) {
     return errorResult('用户标识格式不正确。', 400, 'INVALID_REQUEST');

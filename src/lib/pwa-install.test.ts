@@ -1,3 +1,5 @@
+/** 验证判断浏览器环境是否需要展示 iOS 手动安装指引的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

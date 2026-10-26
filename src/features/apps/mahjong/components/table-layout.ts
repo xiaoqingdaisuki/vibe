@@ -1,3 +1,5 @@
+/** 麻将：牌桌区域布局与点击命中计算 */
+
 export interface TableTileMetrics {
   scale: number;
   wallWidth: number;

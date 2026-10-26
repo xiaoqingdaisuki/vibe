@@ -1,3 +1,5 @@
+/** 验证在线编辑器：源码语言模式识别的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

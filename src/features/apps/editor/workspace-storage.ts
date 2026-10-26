@@ -1,3 +1,5 @@
+/** 在线编辑器：版本化工作区数据恢复与保存 */
+
 import { createDefaultWorkspace } from './data.ts';
 import type { EditorDocument, OnlineEditorWorkspace } from './types';
 

@@ -1,3 +1,5 @@
+/** 博客详情路由，生成静态参数并加载文章与目录 */
+
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { Breadcrumb } from '@/components/shared/Breadcrumb';
@@ -17,11 +19,13 @@ function formatDate(dateStr: string): string {
   return new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'long', day: 'numeric' }).format(d);
 }
 
+// 为已发布文章生成静态路由参数
 export async function generateStaticParams() {
   const slugs = getPublishedBlogSlugs();
   return slugs.map((slug) => ({ slug }));
 }
 
+// 根据文章内容生成详情页标题与描述
 export async function generateMetadata({ params }: BlogPostPageProps) {
   const { slug } = await params;
   const post = getPublishedBlogPostBySlug(slug);

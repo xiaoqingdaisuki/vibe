@@ -1,8 +1,4 @@
-/* ============================================
-   Home Page — Mobile First
-   Spacing: multiples of 4px
-   Font: even px values
-   ============================================ */
+/** 首页介绍与最近更新的布局、主题与响应式样式 */
 
 .hero {
   position: relative;
@@ -16,7 +12,7 @@
   }
 }
 
-/* ---- Dot grid background ---- */
+/* 点阵背景 */
 
 .hero::before {
   content: '';
@@ -30,7 +26,7 @@
   -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 40%, black 30%, transparent 70%);
 }
 
-/* ---- Large title ---- */
+/* 大标题 */
 
 .titleWrap {
   position: relative;
@@ -47,7 +43,7 @@
   position: relative;
 }
 
-/* ---- Tag line ---- */
+/* 站点标语 */
 
 .tagline {
   margin-top: var(--space-12);
@@ -59,7 +55,7 @@
   letter-spacing: 0.14em;
 }
 
-/* ---- Categories ---- */
+/* 分类标签 */
 
 .categories {
   display: flex;
@@ -89,7 +85,7 @@
   background: var(--color-accent-wash);
 }
 
-/* ---- Description ---- */
+/* 介绍说明 */
 
 .description {
   margin-top: var(--space-32);
@@ -108,7 +104,7 @@
   }
 }
 
-/* ---- Divider ---- */
+/* 分隔线 */
 
 .divider {
   height: 1px;
@@ -125,7 +121,7 @@
   }
 }
 
-/* ---- Actions ---- */
+/* 操作入口 */
 
 .actions {
   display: flex;
@@ -191,7 +187,7 @@
   }
 }
 
-/* ---- Recent updates ---- */
+/* 最近更新 */
 
 .recent {
   position: relative;
@@ -238,7 +234,7 @@
   }
 }
 
-/* ---- Footer note ---- */
+/* 页脚说明 */
 
 .footerNote {
   margin-top: var(--space-32);

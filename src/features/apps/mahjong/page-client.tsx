@@ -1,3 +1,5 @@
+/** 麻将：客户端页面与交互编排 */
+
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -56,23 +58,32 @@ export default function Mahjong() {
     ) {
       return undefined;
     }
-    const timer = window.setTimeout(() => {
-      setState((current) => {
-        if (
-          current.phase !== 'player-turn' ||
-          current.currentPlayer !== 0 ||
-          !current.players[0]?.riichi ||
-          current.drawnTileId === null
-        ) {
-          return current;
-        }
-        const actions = getLegalActions(current, 0);
-        if (actions.some((action) => action.type === 'tsumo')) return current;
-        if (actions.some((action) => action.type === 'kan')) return current;
-        const tsumogiri = actions.find((action) => action.type === 'discard' && action.tileId === current.drawnTileId);
-        return tsumogiri ? applyAction(current, 0, tsumogiri).state : current;
-      });
-    }, 260);
+    const timer = window.setTimeout(
+      // 延迟检查立直后的自动摸切，并保留和牌与杠牌机会
+      () => {
+        setState(
+          // 重新校验当前回合，满足自动摸切条件时提交弃牌
+          (current) => {
+            if (
+              current.phase !== 'player-turn' ||
+              current.currentPlayer !== 0 ||
+              !current.players[0]?.riichi ||
+              current.drawnTileId === null
+            ) {
+              return current;
+            }
+            const actions = getLegalActions(current, 0);
+            if (actions.some((action) => action.type === 'tsumo')) return current;
+            if (actions.some((action) => action.type === 'kan')) return current;
+            const tsumogiri = actions.find(
+              (action) => action.type === 'discard' && action.tileId === current.drawnTileId,
+            );
+            return tsumogiri ? applyAction(current, 0, tsumogiri).state : current;
+          },
+        );
+      },
+      260,
+    );
     return () => window.clearTimeout(timer);
   }, [screen, utilityPanel, state.phase, state.currentPlayer, state.drawnTileId, humanRiichi, state.seq]);
 
@@ -104,10 +115,13 @@ export default function Mahjong() {
     if (selectedTileId === tileId) {
       const discard = legalActions.find((action) => action.type === 'discard' && action.tileId === tileId);
       if (discard) {
-        setState((current) => {
-          const result = applyAction(current, 0, discard);
-          return result.accepted ? result.state : current;
-        });
+        setState(
+          // 尝试提交当前弃牌，仅在动作被接受时替换牌局状态
+          (current) => {
+            const result = applyAction(current, 0, discard);
+            return result.accepted ? result.state : current;
+          },
+        );
         setSelectedTileId(null);
         return;
       }
@@ -167,10 +181,13 @@ export default function Mahjong() {
 
   // 按图鉴实际内容边界更新滚动位置，确保可以完整看到最后一项
   const handleScrollUtility = (delta: number, limit?: number) => {
-    setUtilityScroll((current) => {
-      const next = Math.max(0, current + delta);
-      return limit === undefined ? next : Math.min(limit, next);
-    });
+    setUtilityScroll(
+      // 累加工具面板滚动距离，并限制在可用范围内
+      (current) => {
+        const next = Math.max(0, current + delta);
+        return limit === undefined ? next : Math.min(limit, next);
+      },
+    );
   };
 
   // 在慢速、正常和快速之间切换 AI 决策节奏

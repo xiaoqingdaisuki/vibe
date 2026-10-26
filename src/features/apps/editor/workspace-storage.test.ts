@@ -1,3 +1,5 @@
+/** 验证在线编辑器：版本化工作区数据恢复与保存的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

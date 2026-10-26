@@ -1,3 +1,5 @@
+/** 验证在线编辑器：工作区文档的增删、选择与编辑的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

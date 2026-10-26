@@ -1,3 +1,5 @@
+/** AI 助手：会话标识与用户标识持久化 */
+
 const CONVERSATION_STORAGE_KEY = 'vibe.agent.conversation.v2';
 const USER_STORAGE_KEY = 'vibe.agent.user.v1';
 const CONVERSATION_STORAGE_VERSION = 2;
@@ -94,7 +96,7 @@ export function writeStoredConversationId(storage: StorageLike, userId: string, 
       JSON.stringify({ version: CONVERSATION_STORAGE_VERSION, userId, conversationId }),
     );
   } catch {
-    // Storage is optional. The current browser session remains usable without it.
+    // 存储不可用时仍允许在当前浏览器会话中继续使用
   }
 }
 
@@ -103,6 +105,6 @@ export function clearStoredConversationId(storage: StorageLike): void {
   try {
     storage.removeItem(CONVERSATION_STORAGE_KEY);
   } catch {
-    // Storage is optional. Clearing the in-memory session is still enough for this page.
+    // 存储清理失败时，清除内存中的会话仍能让当前页面继续使用
   }
 }

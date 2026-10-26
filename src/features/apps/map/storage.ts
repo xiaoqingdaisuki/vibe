@@ -1,3 +1,5 @@
+/** 地图：本地数据校验与持久化 */
+
 import type { Place } from './types';
 import { isCoordinate } from './utils.ts';
 
@@ -77,6 +79,7 @@ export function getLibrary(): MapLibrary {
   return cachedLibrary;
 }
 
+// 为服务端渲染提供稳定的空地点库快照
 export function getServerLibrary(): MapLibrary {
   return EMPTY;
 }
@@ -89,6 +92,7 @@ export function subscribeLibrary(listener: () => void): () => void {
   }
   window.addEventListener(EVENT_NAME, listener);
   window.addEventListener('storage', onStorage);
+  // 取消地点库变更与跨标签存储事件订阅
   return () => {
     window.removeEventListener(EVENT_NAME, listener);
     window.removeEventListener('storage', onStorage);
@@ -97,10 +101,13 @@ export function subscribeLibrary(listener: () => void): () => void {
 
 // 持久化最小数据并让当前页面立即刷新，返回磁盘写入是否成功
 export function saveLibrary(library: MapLibrary): boolean {
-  const favorites = library.favorites.slice(0, 100).flatMap((value) => {
-    const place = parsePlace(value);
-    return place ? [place] : [];
-  });
+  const favorites = library.favorites.slice(0, 100).flatMap(
+    // 过滤无效收藏记录并保留通过校验的地点
+    (value) => {
+      const place = parsePlace(value);
+      return place ? [place] : [];
+    },
+  );
   const raw = JSON.stringify({
     version: 1,
     favorites,

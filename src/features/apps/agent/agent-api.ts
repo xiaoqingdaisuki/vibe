@@ -1,3 +1,5 @@
+/** AI 助手：会话请求、响应校验与流式事件解析 */
+
 import {
   AGENT_STREAM_CLIENT_TIMEOUT_MARGIN_MS,
   AGENT_STREAM_IDLE_TIMEOUT_HEADER,
@@ -136,20 +138,23 @@ function getTextField(record: Record<string, unknown>, fields: string[]): string
 function parseSuggestionCards(value: unknown): AgentSuggestionCard[] | undefined {
   if (!Array.isArray(value)) return undefined;
 
-  const cards = value.flatMap((card) => {
-    if (!isRecord(card)) return [];
-    const { id, title, description, payload } = card;
-    if (
-      typeof id !== 'string' ||
-      typeof title !== 'string' ||
-      typeof description !== 'string' ||
-      typeof payload !== 'string'
-    ) {
-      return [];
-    }
+  const cards = value.flatMap(
+    // 过滤字段不完整的建议卡片并转换为应用数据结构
+    (card) => {
+      if (!isRecord(card)) return [];
+      const { id, title, description, payload } = card;
+      if (
+        typeof id !== 'string' ||
+        typeof title !== 'string' ||
+        typeof description !== 'string' ||
+        typeof payload !== 'string'
+      ) {
+        return [];
+      }
 
-    return [{ id, title, description, payload }];
-  });
+      return [{ id, title, description, payload }];
+    },
+  );
 
   return cards.length > 0 ? cards : undefined;
 }
@@ -241,10 +246,13 @@ export async function createAgentConversation(title: string, userId: string, sig
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ title: title.slice(0, 100), mode: 'chat', user_id: userId }),
     signal,
-  }).catch((error: unknown) => {
-    if (isAbortError(error) || signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    throw new Error(CONNECTION_ERROR_MESSAGE);
-  });
+  }).catch(
+    // 保留主动中止错误，其余连接失败转换为统一提示
+    (error: unknown) => {
+      if (isAbortError(error) || signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      throw new Error(CONNECTION_ERROR_MESSAGE);
+    },
+  );
   if (!response.ok) throw new AgentHttpError(await readHttpError(response), response.status);
 
   const payload: unknown = await response.json().catch(() => null);
@@ -253,13 +261,16 @@ export async function createAgentConversation(title: string, userId: string, sig
   return conversationId;
 }
 
-// 获取 Agent 能力配置，决定文档是否在发送后继续留在临时会话状态。
+// 获取 Agent 能力配置，决定文档是否在发送后继续留在临时会话状态
 export async function getAgentCapabilities(userId: string, signal?: AbortSignal): Promise<AgentCapabilities> {
   const query = new URLSearchParams({ user_id: userId });
-  const response = await fetch(`/api/capabilities?${query}`, { signal }).catch((error: unknown) => {
-    if (isAbortError(error) || signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    throw new Error(CONNECTION_ERROR_MESSAGE);
-  });
+  const response = await fetch(`/api/capabilities?${query}`, { signal }).catch(
+    // 保留主动中止错误，其余连接失败转换为统一提示
+    (error: unknown) => {
+      if (isAbortError(error) || signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      throw new Error(CONNECTION_ERROR_MESSAGE);
+    },
+  );
   if (!response.ok) throw new AgentHttpError(await readHttpError(response), response.status);
   const payload: unknown = await response.json().catch(() => null);
   if (!isRecord(payload) || typeof payload.memory_enabled !== 'boolean') {
@@ -304,29 +315,35 @@ export async function getAgentConversationMessages(
   const query = new URLSearchParams({ user_id: userId });
   const response = await fetch(`${AGENT_CONVERSATIONS_URL}/${encodeURIComponent(conversationId)}/messages?${query}`, {
     signal,
-  }).catch((error: unknown) => {
-    if (isAbortError(error) || signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    throw new Error(CONNECTION_ERROR_MESSAGE);
-  });
+  }).catch(
+    // 保留主动中止错误，其余连接失败转换为统一提示
+    (error: unknown) => {
+      if (isAbortError(error) || signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      throw new Error(CONNECTION_ERROR_MESSAGE);
+    },
+  );
   if (!response.ok) throw new AgentHttpError(await readHttpError(response), response.status);
 
   const payload: unknown = await response.json().catch(() => null);
   const messages = isRecord(payload) ? payload.messages : payload;
   if (!Array.isArray(messages)) throw new Error(EMPTY_RESPONSE_MESSAGE);
 
-  return messages.flatMap((message) => {
-    if (!isRecord(message)) return [];
-    const { id, role, content, created_at: createdAt } = message;
-    if (
-      typeof id !== 'string' ||
-      (role !== 'user' && role !== 'assistant') ||
-      typeof content !== 'string' ||
-      typeof createdAt !== 'string'
-    ) {
-      return [];
-    }
-    return [{ id, role, content, createdAt }];
-  });
+  return messages.flatMap(
+    // 校验历史消息字段，并映射服务端创建时间字段
+    (message) => {
+      if (!isRecord(message)) return [];
+      const { id, role, content, created_at: createdAt } = message;
+      if (
+        typeof id !== 'string' ||
+        (role !== 'user' && role !== 'assistant') ||
+        typeof content !== 'string' ||
+        typeof createdAt !== 'string'
+      ) {
+        return [];
+      }
+      return [{ id, role, content, createdAt }];
+    },
+  );
 }
 
 // 发起AI流式消息请求
@@ -381,6 +398,7 @@ async function readEventStream(
   let eventName = '';
   let dataLines: string[] = [];
   let suggestionCards: AgentSuggestionCard[] | undefined;
+  // 取消流读取并忽略取消过程中的次要错误
   const cancelRead = () => {
     void reader.cancel().catch(() => undefined);
   };
@@ -488,7 +506,7 @@ export async function callAgentApi(
   const controller = new AbortController();
   const combinedSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
   let timedOut = false;
-  // 正文或工具进度长期停滞时退出加载，SSE 心跳不延长业务等待。
+  // 正文或工具进度长期停滞时退出加载，SSE 心跳不延长业务等待
   const onTimeout = () => {
     timedOut = true;
     controller.abort();
@@ -497,12 +515,12 @@ export async function callAgentApi(
   let idleTimeoutMs = DEFAULT_AGENT_STREAM_IDLE_TIMEOUT_MS;
   let idleTimer: ReturnType<typeof setTimeout> | undefined;
   let totalTimer = setTimeout(onTimeout, DEFAULT_AGENT_STREAM_TIMEOUT_MS - AGENT_STREAM_CLIENT_TIMEOUT_MARGIN_MS);
-  // 有业务进度时重置停滞计时，同时保留请求总时限。
+  // 有业务进度时重置停滞计时，同时保留请求总时限
   const refreshProgress = () => {
     if (idleTimer) clearTimeout(idleTimer);
     idleTimer = setTimeout(onTimeout, idleTimeoutMs);
   };
-  // 根据服务端响应头调整客户端超时，避免两端各自维护不同的生产配置。
+  // 根据服务端响应头调整客户端超时，避免两端各自维护不同的生产配置
   const alignStreamTimeouts = (response: Response) => {
     const serverTimeout =
       parseAgentStreamTimeout(response.headers.get(AGENT_STREAM_TIMEOUT_HEADER)) ?? DEFAULT_AGENT_STREAM_TIMEOUT_MS;
@@ -528,11 +546,13 @@ export async function callAgentApi(
       refreshProgress();
       return await readEventStream(
         response,
+        // 收到文本分片后刷新进度计时并转发内容
         (chunk, delivery) => {
           refreshProgress();
           onChunk(chunk, delivery);
         },
         combinedSignal,
+        // 收到工具进度后刷新计时并通知订阅方
         (progress) => {
           refreshProgress();
           onToolProgress?.(progress);

@@ -1,3 +1,5 @@
+/** 麻将：类型与数据契约 */
+
 export type Seat = 0 | 1 | 2 | 3;
 
 export type Suit = 'man' | 'pin' | 'sou' | 'honor';

@@ -1,3 +1,5 @@
+/** 博客：本地文章读取与元数据校验 */
+
 import fs from 'node:fs';
 import path from 'node:path';
 import matter from 'gray-matter';
@@ -113,16 +115,19 @@ export function getBlogPosts(): BlogPost[] {
   return getAllBlogSlugs()
     .map((slug) => getBlogPostBySlug(slug))
     .filter((post): post is BlogPost => post !== null && post.published)
-    .sort((left, right) => {
-      const leftIsPinned = Boolean(left.pinned);
-      const rightIsPinned = Boolean(right.pinned);
+    .sort(
+      // 优先排列置顶文章，其余文章按日期倒序排列
+      (left, right) => {
+        const leftIsPinned = Boolean(left.pinned);
+        const rightIsPinned = Boolean(right.pinned);
 
-      if (leftIsPinned !== rightIsPinned) {
-        return Number(rightIsPinned) - Number(leftIsPinned);
-      }
+        if (leftIsPinned !== rightIsPinned) {
+          return Number(rightIsPinned) - Number(leftIsPinned);
+        }
 
-      return right.date.localeCompare(left.date);
-    });
+        return right.date.localeCompare(left.date);
+      },
+    );
 }
 
 // 根据 slug 查找博客文章，返回 null 表示不存在

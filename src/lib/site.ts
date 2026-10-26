@@ -1,3 +1,5 @@
+/** 集中定义站点信息、导航与外部链接配置 */
+
 export const siteConfig = {
   name: 'Vibe',
   description: 'A personal Web Lab for apps, experiments, and public API powered demos.',

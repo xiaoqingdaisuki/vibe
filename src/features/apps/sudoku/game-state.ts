@@ -1,3 +1,5 @@
+/** 数独：会话状态转换与键盘命令解析 */
+
 import type { SudokuDifficultyId, SudokuDigit, SudokuGame, SudokuStatus } from './types';
 
 const GRID_SIZE = 9;
@@ -103,13 +105,16 @@ export function eraseSelectedInSession(state: SudokuSessionState): SudokuSession
 export function getIncorrectBoxIndexes(values: number[], solution: number[]): number[] {
   const incorrectBoxes = new Set<number>();
 
-  values.forEach((value, index) => {
-    if (value === solution[index]) return;
+  values.forEach(
+    // 收集与答案不符的格子所在九宫格
+    (value, index) => {
+      if (value === solution[index]) return;
 
-    const row = Math.floor(index / GRID_SIZE);
-    const column = index % GRID_SIZE;
-    incorrectBoxes.add(Math.floor(row / 3) * 3 + Math.floor(column / 3));
-  });
+      const row = Math.floor(index / GRID_SIZE);
+      const column = index % GRID_SIZE;
+      incorrectBoxes.add(Math.floor(row / 3) * 3 + Math.floor(column / 3));
+    },
+  );
 
   return [...incorrectBoxes];
 }

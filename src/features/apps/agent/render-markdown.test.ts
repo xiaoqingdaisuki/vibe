@@ -1,3 +1,5 @@
+/** 验证AI 助手：安全 Markdown 渲染的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

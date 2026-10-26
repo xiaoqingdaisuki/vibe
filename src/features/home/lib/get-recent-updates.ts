@@ -1,3 +1,5 @@
+/** 首页：首页最近更新条目解析 */
+
 import type { BlogPost } from '../../blog/types.ts';
 import type { LabApp } from '../../lab/types.ts';
 

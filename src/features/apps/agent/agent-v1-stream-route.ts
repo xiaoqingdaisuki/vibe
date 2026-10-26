@@ -1,3 +1,5 @@
+/** AI 助手：流式消息路由处理 */
+
 import { AGENT_STREAM_IDLE_TIMEOUT_HEADER, AGENT_STREAM_TIMEOUT_HEADER } from './agent-timeout-contract.ts';
 import { getAgentStreamIdleTimeoutMs, getAgentStreamTimeoutMs } from './agent-timeout.ts';
 import { proxyStreamAgentMessage } from './agent-v1-server-proxy.ts';

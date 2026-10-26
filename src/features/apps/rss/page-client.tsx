@@ -1,3 +1,5 @@
+/** RSS 阅读器：客户端页面与交互编排 */
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -53,7 +55,7 @@ function extractAuthor(raw: string | undefined): string | undefined {
   return trimmed || undefined;
 }
 
-// 解析 RSS 2.0 XML 内容为结构化 feed 数据
+// 将 RSS 2.0 XML 内容解析为结构化订阅数据
 function parseRSSXml(xmlText: string, feedUrl: string): RssFeed {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlText, 'text/xml');
@@ -84,62 +86,65 @@ function parseRSSXml(xmlText: string, feedUrl: string): RssFeed {
     throw new Error('该订阅源暂无内容');
   }
 
-  const items: RssFeedItem[] = Array.from(itemNodes).map((node) => {
-    const title = node.querySelector('title')?.textContent?.trim() || '无标题';
+  const items: RssFeedItem[] = Array.from(itemNodes).map(
+    // 从 RSS 条目提取链接、作者、内容摘要与缩略图
+    (node) => {
+      const title = node.querySelector('title')?.textContent?.trim() || '无标题';
 
-    let link = node.querySelector('link')?.textContent?.trim() || '';
-    if (!link) {
-      const enclosure = node.querySelector('enclosure');
-      link = enclosure?.getAttribute('url') || '#';
-    }
-    link = resolveLink(feedUrl, link);
-
-    const pubDate = node.querySelector('pubDate')?.textContent?.trim() || undefined;
-
-    const authorRaw =
-      node.querySelector('author')?.textContent?.trim() ||
-      node.querySelector('dc\\:creator')?.textContent?.trim() ||
-      undefined;
-    const author = extractAuthor(authorRaw);
-
-    const contentEl = node.querySelector('content\\:encoded, encoded');
-    let contentHtml = contentEl?.textContent?.trim() || '';
-
-    if (!contentHtml) {
-      const descEl = node.querySelector('description');
-      contentHtml = descEl?.textContent?.trim() || '';
-    }
-
-    const contentSnippet = contentHtml ? stripHtml(contentHtml).slice(0, 200) : undefined;
-
-    let thumbnail: string | undefined;
-    const enclosure = node.querySelector('enclosure');
-    if (enclosure) {
-      const encType = enclosure.getAttribute('type') || '';
-      const encUrl = enclosure.getAttribute('url') || '';
-      // 缩略图 URL 同样需经协议白名单校验，拒绝非 http/https 的来源
-      if (encType.startsWith('image/') && encUrl) {
-        const resolved = resolveLink(feedUrl, encUrl);
-        if (resolved !== '#') thumbnail = resolved;
+      let link = node.querySelector('link')?.textContent?.trim() || '';
+      if (!link) {
+        const enclosure = node.querySelector('enclosure');
+        link = enclosure?.getAttribute('url') || '#';
       }
-    }
-    if (!thumbnail) {
-      const mediaContent = node.querySelector('media\\:content, content');
-      if (mediaContent) {
-        const url = mediaContent.getAttribute('url');
-        if (url) {
-          const resolved = resolveLink(feedUrl, url);
+      link = resolveLink(feedUrl, link);
+
+      const pubDate = node.querySelector('pubDate')?.textContent?.trim() || undefined;
+
+      const authorRaw =
+        node.querySelector('author')?.textContent?.trim() ||
+        node.querySelector('dc\\:creator')?.textContent?.trim() ||
+        undefined;
+      const author = extractAuthor(authorRaw);
+
+      const contentEl = node.querySelector('content\\:encoded, encoded');
+      let contentHtml = contentEl?.textContent?.trim() || '';
+
+      if (!contentHtml) {
+        const descEl = node.querySelector('description');
+        contentHtml = descEl?.textContent?.trim() || '';
+      }
+
+      const contentSnippet = contentHtml ? stripHtml(contentHtml).slice(0, 200) : undefined;
+
+      let thumbnail: string | undefined;
+      const enclosure = node.querySelector('enclosure');
+      if (enclosure) {
+        const encType = enclosure.getAttribute('type') || '';
+        const encUrl = enclosure.getAttribute('url') || '';
+        // 缩略图 URL 同样需经协议白名单校验，拒绝非 http/https 的来源
+        if (encType.startsWith('image/') && encUrl) {
+          const resolved = resolveLink(feedUrl, encUrl);
           if (resolved !== '#') thumbnail = resolved;
         }
       }
-    }
-    if (!thumbnail) {
-      const imgMatch = contentHtml.match(/src="([^"]+)"/);
-      if (imgMatch?.[1]) thumbnail = resolveLink(feedUrl, imgMatch[1]);
-    }
+      if (!thumbnail) {
+        const mediaContent = node.querySelector('media\\:content, content');
+        if (mediaContent) {
+          const url = mediaContent.getAttribute('url');
+          if (url) {
+            const resolved = resolveLink(feedUrl, url);
+            if (resolved !== '#') thumbnail = resolved;
+          }
+        }
+      }
+      if (!thumbnail) {
+        const imgMatch = contentHtml.match(/src="([^"]+)"/);
+        if (imgMatch?.[1]) thumbnail = resolveLink(feedUrl, imgMatch[1]);
+      }
 
-    return { title, link, pubDate, contentSnippet, author, thumbnail };
-  });
+      return { title, link, pubDate, contentSnippet, author, thumbnail };
+    },
+  );
 
   return {
     url: feedUrl,
@@ -150,7 +155,7 @@ function parseRSSXml(xmlText: string, feedUrl: string): RssFeed {
   };
 }
 
-// 解析 Atom feed XML 内容为结构化 feed 数据
+// 将 Atom XML 内容解析为结构化订阅数据
 function parseAtomFeed(feedEl: Element, feedUrl: string): RssFeed {
   const feedTitle = feedEl.querySelector('title')?.textContent?.trim() || new URL(feedUrl).hostname;
 
@@ -159,31 +164,34 @@ function parseAtomFeed(feedEl: Element, feedUrl: string): RssFeed {
     throw new Error('该Atom订阅源暂无内容');
   }
 
-  const items: RssFeedItem[] = Array.from(entries).map((entry) => {
-    const title = entry.querySelector('title')?.textContent?.trim() || '无标题';
+  const items: RssFeedItem[] = Array.from(entries).map(
+    // 从 Atom 条目提取发布日期、链接、摘要与缩略图
+    (entry) => {
+      const title = entry.querySelector('title')?.textContent?.trim() || '无标题';
 
-    const linkEl = entry.querySelector('link[href]');
-    const link = linkEl ? resolveLink(feedUrl, linkEl.getAttribute('href') || '') : '#';
+      const linkEl = entry.querySelector('link[href]');
+      const link = linkEl ? resolveLink(feedUrl, linkEl.getAttribute('href') || '') : '#';
 
-    const pubDate =
-      entry.querySelector('published')?.textContent?.trim() ||
-      entry.querySelector('updated')?.textContent?.trim() ||
-      undefined;
+      const pubDate =
+        entry.querySelector('published')?.textContent?.trim() ||
+        entry.querySelector('updated')?.textContent?.trim() ||
+        undefined;
 
-    const author = entry.querySelector('author > name')?.textContent?.trim() || undefined;
+      const author = entry.querySelector('author > name')?.textContent?.trim() || undefined;
 
-    const contentEl = entry.querySelector('content');
-    const summaryEl = entry.querySelector('summary');
-    const contentHtml = contentEl?.textContent?.trim() || summaryEl?.textContent?.trim() || '';
-    const contentSnippet = contentHtml ? stripHtml(contentHtml).slice(0, 200) : undefined;
+      const contentEl = entry.querySelector('content');
+      const summaryEl = entry.querySelector('summary');
+      const contentHtml = contentEl?.textContent?.trim() || summaryEl?.textContent?.trim() || '';
+      const contentSnippet = contentHtml ? stripHtml(contentHtml).slice(0, 200) : undefined;
 
-    let thumbnail: string | undefined;
-    const contentWithHtml = contentEl?.innerHTML || summaryEl?.innerHTML || '';
-    const imgMatch = contentWithHtml.match(/src="([^"]+)"/);
-    if (imgMatch?.[1]) thumbnail = resolveLink(feedUrl, imgMatch[1]);
+      let thumbnail: string | undefined;
+      const contentWithHtml = contentEl?.innerHTML || summaryEl?.innerHTML || '';
+      const imgMatch = contentWithHtml.match(/src="([^"]+)"/);
+      if (imgMatch?.[1]) thumbnail = resolveLink(feedUrl, imgMatch[1]);
 
-    return { title, link, pubDate, contentSnippet, author, thumbnail };
-  });
+      return { title, link, pubDate, contentSnippet, author, thumbnail };
+    },
+  );
 
   return {
     url: feedUrl,
@@ -194,7 +202,7 @@ function parseAtomFeed(feedEl: Element, feedUrl: string): RssFeed {
   };
 }
 
-// 通过服务端代理获取 RSS feed
+// 通过服务端代理获取 RSS 订阅内容
 async function fetchRSS(url: string): Promise<RssFeed> {
   const targetUrl = url.trim();
   if (!targetUrl) throw new Error('请输入有效的RSS地址');
@@ -249,7 +257,7 @@ function FeedItemCard({ item }: { item: RssFeedItem }) {
     <a href={item.link} target="_blank" rel="noopener noreferrer" className={styles.itemCard}>
       {item.thumbnail && (
         <div className={styles.itemThumb}>
-          {/* RSS 缩略图来自用户订阅的任意主机，不能安全地使用需预先配置主机白名单的 next/image。 */}
+          {/* RSS 缩略图来自用户订阅的任意主机，不能安全地使用需预先配置主机白名单的 next/image */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={item.thumbnail} alt="" width="120" height="80" loading="lazy" />
         </div>
@@ -294,6 +302,7 @@ function FeedSection({
 }) {
   const headerRef = useRef<HTMLButtonElement>(null);
 
+  // 订阅源展开时将标题滚动至可见区域
   useEffect(() => {
     if (expanded && headerRef.current) {
       headerRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -362,6 +371,7 @@ function AddFeedForm({ onAdd }: { onAdd: (url: string, feed: RssFeed) => void })
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // 校验订阅地址并获取内容，成功后添加订阅并清空输入
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -424,15 +434,19 @@ export default function RSSReader() {
   const subsRef = useRef(subscriptions);
   const loadingFeedsRef = useRef<Set<string>>(new Set());
 
+  // 同步订阅列表引用，供异步加载判断订阅是否仍存在
   useEffect(() => {
     subsRef.current = subscriptions;
   }, [subscriptions]);
 
+  // 同步内容缓存引用，避免重复加载已有订阅源
   useEffect(() => {
     feedsRef.current = feeds;
   }, [feeds]);
 
+  // 监听页面滚动以控制回到顶部按钮，并清理监听
   useEffect(() => {
+    // 根据滚动距离更新回到顶部按钮的可见性
     const handleScroll = () => {
       setShowBackTop(window.scrollY > 400);
     };
@@ -440,112 +454,156 @@ export default function RSSReader() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // 平滑滚动回页面顶部
   const handleBackTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // 标记用户主动操作并切换订阅源展开状态
   const handleToggle = useCallback((url: string) => {
     setHasUserToggled(true);
     setExpandedUrl((prev) => (prev === url ? null : url));
   }, []);
 
+  // 去重加载订阅源，并统一处理加载、成功和失败状态
   const loadFeed = useCallback(async (url: string) => {
     await loadFeedOnce({
       url,
       inFlight: loadingFeedsRef.current,
       fetchFeed: fetchRSS,
+      // 标记订阅源正在加载并清除上次错误
       onStart: () => {
         setLoadingFeeds((prev) => new Set(prev).add(url));
-        setErrors((prev) => {
-          const next = new Map(prev);
-          next.delete(url);
-          return next;
-        });
+        setErrors(
+          // 复制错误映射并清除当前订阅源的旧错误
+          (prev) => {
+            const next = new Map(prev);
+            next.delete(url);
+            return next;
+          },
+        );
       },
+      // 仅为仍被订阅的地址缓存返回内容
       onSuccess: (feed) => {
         if (!subsRef.current.includes(url)) return;
 
-        setFeeds((prev) => {
-          const next = new Map(prev);
-          next.set(url, feed);
-          feedsRef.current = next;
-          return next;
-        });
+        setFeeds(
+          // 更新内容缓存，并同步供异步流程使用的引用
+          (prev) => {
+            const next = new Map(prev);
+            next.set(url, feed);
+            feedsRef.current = next;
+            return next;
+          },
+        );
       },
+      // 仅为仍被订阅的地址记录加载错误
       onError: (message) => {
         if (!subsRef.current.includes(url)) return;
 
-        setErrors((prev) => {
-          const next = new Map(prev);
-          next.set(url, message);
-          return next;
-        });
+        setErrors(
+          // 复制错误映射并保存当前订阅源的失败提示
+          (prev) => {
+            const next = new Map(prev);
+            next.set(url, message);
+            return next;
+          },
+        );
       },
+      // 请求结束后移除订阅源的加载标记
       onSettled: () => {
-        setLoadingFeeds((prev) => {
-          const next = new Set(prev);
-          next.delete(url);
-          return next;
-        });
+        setLoadingFeeds(
+          // 复制加载集合并移除已结束的订阅请求
+          (prev) => {
+            const next = new Set(prev);
+            next.delete(url);
+            return next;
+          },
+        );
       },
     });
   }, []);
 
+  // 读取本地订阅并在下一帧恢复列表
   useEffect(() => {
     const saved = getStorageItem<unknown>(STORAGE_KEY, null);
     const frame = requestAnimationFrame(() => setSubscriptions(restoreSubscriptions(saved)));
     return () => cancelAnimationFrame(frame);
   }, []);
 
+  // 为订阅列表中尚未缓存的地址加载内容
   useEffect(() => {
     if (subscriptions.length === 0) return;
 
-    subscriptions.forEach((url) => {
-      const existing = feedsRef.current.get(url);
-      if (existing) return;
+    subscriptions.forEach(
+      // 跳过已有缓存的订阅，仅加载缺失内容
+      (url) => {
+        const existing = feedsRef.current.get(url);
+        if (existing) return;
 
-      void loadFeed(url);
-    });
+        void loadFeed(url);
+      },
+    );
   }, [loadFeed, subscriptions]);
 
+  // 缓存新订阅内容并持久化去重后的订阅列表
   const addSubscription = useCallback((url: string, feed: RssFeed) => {
-    setFeeds((prev) => {
-      const next = new Map(prev);
-      next.set(url, feed);
-      feedsRef.current = next;
-      return next;
-    });
-    setErrors((prev) => {
-      const next = new Map(prev);
-      next.delete(url);
-      return next;
-    });
-    setSubscriptions((prev) => {
-      if (prev.includes(url)) return prev;
-      const next = [...prev, url];
-      setStorageItem(STORAGE_KEY, createStoredSubscriptions(next));
-      subsRef.current = next;
-      return next;
-    });
+    setFeeds(
+      // 写入新订阅内容并同步缓存引用
+      (prev) => {
+        const next = new Map(prev);
+        next.set(url, feed);
+        feedsRef.current = next;
+        return next;
+      },
+    );
+    setErrors(
+      // 添加订阅成功后移除相同地址的旧错误
+      (prev) => {
+        const next = new Map(prev);
+        next.delete(url);
+        return next;
+      },
+    );
+    setSubscriptions(
+      // 去重添加订阅，并同步持久化数据与当前列表引用
+      (prev) => {
+        if (prev.includes(url)) return prev;
+        const next = [...prev, url];
+        setStorageItem(STORAGE_KEY, createStoredSubscriptions(next));
+        subsRef.current = next;
+        return next;
+      },
+    );
   }, []);
 
+  // 移除订阅并同步清理缓存内容与错误状态
   const removeSubscription = useCallback((url: string) => {
-    setSubscriptions((prev) => {
-      const next = prev.filter((u) => u !== url);
-      setStorageItem(STORAGE_KEY, createStoredSubscriptions(next));
-      subsRef.current = next;
-      return next;
-    });
-    setFeeds((prev) => {
-      const next = new Map(prev);
-      next.delete(url);
-      return next;
-    });
-    setErrors((prev) => {
-      const next = new Map(prev);
-      next.delete(url);
-      return next;
-    });
+    setSubscriptions(
+      // 移除指定订阅，并同步持久化数据与当前列表引用
+      (prev) => {
+        const next = prev.filter((u) => u !== url);
+        setStorageItem(STORAGE_KEY, createStoredSubscriptions(next));
+        subsRef.current = next;
+        return next;
+      },
+    );
+    setFeeds(
+      // 从内容缓存中移除已取消的订阅
+      (prev) => {
+        const next = new Map(prev);
+        next.delete(url);
+        return next;
+      },
+    );
+    setErrors(
+      // 从错误映射中移除已取消的订阅
+      (prev) => {
+        const next = new Map(prev);
+        next.delete(url);
+        return next;
+      },
+    );
   }, []);
 
   const expandedFeedUrl = hasUserToggled ? expandedUrl : subscriptions[0];
@@ -566,45 +624,48 @@ export default function RSSReader() {
 
       {subscriptions.length > 0 && (
         <section className={styles.feedsSection}>
-          {subscriptions.map((url) => {
-            const feed = feeds.get(url);
-            const isLoading = loadingFeeds.has(url);
-            const error = errors.get(url);
+          {subscriptions.map(
+            // 按加载、失败或成功状态选择订阅源展示内容
+            (url) => {
+              const feed = feeds.get(url);
+              const isLoading = loadingFeeds.has(url);
+              const error = errors.get(url);
 
-            if (isLoading) {
-              return (
-                <div key={url} className={styles.feedLoading}>
-                  <span className="text-muted">正在加载 {new URL(url).hostname}…</span>
-                </div>
-              );
-            }
+              if (isLoading) {
+                return (
+                  <div key={url} className={styles.feedLoading}>
+                    <span className="text-muted">正在加载 {new URL(url).hostname}…</span>
+                  </div>
+                );
+              }
 
-            if (error && !feed) {
-              return (
-                <FeedErrorState
-                  key={url}
-                  hostname={new URL(url).hostname}
-                  message={error}
-                  onRetry={() => void loadFeed(url)}
-                  onRemove={() => removeSubscription(url)}
-                />
-              );
-            }
+              if (error && !feed) {
+                return (
+                  <FeedErrorState
+                    key={url}
+                    hostname={new URL(url).hostname}
+                    message={error}
+                    onRetry={() => void loadFeed(url)}
+                    onRemove={() => removeSubscription(url)}
+                  />
+                );
+              }
 
-            if (feed) {
-              return (
-                <FeedSection
-                  key={url}
-                  feed={feed}
-                  onRemove={() => removeSubscription(url)}
-                  expanded={expandedFeedUrl === url}
-                  onToggle={() => handleToggle(url)}
-                />
-              );
-            }
+              if (feed) {
+                return (
+                  <FeedSection
+                    key={url}
+                    feed={feed}
+                    onRemove={() => removeSubscription(url)}
+                    expanded={expandedFeedUrl === url}
+                    onToggle={() => handleToggle(url)}
+                  />
+                );
+              }
 
-            return null;
-          })}
+              return null;
+            },
+          )}
         </section>
       )}
 

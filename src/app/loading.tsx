@@ -1,3 +1,5 @@
+/** 路由加载占位界面，保持页面等待状态可见 */
+
 // 页面骨架屏加载组件，展示占位脉冲动画
 export default function Loading() {
   return (

@@ -1,3 +1,5 @@
+/** 验证技能参考：技能说明的安全富文本渲染的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createElement, Fragment } from 'react';

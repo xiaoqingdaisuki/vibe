@@ -1,3 +1,5 @@
+/** 验证AI 助手：流式消息路由处理的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

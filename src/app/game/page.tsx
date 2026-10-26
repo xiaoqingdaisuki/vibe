@@ -1,3 +1,5 @@
+/** 角色游戏路由，加载游戏客户端与页面元数据 */
+
 import GamePageClient from '@/features/apps/game/page-client';
 
 export const metadata = {

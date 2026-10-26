@@ -1,3 +1,5 @@
+/** 放置角色游戏：游戏界面布局组件 */
+
 'use client';
 
 import type { ActiveTab, Character, GameInteraction, LogEntry } from '../types';

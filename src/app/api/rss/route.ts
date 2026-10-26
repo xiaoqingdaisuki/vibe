@@ -1,3 +1,5 @@
+/** 安全获取公开 RSS 订阅内容，限制目标地址与响应大小 */
+
 import { lookup } from 'node:dns/promises';
 import http, { type IncomingMessage } from 'node:http';
 import https from 'node:https';
@@ -53,28 +55,32 @@ async function validateTarget(value: string): Promise<ValidatedTarget> {
 function requestTarget(target: ValidatedTarget): Promise<IncomingMessage> {
   const client = target.url.protocol === 'https:' ? https : http;
 
-  return new Promise((resolve, reject) => {
-    const request = client.request(
-      {
-        hostname: target.hostname,
-        method: 'GET',
-        path: `${target.url.pathname}${target.url.search}`,
-        headers: { Accept: 'application/rss+xml, application/xml, text/xml' },
-        lookup(_hostname, options, callback) {
-          if (options.all) {
-            callback(null, [{ address: target.address, family: target.family }]);
-            return;
-          }
-          callback(null, target.address, target.family);
+  return new Promise(
+    // 向已校验的地址发起请求，并绑定超时与错误处理
+    (resolve, reject) => {
+      const request = client.request(
+        {
+          hostname: target.hostname,
+          method: 'GET',
+          path: `${target.url.pathname}${target.url.search}`,
+          headers: { Accept: 'application/rss+xml, application/xml, text/xml' },
+          // 固定使用已校验的目标地址，避免请求阶段重新解析 DNS
+          lookup(_hostname, options, callback) {
+            if (options.all) {
+              callback(null, [{ address: target.address, family: target.family }]);
+              return;
+            }
+            callback(null, target.address, target.family);
+          },
         },
-      },
-      resolve,
-    );
+        resolve,
+      );
 
-    request.setTimeout(REQUEST_TIMEOUT_MS, () => request.destroy(new Error('RSS request timed out')));
-    request.on('error', reject);
-    request.end();
-  });
+      request.setTimeout(REQUEST_TIMEOUT_MS, () => request.destroy(new Error('RSS request timed out')));
+      request.on('error', reject);
+      request.end();
+    },
+  );
 }
 
 // 读取HTTP响应体内容，限制最大字节数防止内存溢出

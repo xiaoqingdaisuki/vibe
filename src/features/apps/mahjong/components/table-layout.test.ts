@@ -1,3 +1,5 @@
+/** 验证麻将：牌桌区域布局与点击命中计算的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getHumanHandMetrics, getTableTileMetrics } from './table-layout.ts';

@@ -1,3 +1,5 @@
+/** AI 助手：连接状态与提示文案映射 */
+
 export type AgentConnectionStatus = 'idle' | 'connecting' | 'connected' | 'error';
 
 const STATUS_LABELS: Record<AgentConnectionStatus, string> = {

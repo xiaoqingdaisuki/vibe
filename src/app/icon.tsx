@@ -1,3 +1,5 @@
+/** 生成浏览器与应用安装所需的高分辨率图标 */
+
 import { createPwaIconResponse } from './pwa-icon';
 
 export const size = {

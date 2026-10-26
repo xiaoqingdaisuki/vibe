@@ -1,10 +1,12 @@
+/** 配置 Next 构建、桌面产物与跨源隔离响应头 */
+
 import type { NextConfig } from 'next';
 
 const isDesktopBuild = process.env.VIBE_DESKTOP_BUILD === 'true';
 
 const nextConfig: NextConfig = {
   ...(isDesktopBuild ? { output: 'standalone' as const } : {}),
-  // Turbopack is enabled via CLI flag
+  // Turbopack 通过命令行参数启用
   // 桌面构建使用 standalone，Web 构建继续保留 Vercel 的动态能力
   transpilePackages: ['next-mdx-remote'],
   allowedDevOrigins: ['127.0.0.1'],

@@ -1,3 +1,5 @@
+/** 验证博客：本地文章读取与元数据校验的回归行为 */
+
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';

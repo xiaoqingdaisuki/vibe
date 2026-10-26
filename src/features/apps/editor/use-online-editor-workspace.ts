@@ -1,3 +1,5 @@
+/** 在线编辑器：多标签工作区状态与延迟保存 */
+
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -48,15 +50,20 @@ export function useOnlineEditorWorkspace(): OnlineEditorWorkspaceController {
     workspaceRef.current = workspace;
   }, [workspace]);
 
+  // 挂载后恢复本地工作区，并在卸载时取消待执行的恢复
   useEffect(() => {
-    const frameId = window.requestAnimationFrame(() => {
-      setWorkspace(loadWorkspace(getBrowserStorage()));
-      setHasLoadedStorage(true);
-    });
+    const frameId = window.requestAnimationFrame(
+      // 恢复浏览器存储中的工作区并标记初始化完成
+      () => {
+        setWorkspace(loadWorkspace(getBrowserStorage()));
+        setHasLoadedStorage(true);
+      },
+    );
 
     return () => window.cancelAnimationFrame(frameId);
   }, []);
 
+  // 工作区恢复完成后延迟保存编辑内容，合并连续输入
   useEffect(() => {
     if (!hasLoadedStorage) {
       return;
@@ -71,11 +78,13 @@ export function useOnlineEditorWorkspace(): OnlineEditorWorkspaceController {
 
   // 页面离开或工作区卸载时立即保存最新源码，避免延迟写入丢失
   useEffect(() => {
+    // 在页面离开时保存最新且已完成恢复的工作区
     function persistLatestWorkspace(): void {
       if (hasLoadedStorage) saveWorkspace(getBrowserStorage(), workspaceRef.current);
     }
 
     window.addEventListener('pagehide', persistLatestWorkspace);
+    // 卸载时移除离页监听并立即保存最新工作区
     return () => {
       window.removeEventListener('pagehide', persistLatestWorkspace);
       persistLatestWorkspace();

@@ -1,3 +1,5 @@
+/** 在线编辑器：预览沙箱的内容安全策略 */
+
 // 生成允许公开 HTTPS 资源、仍保持最小权限的沙箱 CSP
 export function createPreviewContentSecurityPolicy(nonce: string): string {
   return [

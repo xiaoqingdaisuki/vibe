@@ -1,3 +1,5 @@
+/** AI 助手：流式超时的前后端共享协议 */
+
 export const AGENT_STREAM_TIMEOUT_HEADER = 'X-Agent-Stream-Timeout';
 export const AGENT_STREAM_IDLE_TIMEOUT_HEADER = 'X-Agent-Stream-Idle-Timeout';
 export const DEFAULT_AGENT_STREAM_TIMEOUT_MS = 295_000;

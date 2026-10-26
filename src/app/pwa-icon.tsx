@@ -1,3 +1,5 @@
+/** 绘制与站点品牌一致的 PNG 安装图标 */
+
 import { ImageResponse } from 'next/og';
 
 // 生成与站点视觉一致的方形 PNG 安装图标

@@ -1,3 +1,5 @@
+/** Lab 应用目录：应用注册信息查询 */
+
 import type { LabApp } from '../types';
 import { labApps } from '../registry';
 

@@ -1,3 +1,5 @@
+/** GBA 模拟器：模拟速度的输入校验与转换 */
+
 import type { GbaSpeed } from './types';
 
 export const GBA_SPEEDS = [1, 2, 4, 8] as const satisfies readonly GbaSpeed[];

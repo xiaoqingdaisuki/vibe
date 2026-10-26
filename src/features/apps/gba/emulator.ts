@@ -1,3 +1,5 @@
+/** GBA 模拟器：模拟器加载与运行控制 */
+
 import type { GbaButton, GbaRom, GbaSpeed } from './types.ts';
 import { serializeGbaCheats } from './cheats.ts';
 import type { GbaCheat } from './types.ts';
@@ -49,21 +51,24 @@ type MgbaFactory = (options: {
   locateFile?: (path: string, prefix: string) => string;
 }) => Promise<MgbaModule>;
 
-// 从同源静态资源动态导入 Emscripten loader，避免把大段 glue code 放进 Next bundle
+// 从同源资源加载 Emscripten 入口，避免将大型桥接代码打入 Next 包
 async function loadMgbaFactory(): Promise<MgbaFactory> {
   const globalScope = window as Window & { __VIBE_MGBA_FACTORY__?: unknown };
   if (typeof globalScope.__VIBE_MGBA_FACTORY__ === 'function') {
     return globalScope.__VIBE_MGBA_FACTORY__ as MgbaFactory;
   }
 
-  await new Promise<void>((resolve, reject) => {
-    const script = document.createElement('script');
-    script.type = 'module';
-    script.src = '/assets/gba/loader.js';
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('无法加载 mGBA WASM loader。'));
-    document.head.appendChild(script);
-  });
+  await new Promise<void>(
+    // 加载 mGBA 模块入口并将加载结果转换为异步状态
+    (resolve, reject) => {
+      const script = document.createElement('script');
+      script.type = 'module';
+      script.src = '/assets/gba/loader.js';
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('无法加载 mGBA WASM loader。'));
+      document.head.appendChild(script);
+    },
+  );
 
   if (typeof globalScope.__VIBE_MGBA_FACTORY__ !== 'function') {
     throw new Error('mGBA WASM loader 没有暴露有效的模拟器工厂。');
@@ -87,7 +92,7 @@ function removeVirtualFile(fileSystem: EmulatorFileSystem, path: string): void {
   try {
     if (fileSystem.analyzePath(path).exists) fileSystem.unlink(path);
   } catch {
-    // 文件不存在时无需阻止新 ROM 启动。
+    // 文件不存在时无需阻止新 ROM 启动
   }
 }
 
@@ -187,10 +192,13 @@ export class GbaEmulator {
     let resolveCoreReady: (() => void) | null = null;
     let rejectCoreReady: ((error: Error) => void) | null = null;
     let coreReadyTimer: number | null = null;
-    const coreReady = new Promise<void>((resolve, reject) => {
-      resolveCoreReady = resolve;
-      rejectCoreReady = reject;
-    });
+    const coreReady = new Promise<void>(
+      // 保存核心初始化的完成与失败回调，供启动流程触发
+      (resolve, reject) => {
+        resolveCoreReady = resolve;
+        rejectCoreReady = reject;
+      },
+    );
 
     // 取消尚未完成的首帧等待定时器，避免销毁模拟器后仍保留异步任务
     function clearCoreReadyTimer(): void {
@@ -324,15 +332,18 @@ export class GbaEmulator {
     await this.coreReady;
     const unchanged =
       this.activeCheats.length === cheats.length &&
-      this.activeCheats.every((activeCheat, index) => {
-        const nextCheat = cheats[index];
-        return (
-          activeCheat.id === nextCheat.id &&
-          activeCheat.name === nextCheat.name &&
-          activeCheat.code === nextCheat.code &&
-          activeCheat.enabled === nextCheat.enabled
-        );
-      });
+      this.activeCheats.every(
+        // 逐项比较金手指标识、名称、代码与启用状态
+        (activeCheat, index) => {
+          const nextCheat = cheats[index];
+          return (
+            activeCheat.id === nextCheat.id &&
+            activeCheat.name === nextCheat.name &&
+            activeCheat.code === nextCheat.code &&
+            activeCheat.enabled === nextCheat.enabled
+          );
+        },
+      );
     if (unchanged) return;
 
     this.ensureCleanCheatState();
@@ -430,7 +441,7 @@ export class GbaEmulator {
       this.module.quitGame();
       this.module.quitMgba();
     } catch {
-      // 运行时已经退出时，清理操作保持幂等。
+      // 运行时已经退出时，清理操作保持幂等
     }
   }
 }

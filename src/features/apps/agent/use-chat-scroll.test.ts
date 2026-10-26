@@ -1,3 +1,5 @@
+/** 验证AI 助手：消息滚动跟随与底部位置判断的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

@@ -1,3 +1,5 @@
+/** 为桌面应用生成安装图标与启动画面素材 */
+
 import { deflateSync } from 'node:zlib';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';

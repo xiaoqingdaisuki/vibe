@@ -1,3 +1,5 @@
+/** 技能参考：客户端页面与交互编排 */
+
 'use client';
 
 import { useState } from 'react';

@@ -1,3 +1,5 @@
+/** 验证数独：会话状态转换与键盘命令解析的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {

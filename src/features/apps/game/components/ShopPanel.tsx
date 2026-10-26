@@ -1,3 +1,5 @@
+/** 放置角色游戏：商店面板组件 */
+
 'use client';
 
 import type { Character, GameInteraction } from '../types';
@@ -61,40 +63,43 @@ export function ShopPanel({ character, onAction }: ShopPanelProps) {
         {CATEGORY_ORDER.filter((category) => groups.has(category)).map((category) => (
           <div key={category} className={styles.categoryGroup}>
             <div className={styles.categoryHeader}>{CATEGORY_LABELS[category] || category}</div>
-            {groups.get(category)!.map((shopItem) => {
-              const itemDef = ITEM_MAP.get(shopItem.itemId);
-              if (!itemDef) return null;
+            {groups.get(category)!.map(
+              // 校验商品定义、金币与等级条件后渲染购买入口
+              (shopItem) => {
+                const itemDef = ITEM_MAP.get(shopItem.itemId);
+                if (!itemDef) return null;
 
-              const canAfford = character.gold >= shopItem.price;
-              const levelReq = shopItem.minLevel;
-              const meetsLevel = !levelReq || character.level >= levelReq;
-              const disabled = !canAfford || !meetsLevel;
+                const canAfford = character.gold >= shopItem.price;
+                const levelReq = shopItem.minLevel;
+                const meetsLevel = !levelReq || character.level >= levelReq;
+                const disabled = !canAfford || !meetsLevel;
 
-              return (
-                <div key={shopItem.itemId} className={styles.item}>
-                  <div className={styles.itemInfo}>
-                    <span className={styles.itemName}>{itemDef.name}</span>
-                    <span className={styles.itemDesc}>{itemDef.description}</span>
-                    {itemDef.rarity !== 'common' && <RarityBadge rarity={itemDef.rarity} />}
+                return (
+                  <div key={shopItem.itemId} className={styles.item}>
+                    <div className={styles.itemInfo}>
+                      <span className={styles.itemName}>{itemDef.name}</span>
+                      <span className={styles.itemDesc}>{itemDef.description}</span>
+                      {itemDef.rarity !== 'common' && <RarityBadge rarity={itemDef.rarity} />}
+                    </div>
+                    <div className={styles.itemPrice}>
+                      <span className={canAfford ? styles.priceTag : styles.priceTagExpensive}>
+                        {formatPrice(shopItem.price)} 金币
+                      </span>
+                      {!meetsLevel && <span className={styles.levelReq}>需要 Lv.{levelReq}</span>}
+                    </div>
+                    <div className={styles.itemActions}>
+                      <button
+                        onClick={() => onAction({ type: 'buy', itemId: itemDef.id })}
+                        className={styles.buyBtn}
+                        disabled={disabled}
+                      >
+                        购买
+                      </button>
+                    </div>
                   </div>
-                  <div className={styles.itemPrice}>
-                    <span className={canAfford ? styles.priceTag : styles.priceTagExpensive}>
-                      {formatPrice(shopItem.price)} 金币
-                    </span>
-                    {!meetsLevel && <span className={styles.levelReq}>需要 Lv.{levelReq}</span>}
-                  </div>
-                  <div className={styles.itemActions}>
-                    <button
-                      onClick={() => onAction({ type: 'buy', itemId: itemDef.id })}
-                      className={styles.buyBtn}
-                      disabled={disabled}
-                    >
-                      购买
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+                );
+              },
+            )}
           </div>
         ))}
       </div>

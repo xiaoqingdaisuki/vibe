@@ -1,3 +1,5 @@
+/** 地图：地图生命周期、定位与界面事件桥接 */
+
 'use client';
 
 import { useEffect, useEffectEvent, useState, type RefObject } from 'react';
@@ -99,6 +101,7 @@ export function useMapRuntime({ containerRef, retry, ...events }: RuntimeOptions
       }
     }
     void initialize();
+    // 使异步初始化失效，并销毁已创建的地图控制器
     return () => {
       cancelled = true;
       active?.destroy();

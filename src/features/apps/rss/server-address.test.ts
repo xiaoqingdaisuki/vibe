@@ -1,3 +1,5 @@
+/** 验证RSS 阅读器：订阅目标地址解析与内网访问防护的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

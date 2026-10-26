@@ -1,3 +1,5 @@
+/** 封装可容错的浏览器 JSON 存储读写 */
+
 // 从 localStorage 读取并解析 JSON 值
 export function getStorageItem<T>(key: string, defaultValue: T): T {
   if (typeof window === 'undefined') return defaultValue;
@@ -17,6 +19,6 @@ export function setStorageItem<T>(key: string, value: T): void {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    // Silently fail
+    // 存储失败时保留当前页面状态
   }
 }

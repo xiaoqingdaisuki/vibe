@@ -1,3 +1,5 @@
+/** 速记本：客户端页面与交互编排 */
+
 'use client';
 
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type KeyboardEvent } from 'react';
@@ -181,12 +183,15 @@ function NoteComposer({ initial, onSubmit, onCancel }: NoteComposerProps) {
     const cursorPosition = textarea.selectionStart + (selectedText ? insertion.length : openingFence.length);
     setContent(nextContent);
     setError('');
-    window.requestAnimationFrame(() => {
-      const currentTextarea = textareaRef.current;
-      if (!currentTextarea) return;
-      currentTextarea.focus();
-      currentTextarea.setSelectionRange(cursorPosition, cursorPosition);
-    });
+    window.requestAnimationFrame(
+      // 下一帧恢复文本框焦点，并将光标移至插入位置
+      () => {
+        const currentTextarea = textareaRef.current;
+        if (!currentTextarea) return;
+        currentTextarea.focus();
+        currentTextarea.setSelectionRange(cursorPosition, cursorPosition);
+      },
+    );
   }
 
   return (
@@ -210,10 +215,13 @@ function NoteComposer({ initial, onSubmit, onCancel }: NoteComposerProps) {
           ref={textareaRef}
           className={`${styles.textarea} ${error ? styles.textareaError : ''}`}
           value={content}
-          onChange={(event) => {
-            setContent(event.target.value);
-            if (error) setError('');
-          }}
+          onChange={
+            // 更新笔记内容，并在继续输入时清除已有错误
+            (event) => {
+              setContent(event.target.value);
+              if (error) setError('');
+            }
+          }
           onKeyDown={handleKeyDown}
           placeholder={'例如：\nwindow关闭指令\n\n```shell\ntaskkill /PID 12345 /F\n```\n…'}
           maxLength={MAX_NOTE_CONTENT_LENGTH}

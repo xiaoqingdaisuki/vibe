@@ -1,3 +1,5 @@
+/** 时区工具：时区转换、时钟格式化与日期校验 */
+
 import dayjs, { type Dayjs } from 'dayjs';
 import 'dayjs/locale/zh-cn.js';
 import timezone from 'dayjs/plugin/timezone.js';

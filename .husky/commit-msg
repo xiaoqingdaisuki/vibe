@@ -1,15 +1,16 @@
 #!/usr/bin/env sh
 
+# 规范化提交标题并执行提交信息校验
+
 MSG_FILE="$1"
 
-# Auto-format: if the message starts with a type without colon, add one
-# e.g. "feat add breadcrumb" -> "feat: add breadcrumb"
-# e.g. "fix: home padding" -> "fix: home padding" (unchanged)
+# 提交类型后缺少冒号时自动补齐，已有冒号时保留原格式
+# 示例：将 feat add breadcrumb 转换为 feat: add breadcrumb
 if [ -f "$MSG_FILE" ]; then
   FIRST_LINE=$(head -n1 "$MSG_FILE")
   if echo "$FIRST_LINE" | grep -qE '^[a-z]+ [a-zA-Z]' && ! echo "$FIRST_LINE" | grep -qE '^[a-z]+: '; then
     NEW_LINE=$(echo "$FIRST_LINE" | sed -E 's/^([a-z]+) /\1: /')
-    # Write back with the formatted first line
+    # 写回格式化后的首行并保留其余提交内容
     { echo "$NEW_LINE"; tail -n +2 "$MSG_FILE"; } > "$MSG_FILE"
   fi
 fi

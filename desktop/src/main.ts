@@ -1,3 +1,5 @@
+/** Electron 主进程，管理启动窗口、本地服务与桌面应用生命周期 */
+
 import { existsSync, readFileSync } from 'node:fs';
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -121,29 +123,40 @@ function delay(milliseconds: number): Promise<void> {
 
 // 申请一个仅绑定回环地址的空闲端口，避免占用固定端口
 function getFreePort(): Promise<number> {
-  return new Promise((resolvePort, reject) => {
-    const probe = createServer();
+  return new Promise(
+    // 监听临时端口并在释放探测服务后返回可用端口
+    (resolvePort, reject) => {
+      const probe = createServer();
 
-    probe.once('error', reject);
-    probe.listen(0, '127.0.0.1', () => {
-      const address = probe.address();
+      probe.once('error', reject);
+      probe.listen(
+        0,
+        '127.0.0.1',
+        // 校验探测服务的监听地址，再关闭探测服务
+        () => {
+          const address = probe.address();
 
-      if (!address || typeof address === 'string') {
-        probe.close();
-        reject(new Error('Unable to determine an available local port.'));
-        return;
-      }
+          if (!address || typeof address === 'string') {
+            probe.close();
+            reject(new Error('Unable to determine an available local port.'));
+            return;
+          }
 
-      probe.close((error) => {
-        if (error) {
-          reject(error);
-          return;
-        }
+          probe.close(
+            // 探测服务关闭成功后返回端口，关闭失败则拒绝请求
+            (error) => {
+              if (error) {
+                reject(error);
+                return;
+              }
 
-        resolvePort(address.port);
-      });
-    });
-  });
+              resolvePort(address.port);
+            },
+          );
+        },
+      );
+    },
+  );
 }
 
 // 轮询本地 Next 服务，确保窗口加载时服务已经可以响应
@@ -170,10 +183,14 @@ async function waitForServer(serverUrl: URL): Promise<void> {
 
 // 将本地服务进程输出转发到 Electron 控制台，便于诊断启动问题
 function pipeProcessLogs(label: string, stream: NodeJS.ReadableStream | null): void {
-  stream?.on('data', (chunk: Buffer | string) => {
-    const message = chunk.toString().trimEnd();
-    if (message) console.log(`[${label}] ${message}`);
-  });
+  stream?.on(
+    'data',
+    // 为服务输出添加来源标签，并忽略空消息
+    (chunk: Buffer | string) => {
+      const message = chunk.toString().trimEnd();
+      if (message) console.log(`[${label}] ${message}`);
+    },
+  );
 }
 
 // 生成桌面端 Next 服务的运行时环境变量
@@ -296,10 +313,13 @@ function ensureNextServer(): Promise<URL> {
   if (nextServerUrl && activeProcess) return Promise.resolve(nextServerUrl);
   if (serverStartPromise) return serverStartPromise;
 
-  const startPromise = startNextServer().then((serverUrl) => {
-    nextServerUrl = serverUrl;
-    return serverUrl;
-  });
+  const startPromise = startNextServer().then(
+    // 缓存已启动的本地服务地址以供窗口复用
+    (serverUrl) => {
+      nextServerUrl = serverUrl;
+      return serverUrl;
+    },
+  );
   const trackedStart = startPromise.finally(() => {
     if (serverStartPromise === trackedStart) serverStartPromise = null;
   });
@@ -346,17 +366,24 @@ function openExternalUrl(target: string): void {
 
 // 限制窗口导航范围，防止页面内容跳转到任意 Electron 页面
 function configureWindowNavigation(window: BrowserWindow): void {
-  window.webContents.setWindowOpenHandler(({ url }) => {
-    if (!isInternalUrl(url)) openExternalUrl(url);
-    return { action: 'deny' };
-  });
+  window.webContents.setWindowOpenHandler(
+    // 将外部链接交给系统浏览器，并禁止创建新窗口
+    ({ url }) => {
+      if (!isInternalUrl(url)) openExternalUrl(url);
+      return { action: 'deny' };
+    },
+  );
 
-  window.webContents.on('will-navigate', (event, url) => {
-    if (isInternalUrl(url)) return;
+  window.webContents.on(
+    'will-navigate',
+    // 阻止窗口导航到外部地址并使用系统浏览器打开
+    (event, url) => {
+      if (isInternalUrl(url)) return;
 
-    event.preventDefault();
-    openExternalUrl(url);
-  });
+      event.preventDefault();
+      openExternalUrl(url);
+    },
+  );
 }
 
 // 创建主窗口并加载本地 Next 应用

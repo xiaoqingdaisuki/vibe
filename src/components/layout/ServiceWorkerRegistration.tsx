@@ -1,3 +1,5 @@
+/** 离线缓存注册组件 */
+
 'use client';
 
 import { useEffect } from 'react';
@@ -11,7 +13,7 @@ async function registerServiceWorker(): Promise<void> {
   try {
     await navigator.serviceWorker.register('/sw.js?v=3', { scope: '/' });
   } catch {
-    // PWA 功能是渐进增强，注册失败不应阻断站点使用。
+    // PWA 功能是渐进增强，注册失败不应阻断站点使用
   }
 }
 
@@ -28,12 +30,13 @@ async function unregisterDevelopmentServiceWorkers(): Promise<void> {
       window.location.reload();
     }
   } catch {
-    // 开发环境清理失败时保留页面，避免影响应用调试。
+    // 开发环境清理失败时保留页面，避免影响应用调试
   }
 }
 
 // 页面水合后仅在生产构建中启用离线缓存
 export function ServiceWorkerRegistration() {
+  // 按运行环境注册离线缓存或清理开发环境的旧注册
   useEffect(() => {
     if (process.env.NODE_ENV !== 'production') {
       void unregisterDevelopmentServiceWorkers();

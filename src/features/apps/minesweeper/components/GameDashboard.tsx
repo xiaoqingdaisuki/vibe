@@ -1,3 +1,5 @@
+/** 扫雷：游戏状态仪表盘组件 */
+
 import { cn } from '@/lib/utils';
 import type { GameStatus } from '../types';
 import { ClockIcon, FlagIcon, MineIcon, RestartIcon, TrophyIcon } from './GameIcons';

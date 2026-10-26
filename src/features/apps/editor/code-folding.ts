@@ -1,3 +1,5 @@
+/** 在线编辑器：代码折叠区域识别与可见行映射 */
+
 import type { EditorLanguage } from './types';
 
 export interface CodeFoldRegion {
@@ -81,17 +83,20 @@ function getSourceLines(source: string): SourceLine[] {
   const values = source.split('\n');
   let start = 0;
 
-  return values.map((value, index) => {
-    const end = start + value.length;
-    const line = {
-      end,
-      endWithLineBreak: index === values.length - 1 ? end : end + 1,
-      start,
-      value,
-    };
-    start = end + 1;
-    return line;
-  });
+  return values.map(
+    // 为各行累计源码起止偏移，并保留换行边界
+    (value, index) => {
+      const end = start + value.length;
+      const line = {
+        end,
+        endWithLineBreak: index === values.length - 1 ? end : end + 1,
+        start,
+        value,
+      };
+      start = end + 1;
+      return line;
+    },
+  );
 }
 
 // 统计源码位置所在的行号，供 HTML 标签作用域匹配使用
@@ -308,10 +313,13 @@ function mergeFoldRegions(...groups: CodeFoldRegion[][]): CodeFoldRegion[] {
     for (const region of group) regions.set(region.key, region);
   }
 
-  return [...regions.values()].toSorted((first, second) => {
-    if (first.startLine !== second.startLine) return first.startLine - second.startLine;
-    return second.endLine - first.endLine;
-  });
+  return [...regions.values()].toSorted(
+    // 按起始行升序和结束行降序排列折叠区域
+    (first, second) => {
+      if (first.startLine !== second.startLine) return first.startLine - second.startLine;
+      return second.endLine - first.endLine;
+    },
+  );
 }
 
 // 根据当前语言提取可收起的花括号或成对标签作用域

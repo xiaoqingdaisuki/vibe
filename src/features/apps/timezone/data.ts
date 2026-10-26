@@ -1,3 +1,5 @@
+/** 时区工具：静态数据 */
+
 import type { TimeFormat, WorldTimeZone } from './types';
 
 export const WORLD_TIME_ZONES: readonly WorldTimeZone[] = [

@@ -1,3 +1,5 @@
+/** 放置角色游戏：装备面板组件 */
+
 'use client';
 
 import type { Character, EquipSlot, GameInteraction, Stats } from '../types';
@@ -30,39 +32,42 @@ export function EquipmentPanel({ character, onAction }: EquipmentPanelProps) {
     <div className={styles.container}>
       <h3 className={styles.title}>装备</h3>
       <div className={styles.list}>
-        {SLOTS.map(({ key, label }) => {
-          const item = character.equipment[key];
-          const stats = item?.stats ? resolveStatsForClass(item.stats, character.class) : undefined;
+        {SLOTS.map(
+          // 按槽位解析当前职业属性并渲染装备信息
+          ({ key, label }) => {
+            const item = character.equipment[key];
+            const stats = item?.stats ? resolveStatsForClass(item.stats, character.class) : undefined;
 
-          return (
-            <div key={key} className={styles.slot}>
-              <div className={styles.slotHeader}>
-                <span className={styles.slotLabel}>{label}</span>
-                {item && <RarityBadge rarity={item.rarity} />}
-              </div>
-              {item ? (
-                <div className={styles.equippedItem}>
-                  <div className={styles.itemName}>{item.name}</div>
-                  {stats && (
-                    <div className={styles.itemStats}>
-                      {Object.entries(stats).map(([stat, value]) => (
-                        <span key={stat}>
-                          {STAT_LABELS[stat as keyof Stats]} +{value}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                  {item.minLevel && <div className={styles.itemLevel}>需要 Lv.{item.minLevel}</div>}
-                  <button onClick={() => onAction({ type: 'unequip', slot: key })} className={styles.unequipBtn}>
-                    卸下
-                  </button>
+            return (
+              <div key={key} className={styles.slot}>
+                <div className={styles.slotHeader}>
+                  <span className={styles.slotLabel}>{label}</span>
+                  {item && <RarityBadge rarity={item.rarity} />}
                 </div>
-              ) : (
-                <div className={styles.empty}>未装备</div>
-              )}
-            </div>
-          );
-        })}
+                {item ? (
+                  <div className={styles.equippedItem}>
+                    <div className={styles.itemName}>{item.name}</div>
+                    {stats && (
+                      <div className={styles.itemStats}>
+                        {Object.entries(stats).map(([stat, value]) => (
+                          <span key={stat}>
+                            {STAT_LABELS[stat as keyof Stats]} +{value}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {item.minLevel && <div className={styles.itemLevel}>需要 Lv.{item.minLevel}</div>}
+                    <button onClick={() => onAction({ type: 'unequip', slot: key })} className={styles.unequipBtn}>
+                      卸下
+                    </button>
+                  </div>
+                ) : (
+                  <div className={styles.empty}>未装备</div>
+                )}
+              </div>
+            );
+          },
+        )}
       </div>
     </div>
   );

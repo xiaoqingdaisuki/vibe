@@ -1,3 +1,5 @@
+/** 生成应用名称、安装入口与图标等 Web App Manifest 信息 */
+
 import type { MetadataRoute } from 'next';
 
 // 生成可安装应用所需的 Web App Manifest

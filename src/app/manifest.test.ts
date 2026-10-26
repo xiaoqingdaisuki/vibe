@@ -1,3 +1,5 @@
+/** 验证生成应用名称、安装入口与图标等 Web App Manifest 信息的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

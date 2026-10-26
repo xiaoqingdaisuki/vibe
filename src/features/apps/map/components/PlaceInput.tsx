@@ -1,3 +1,5 @@
+/** 地图：地点搜索输入组件 */
+
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
@@ -70,18 +72,25 @@ export function PlaceInput({
     if (!canSuggest || !controller) return;
     let cancelled = false;
     const request = ++sequence.current;
-    const timer = window.setTimeout(() => {
-      controller.suggest(query, city).then(
-        (result) => {
-          if (cancelled || request !== sequence.current) return;
-          setSuggestions({ query, city, items: result.slice(0, 8), message: '' });
-        },
-        () => {
-          if (cancelled || request !== sequence.current) return;
-          setSuggestions({ query, city, items: [], message: '地点建议暂时不可用，可直接输入完整名称。' });
-        },
-      );
-    }, 280);
+    const timer = window.setTimeout(
+      // 去抖时间结束后请求地点建议，并忽略过期结果
+      () => {
+        controller.suggest(query, city).then(
+          // 仅为当前查询保留前八条地点建议
+          (result) => {
+            if (cancelled || request !== sequence.current) return;
+            setSuggestions({ query, city, items: result.slice(0, 8), message: '' });
+          },
+          // 仅为当前查询显示建议加载失败提示
+          () => {
+            if (cancelled || request !== sequence.current) return;
+            setSuggestions({ query, city, items: [], message: '地点建议暂时不可用，可直接输入完整名称。' });
+          },
+        );
+      },
+      280,
+    );
+    // 取消当前建议任务并清理尚未触发的去抖计时器
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
@@ -135,11 +144,14 @@ export function PlaceInput({
         required={required}
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
-        onChange={(event) => {
-          onChange(event.target.value, null);
-          setFocused(true);
-          setActiveIndex(-1);
-        }}
+        onChange={
+          // 更新地点输入，并重置建议列表的键盘选中位置
+          (event) => {
+            onChange(event.target.value, null);
+            setFocused(true);
+            setActiveIndex(-1);
+          }
+        }
         onKeyDown={handleKeyDown}
       />
       {expanded ? (

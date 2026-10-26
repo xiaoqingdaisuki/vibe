@@ -1,3 +1,5 @@
+/** 数独：游戏状态仪表盘组件 */
+
 import { formatElapsedTime } from '../game-state';
 import styles from '../styles/Sudoku.module.css';
 

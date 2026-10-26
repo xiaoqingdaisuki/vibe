@@ -1,3 +1,5 @@
+/** 在线编辑器：预览状态与跨窗口消息校验 */
+
 export type PreviewState = 'loading' | 'paused' | 'ready';
 
 export type PreviewMessageType =

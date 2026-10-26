@@ -1,10 +1,6 @@
-/* ============================================
-   Agent App — Chat UI Module
-   Mobile-first, all spacing multiples of 4px,
-   all font-size even px values, all radius multiples of 4px
-   ============================================ */
+/** AI 助手：聊天与附件界面的布局、主题与响应式样式 */
 
-/* ---- Shell ---- */
+/* 界面外壳 */
 
 .shell {
   --agent-status-connected: #15803d;
@@ -25,7 +21,7 @@
   --agent-status-connected-dot: #4ade80;
 }
 
-/* ---- Header ---- */
+/* 标题栏 */
 
 .header {
   display: flex;
@@ -180,7 +176,7 @@
   }
 }
 
-/* ---- Image generation ---- */
+/* 图像生成 */
 
 .imageGenerator {
   flex-shrink: 0;
@@ -331,7 +327,7 @@
   background: var(--color-background);
 }
 
-/* ---- Messages ---- */
+/* 消息列表 */
 
 .messagesArea {
   position: relative;
@@ -348,7 +344,7 @@
   gap: var(--space-16);
 }
 
-/* ---- Welcome ---- */
+/* 欢迎界面 */
 
 .welcome {
   display: flex;
@@ -385,7 +381,7 @@
   line-height: 1.6;
 }
 
-/* ---- Message Row ---- */
+/* 消息行 */
 
 .row {
   display: flex;
@@ -403,7 +399,7 @@
   align-self: flex-start;
 }
 
-/* ---- Avatar (in message) ---- */
+/* 消息头像 */
 
 .msgAvatar {
   display: flex;
@@ -423,7 +419,7 @@
   color: var(--color-foreground-muted);
 }
 
-/* ---- Bubble wrapper ---- */
+/* 气泡外层 */
 
 .bubbleWrap {
   display: flex;
@@ -432,7 +428,7 @@
   min-width: 0;
 }
 
-/* ---- Bubble ---- */
+/* 消息气泡 */
 
 .bubble {
   padding: var(--space-12) var(--space-16);
@@ -473,7 +469,7 @@
   border-bottom-left-radius: var(--radius-sm);
 }
 
-/* ---- Time stamp ---- */
+/* 时间戳 */
 
 .meta {
   display: flex;
@@ -492,7 +488,7 @@
   white-space: nowrap;
 }
 
-/* ---- Message actions ---- */
+/* 消息操作 */
 
 .messageActionBtn {
   display: inline-flex;
@@ -532,7 +528,7 @@
   padding: 0;
 }
 
-/* ---- New conversation dialog ---- */
+/* 新建会话弹窗 */
 
 .dialogOverlay {
   position: fixed;
@@ -618,7 +614,7 @@
   color: var(--color-background);
 }
 
-/* ---- Streaming cursor ---- */
+/* 流式光标 */
 
 .cursor {
   display: inline-block;
@@ -640,7 +636,7 @@
   }
 }
 
-/* ---- Typewriter character animation ---- */
+/* 打字字符动画 */
 
 .char {
   display: inline;
@@ -659,7 +655,7 @@
   }
 }
 
-/* ---- Typing indicator ---- */
+/* 输入中指示器 */
 
 .typingIndicator {
   display: flex;
@@ -712,7 +708,7 @@
   }
 }
 
-/* ---- Suggestion cards ---- */
+/* 建议卡片 */
 
 .cards {
   display: flex;
@@ -766,7 +762,7 @@
   line-height: 1.55;
 }
 
-/* ---- Markdown in assistant bubble ---- */
+/* 助手消息气泡内的 Markdown */
 
 .streamingText {
   white-space: pre-wrap;
@@ -932,7 +928,7 @@
   font-weight: 600;
 }
 
-/* ---- Input area ---- */
+/* 输入区域 */
 
 .inputArea {
   border-top: 1px solid var(--color-border);
@@ -1111,7 +1107,7 @@
   display: none;
 }
 
-/* ---- Scroll-to-bottom button ---- */
+/* 回到消息底部按钮 */
 
 .scrollBtn {
   position: absolute;
@@ -1146,7 +1142,7 @@
   border-color: var(--color-accent-soft);
 }
 
-/* ---- Error message ---- */
+/* 错误提示 */
 
 .errorBubble {
   display: flex;
@@ -1166,7 +1162,7 @@
   margin-top: var(--space-2);
 }
 
-/* ---- Animations ---- */
+/* 动画 */
 
 @keyframes msgIn {
   from {
@@ -1179,7 +1175,7 @@
   }
 }
 
-/* ---- Responsive: desktop height ---- */
+/* 桌面端高度适配 */
 
 @media (min-width: 768px) {
   .shell {

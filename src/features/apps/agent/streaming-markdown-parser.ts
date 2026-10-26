@@ -1,3 +1,5 @@
+/** AI 助手：增量 Markdown 块解析 */
+
 import { renderBlockMarkdown } from './render-markdown.ts';
 
 export interface StableMarkdownBlock {

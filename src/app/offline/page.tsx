@@ -1,3 +1,5 @@
+/** 离线回退页面，说明资源不可用状态并提供主页入口 */
+
 import type { Metadata } from 'next';
 import Link from 'next/link';
 

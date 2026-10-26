@@ -1,3 +1,5 @@
+/** 放置角色游戏：技能面板组件 */
+
 'use client';
 
 import type { Character } from '../types';
@@ -51,35 +53,38 @@ export function SkillsPanel({ character }: SkillsPanelProps) {
         {character.skills.length === 0 ? (
           <p className={styles.empty}>还没有学习任何技能。</p>
         ) : (
-          character.skills.map((skill) => {
-            const skillDef = SKILL_MAP.get(skill.skillId);
-            if (!skillDef) return null;
+          character.skills.map(
+            // 读取技能定义并按等级计算当前效果说明
+            (skill) => {
+              const skillDef = SKILL_MAP.get(skill.skillId);
+              if (!skillDef) return null;
 
-            const scaledValue = getSkillEffectValue(skillDef, skill.level);
-            const effectStr =
-              skillDef.effect.type === 'damage'
-                ? `造成 ${Math.floor(scaledValue * 100)}% 伤害`
-                : skillDef.effect.type === 'heal'
-                  ? `恢复 ${Math.floor(scaledValue * 100)}% HP`
-                  : skillDef.description;
+              const scaledValue = getSkillEffectValue(skillDef, skill.level);
+              const effectStr =
+                skillDef.effect.type === 'damage'
+                  ? `造成 ${Math.floor(scaledValue * 100)}% 伤害`
+                  : skillDef.effect.type === 'heal'
+                    ? `恢复 ${Math.floor(scaledValue * 100)}% HP`
+                    : skillDef.description;
 
-            return (
-              <div key={skill.skillId} className={styles.skill}>
-                <div className={styles.skillHeader}>
-                  <span className={styles.skillName}>{skillDef.name}</span>
-                  <div className={styles.skillLevelArea}>
-                    <span className={styles.skillLevel}>Lv.{skill.level}</span>
-                    <SkillProgressBar
-                      skillId={skill.skillId}
-                      level={skill.level}
-                      skillUsage={character.skillUsage || {}}
-                    />
+              return (
+                <div key={skill.skillId} className={styles.skill}>
+                  <div className={styles.skillHeader}>
+                    <span className={styles.skillName}>{skillDef.name}</span>
+                    <div className={styles.skillLevelArea}>
+                      <span className={styles.skillLevel}>Lv.{skill.level}</span>
+                      <SkillProgressBar
+                        skillId={skill.skillId}
+                        level={skill.level}
+                        skillUsage={character.skillUsage || {}}
+                      />
+                    </div>
                   </div>
+                  <p className={styles.skillDesc}>{effectStr}</p>
                 </div>
-                <p className={styles.skillDesc}>{effectStr}</p>
-              </div>
-            );
-          })
+              );
+            },
+          )
         )}
       </div>
       <div className={styles.hint}>

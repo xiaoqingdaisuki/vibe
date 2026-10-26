@@ -1,3 +1,5 @@
+/** 验证时区工具：时区转换、时钟格式化与日期校验的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import dayjs from 'dayjs';

@@ -1,3 +1,5 @@
+/** 代理指定 AI 会话的删除请求 */
+
 import { NextResponse } from 'next/server';
 
 import { proxyDeleteAgentConversation } from '@/features/apps/agent/agent-v1-server-proxy';

@@ -1,3 +1,5 @@
+/** 验证AI 助手：会话标识与用户标识持久化的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

@@ -1,3 +1,5 @@
+/** 在线编辑器：客户端页面与交互编排 */
+
 'use client';
 
 import { useState, type ReactElement } from 'react';

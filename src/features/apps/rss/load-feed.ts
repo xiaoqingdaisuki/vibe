@@ -1,3 +1,5 @@
+/** RSS 阅读器：订阅源并发去重与加载回调协调 */
+
 import type { RssFeed } from './types';
 
 interface LoadFeedOptions {
@@ -10,7 +12,7 @@ interface LoadFeedOptions {
   onSettled: () => void;
 }
 
-// 加载单个 RSS feed，防止同一 URL 并发请求
+// 加载单个 RSS 订阅源，防止同一地址并发请求
 export async function loadFeedOnce({
   url,
   inFlight,

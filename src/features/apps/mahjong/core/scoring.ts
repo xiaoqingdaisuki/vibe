@@ -1,3 +1,5 @@
+/** 麻将：和牌形状识别、役种与点数计算 */
+
 import type { Meld, ScoreResult, Tile, Wind } from './types.ts';
 import { TILE_KIND_COUNT, toCounts } from './tiles.ts';
 
@@ -200,30 +202,39 @@ function isPinfu(
 ): boolean {
   if (!winningTile || melds.length > 0 || shape.groups.some((group) => group.type !== 'sequence')) return false;
   if ([31, 32, 33, 27 + windKind(roundWind), 27 + windKind(seatWind)].includes(shape.pair)) return false;
-  return shape.groups.some((group) => {
-    const rank = (group.start % 9) + 1;
-    return (winningTile.kind === group.start && rank < 7) || (winningTile.kind === group.start + 2 && rank > 1);
-  });
+  return shape.groups.some(
+    // 检查和牌是否能落在顺子两端形成两面等待
+    (group) => {
+      const rank = (group.start % 9) + 1;
+      return (winningTile.kind === group.start && rank < 7) || (winningTile.kind === group.start + 2 && rank > 1);
+    },
+  );
 }
 
 // 计算单骑、嵌张与边张等待的附加符数
 function getWaitFu(shape: WinningShape, winningKind: number): number {
   if (shape.pair === winningKind) return 2;
-  const canBeRyanmen = shape.groups.some((group) => {
-    if (group.type !== 'sequence') return false;
-    const rank = (group.start % 9) + 1;
-    return (group.start === winningKind && rank < 7) || (group.start + 2 === winningKind && rank > 1);
-  });
+  const canBeRyanmen = shape.groups.some(
+    // 仅在顺子中判断和牌是否构成两面等待
+    (group) => {
+      if (group.type !== 'sequence') return false;
+      const rank = (group.start % 9) + 1;
+      return (group.start === winningKind && rank < 7) || (group.start + 2 === winningKind && rank > 1);
+    },
+  );
   if (canBeRyanmen) return 0;
-  const isLimitedWait = shape.groups.some((group) => {
-    if (group.type !== 'sequence') return false;
-    const rank = (group.start % 9) + 1;
-    return (
-      group.start + 1 === winningKind ||
-      (rank === 1 && group.start + 2 === winningKind) ||
-      (rank === 7 && group.start === winningKind)
-    );
-  });
+  const isLimitedWait = shape.groups.some(
+    // 判断和牌是否落在顺子中张或边张的受限等待位置
+    (group) => {
+      if (group.type !== 'sequence') return false;
+      const rank = (group.start % 9) + 1;
+      return (
+        group.start + 1 === winningKind ||
+        (rank === 1 && group.start + 2 === winningKind) ||
+        (rank === 7 && group.start === winningKind)
+      );
+    },
+  );
   return isLimitedWait ? 2 : 0;
 }
 

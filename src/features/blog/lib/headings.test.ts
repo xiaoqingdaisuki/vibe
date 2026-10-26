@@ -1,3 +1,5 @@
+/** 验证博客：文章标题提取与锚点生成的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { getBlogHeadings } from './headings.ts';

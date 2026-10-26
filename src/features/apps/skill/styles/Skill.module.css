@@ -1,8 +1,4 @@
-/* ============================================
-   Skill App — Mobile First
-   All spacing: multiples of 4px
-   All font-size: even px values
-   ============================================ */
+/** 技能参考：技能目录与详情的布局、主题与响应式样式 */
 
 .grid {
   display: grid;
@@ -17,7 +13,7 @@
   }
 }
 
-/* ---- Card ---- */
+/* 技能卡片 */
 
 .card {
   display: block;
@@ -43,7 +39,7 @@
   }
 }
 
-/* ---- Card internals ---- */
+/* 卡片内部布局 */
 
 .cardHeader {
   display: flex;
@@ -87,7 +83,7 @@
   overflow: hidden;
 }
 
-/* ---- Agent tags ---- */
+/* 助手标签 */
 
 .agents {
   display: flex;
@@ -110,7 +106,7 @@
   white-space: nowrap;
 }
 
-/* ---- Detail view ---- */
+/* 技能详情视图 */
 
 .backBtn {
   display: inline-flex;
@@ -200,7 +196,7 @@
   margin-bottom: var(--space-12);
 }
 
-/* ---- Markdown ---- */
+/* Markdown 内容样式 */
 
 .markdown {
   font-size: var(--text-base);

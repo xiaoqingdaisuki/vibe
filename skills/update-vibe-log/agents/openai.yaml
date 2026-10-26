@@ -1,3 +1,5 @@
+# 定义 Vibe 日志同步技能的显示信息与默认提示
+
 interface:
   display_name: "Update Vibe Log"
   short_description: "Reconcile daily Vibe commit log."

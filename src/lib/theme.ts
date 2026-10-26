@@ -1,3 +1,5 @@
+/** 管理明暗主题的初始化、切换与持久化 */
+
 export const DEFAULT_THEME = 'light';
 export const THEME_STORAGE_KEY = 'vibe-theme-v1';
 export const THEME_CHANGE_EVENT = 'vibe:themechange';
@@ -49,7 +51,7 @@ export function applyTheme(theme: Theme, { root, themeColorMeta, storage }: Them
   try {
     storage.setItem(THEME_STORAGE_KEY, theme);
   } catch {
-    // The selected theme still applies when storage is unavailable.
+    // 存储不可用时仍应用已选择的主题
   }
 }
 

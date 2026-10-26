@@ -1,3 +1,5 @@
+/** 博客：文章卡片组件 */
+
 import Link from 'next/link';
 import type { BlogPost } from '../types';
 import styles from '../styles/BlogCard.module.css';

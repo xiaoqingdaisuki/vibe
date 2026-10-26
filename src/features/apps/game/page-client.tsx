@@ -1,3 +1,5 @@
+/** 放置角色游戏：客户端页面与交互编排 */
+
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -18,7 +20,7 @@ import {
 type GamePhase = 'login' | 'class_select' | 'playing';
 const COMBAT_INTERVAL_MS = 10_000;
 
-// Module-level log ID counter — initialized from saved logs to avoid collisions
+// 使用模块级日志计数器，并从已保存日志初始化以避免标识冲突
 let _logId = 0;
 
 // 确保日志ID递增，从已保存日志中恢复计数器
@@ -75,18 +77,21 @@ export default function GamePageClient() {
   const currentUsernameRef = useRef<string>('');
   const firstCombatDoneRef = useRef(false);
 
+  // 日志变化时持久化当前用户的战斗记录
   useEffect(() => {
     if (currentUsernameRef.current) {
       savePersistedLogs(currentUsernameRef.current, logs);
     }
   }, [logs]);
 
+  // 角色状态变化时同步游戏引擎实例
   useEffect(() => {
     if (character) {
       engineRef.current = new GameEngine(character);
     }
   }, [character]);
 
+  // 清理自动战斗计时器并重置引用
   const stopCombatLoop = useCallback(() => {
     if (combatTimerRef.current) {
       clearInterval(combatTimerRef.current);
@@ -94,6 +99,7 @@ export default function GamePageClient() {
     }
   }, []);
 
+  // 执行自动战斗并保存角色、合并战斗和升级日志
   const triggerCombat = useCallback(() => {
     if (!engineRef.current) return;
 
@@ -113,10 +119,10 @@ export default function GamePageClient() {
         details: result.roundDetails,
       };
 
-      // Build logs in chronological order: defeats → victory → skill ups
+      // 按战败、胜利、技能升级的时间顺序组织日志
       const allLogs: LogEntry[] = [];
 
-      // Defeat logs from auto-retry attempts come first
+      // 先记录自动重试过程中的战败日志
       for (const defeatMsg of engineRef.current.defeatLogs) {
         allLogs.push({
           id: nextLogId(),
@@ -127,10 +133,10 @@ export default function GamePageClient() {
       }
       engineRef.current.defeatLogs = [];
 
-      // Victory log comes last
+      // 最后添加胜利日志
       allLogs.push(combatLog);
 
-      // Add skill level-up logs
+      // 追加技能升级日志
       for (const lvlUp of engineRef.current.skillLevelUpLogs) {
         allLogs.push({
           id: nextLogId(),
@@ -143,12 +149,13 @@ export default function GamePageClient() {
 
       setLogs((prev) => [...prev, ...allLogs].slice(-50));
     } catch {
-      // silently fail
+      // 忽略本轮错误并等待下一次战斗重试
     } finally {
       setCombatCycleStartedAt(Date.now());
     }
   }, []);
 
+  // 重置战斗周期并启动定时自动战斗
   const startCombatLoop = useCallback(() => {
     stopCombatLoop();
     setCombatCycleStartedAt(Date.now());
@@ -158,12 +165,14 @@ export default function GamePageClient() {
     }, COMBAT_INTERVAL_MS);
   }, [stopCombatLoop, triggerCombat]);
 
+  // 进入游戏阶段并启动自动战斗循环
   const enterGame = useCallback(() => {
     setPhase('playing');
     startCombatLoop();
-    // triggerCombat is called after engine is initialized via useEffect
+    // 引擎经 useEffect 初始化后再调用 triggerCombat
   }, [startCombatLoop]);
 
+  // 在空闲时结算离线战斗收益并返回最新角色
   const processOfflineProgress = useCallback(async (char: Character): Promise<Character> => {
     const now = Date.now();
     const offlineMs = now - char.lastActive;
@@ -235,13 +244,18 @@ export default function GamePageClient() {
 
     // 等待空闲回调完成后返回结算结果，避免阻塞主线程
     const requestIdle = (globalThis as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback;
-    return new Promise((resolve) => {
-      const done = () => resolve(settle());
-      if (requestIdle) requestIdle(done);
-      else setTimeout(done, 0);
-    });
+    return new Promise(
+      // 优先安排空闲回调执行离线结算，缺少支持时延迟执行
+      (resolve) => {
+        // 执行离线结算并完成等待中的收益请求
+        const done = () => resolve(settle());
+        if (requestIdle) requestIdle(done);
+        else setTimeout(done, 0);
+      },
+    );
   }, []);
 
+  // 恢复用户存档和日志，结算离线收益后进入游戏
   const handleLogin = useCallback(async () => {
     if (!username.trim()) return;
     setLoginError('');
@@ -250,20 +264,20 @@ export default function GamePageClient() {
     const localData = loadCharacterSnapshot(trimmedUsername);
 
     if (localData) {
-      // Migrate old character data (ensure new fields exist)
+      // 迁移旧角色数据，确保新增字段存在
       if (!localData.skillUsage) localData.skillUsage = {};
-      // Initialize skillUsage for existing skills
+      // 初始化已学习技能的使用次数
       for (const sk of localData.skills) {
         if (!localData.skillUsage[sk.skillId]) {
           localData.skillUsage[sk.skillId] = 0;
         }
       }
-      // Migrate inventory capacity
+      // 迁移背包容量
       if (!localData.inventoryMax) localData.inventoryMax = 20;
-      // Migrate favorites
+      // 迁移收藏列表
       if (!localData.favorites) localData.favorites = [];
 
-      // Load persisted logs and sync the module-level ID counter
+      // 恢复持久化日志并同步模块级标识计数器
       const savedLogs = loadPersistedLogs(trimmedUsername);
       for (const log of savedLogs) {
         ensureLogId(log.id);
@@ -271,7 +285,7 @@ export default function GamePageClient() {
       setLogs(savedLogs);
       currentUsernameRef.current = trimmedUsername;
 
-      // Existing character - process offline progress and enter game
+      // 已有角色先结算离线收益，再进入游戏
       const updatedChar = await processOfflineProgress(localData);
       const engine = new GameEngine(updatedChar);
       engine.refreshCombatStats();
@@ -293,6 +307,7 @@ export default function GamePageClient() {
     }
   }, [username, processOfflineProgress, enterGame]);
 
+  // 使用选定职业创建角色、初始化战斗属性并进入游戏
   const handleClassSelect = useCallback(() => {
     if (!selectedClass) return;
 
@@ -307,6 +322,7 @@ export default function GamePageClient() {
     enterGame();
   }, [selectedClass, username, enterGame]);
 
+  // 处理角色交互或清空日志，并及时同步引擎与持久化状态
   const handleAction = useCallback(
     (action: GameInteraction | { type: 'clearLogs' }) => {
       if (!engineRef.current || !character) return;
@@ -321,11 +337,11 @@ export default function GamePageClient() {
 
       try {
         const result = engineRef.current.performAction(action);
-        // Sync engine ref to the latest character state BEFORE any combat tick can fire
+        // 在下次战斗触发前，将引擎引用同步为最新角色状态
         const updatedChar = saveCharacterSnapshot(engineRef.current.character);
         engineRef.current.character = updatedChar;
-        // flushSync ensures React commits the state update immediately,
-        // so the next combat tick reads the correct (post-action) inventory
+        // 使用 flushSync 立即提交 React 状态更新
+        // 确保下次战斗读取操作完成后的背包数据
         flushSync(() => {
           setCharacter(updatedChar);
         });
@@ -341,13 +357,16 @@ export default function GamePageClient() {
     [character],
   );
 
+  // 组件卸载时停止自动战斗循环
   useEffect(() => {
     return () => {
       stopCombatLoop();
     };
   }, [stopCombatLoop]);
 
+  // 监听页面离开事件，保存引擎中的最新角色数据
   useEffect(() => {
+    // 页面离开前保存当前角色快照
     const handleBeforeUnload = () => {
       if (engineRef.current) {
         saveCharacterSnapshot(engineRef.current.character);
@@ -357,6 +376,7 @@ export default function GamePageClient() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
+  // 首次进入游玩阶段且引擎就绪后立即执行一场战斗
   useEffect(() => {
     if (phase === 'playing' && engineRef.current && !firstCombatDoneRef.current) {
       firstCombatDoneRef.current = true;
@@ -364,7 +384,8 @@ export default function GamePageClient() {
     }
   }, [phase, triggerCombat]);
 
-  // Full-screen wrapper for non-playing phases
+  // 为未进入游玩阶段的界面提供居中布局
+  // 居中显示登录和职业选择阶段的内容
   const centerWrapper = (content: React.ReactNode) => (
     <div className="flex min-h-0 flex-1 items-center justify-center">{content}</div>
   );
@@ -418,7 +439,7 @@ export default function GamePageClient() {
     );
   }
 
-  // Playing phase
+  // 游玩阶段
   if (phase === 'playing' && character) {
     return (
       <GameLayout

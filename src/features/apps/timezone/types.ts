@@ -1,3 +1,5 @@
+/** 时区工具：类型与数据契约 */
+
 export interface WorldTimeZone {
   id: string;
   city: string;

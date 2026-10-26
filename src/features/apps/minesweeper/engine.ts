@@ -1,3 +1,5 @@
+/** 扫雷：规则与状态推进引擎 */
+
 import type { BoardConfig, Cell } from './types';
 
 export const DIFFICULTY_PRESETS = [
@@ -92,12 +94,15 @@ export function placeMines(
     nextBoard[selectedIndex].mine = true;
   }
 
-  nextBoard.forEach((cell, index) => {
-    if (cell.mine) return;
-    cell.adjacentMines = getNeighborIndices(index, config).filter(
-      (neighborIndex) => nextBoard[neighborIndex].mine,
-    ).length;
-  });
+  nextBoard.forEach(
+    // 为非地雷格统计相邻地雷数量
+    (cell, index) => {
+      if (cell.mine) return;
+      cell.adjacentMines = getNeighborIndices(index, config).filter(
+        (neighborIndex) => nextBoard[neighborIndex].mine,
+      ).length;
+    },
+  );
 
   return nextBoard;
 }
@@ -137,12 +142,15 @@ export function revealCell(board: Cell[], config: BoardConfig, startIndex: numbe
 
     if (cell.adjacentMines !== 0) continue;
 
-    getNeighborIndices(index, config).forEach((neighborIndex) => {
-      if (!queued.has(neighborIndex) && nextBoard[neighborIndex].state === 'hidden') {
-        queued.add(neighborIndex);
-        pending.push(neighborIndex);
-      }
-    });
+    getNeighborIndices(index, config).forEach(
+      // 将尚未排队的隐藏相邻格加入待展开队列
+      (neighborIndex) => {
+        if (!queued.has(neighborIndex) && nextBoard[neighborIndex].state === 'hidden') {
+          queued.add(neighborIndex);
+          pending.push(neighborIndex);
+        }
+      },
+    );
   }
 
   return { board: nextBoard, changed: true, hitMine: false };

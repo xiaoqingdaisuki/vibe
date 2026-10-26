@@ -1,3 +1,5 @@
+/** GBA 模拟器：ROM 文件校验与身份识别 */
+
 import type { GbaRom } from './types';
 
 export const GBA_ROM_MAX_SIZE = 32 * 1024 * 1024;

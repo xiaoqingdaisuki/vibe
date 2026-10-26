@@ -1,3 +1,5 @@
+/** 数独：数字输入面板组件 */
+
 import type { SudokuDigit, SudokuStatus } from '../types';
 import styles from '../styles/Sudoku.module.css';
 

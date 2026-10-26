@@ -1,3 +1,5 @@
+/** RSS 阅读器：订阅列表校验、迁移与序列化 */
+
 import { DEFAULT_FEEDS } from './types.ts';
 
 const STORAGE_VERSION = 1;

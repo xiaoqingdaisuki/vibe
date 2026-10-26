@@ -1,3 +1,5 @@
+/** 验证地图：输入校验与交互辅助逻辑的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

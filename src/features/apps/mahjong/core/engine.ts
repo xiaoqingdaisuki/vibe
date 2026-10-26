@@ -1,3 +1,5 @@
+/** 麻将：规则与状态推进引擎 */
+
 import { evaluateDiscard, getTenpaiWaits, isTenpai, isWinningHand, scoreHand } from './scoring.ts';
 import { createTileSet, shuffleTiles, tileSortValue, toCounts } from './tiles.ts';
 import type {
@@ -429,14 +431,17 @@ function chooseAiReaction(state: MahjongState): { seat: Seat; action: LegalActio
         .filter((action) => action.type !== 'pass')
         .map((action) => ({ seat: player.seat, action })),
     );
-  candidates.sort((left, right) => {
-    const leftPriority = reactionPriority(left.action);
-    const rightPriority = reactionPriority(right.action);
-    if (leftPriority !== rightPriority) return leftPriority - rightPriority;
-    const leftDistance = (left.seat - reaction.sourceSeat + 4) % 4;
-    const rightDistance = (right.seat - reaction.sourceSeat + 4) % 4;
-    return leftDistance - rightDistance;
-  });
+  candidates.sort(
+    // 先比较鸣牌动作优先级，再按距出牌者的座次排序
+    (left, right) => {
+      const leftPriority = reactionPriority(left.action);
+      const rightPriority = reactionPriority(right.action);
+      if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+      const leftDistance = (left.seat - reaction.sourceSeat + 4) % 4;
+      const rightDistance = (right.seat - reaction.sourceSeat + 4) % 4;
+      return leftDistance - rightDistance;
+    },
+  );
   return candidates[0] ?? null;
 }
 
@@ -542,16 +547,19 @@ function applyMeldCall(state: MahjongState, seat: Seat, action: LegalAction): Ma
     },
     false,
   );
-  const nextPlayers = state.players.map((candidate) => {
-    if (candidate.seat === seat) return nextPlayer;
-    if (candidate.seat !== reaction.sourceSeat || candidate.calledDiscardIds.includes(reaction.tile.id)) {
-      return candidate;
-    }
-    return {
-      ...candidate,
-      calledDiscardIds: [...candidate.calledDiscardIds, reaction.tile.id],
-    };
-  });
+  const nextPlayers = state.players.map(
+    // 更新鸣牌玩家并为出牌者记录已被鸣取的弃牌
+    (candidate) => {
+      if (candidate.seat === seat) return nextPlayer;
+      if (candidate.seat !== reaction.sourceSeat || candidate.calledDiscardIds.includes(reaction.tile.id)) {
+        return candidate;
+      }
+      return {
+        ...candidate,
+        calledDiscardIds: [...candidate.calledDiscardIds, reaction.tile.id],
+      };
+    },
+  );
   const nextState: MahjongState = {
     ...state,
     players: nextPlayers,

@@ -1,3 +1,5 @@
+/** 验证在线编辑器：隔离预览文档与运行时生成的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

@@ -1,3 +1,5 @@
+/** 麻将：Pixi 牌桌绘制与交互组件 */
+
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -845,45 +847,48 @@ function drawReviewTileStrip(
   const tileWidth = Math.max(6, Math.min(tileHeight / 1.28, (width - gap * (tiles.length - 1)) / tiles.length));
   const totalWidth = tiles.length * tileWidth + (tiles.length - 1) * gap;
   const offsetX = Math.max(0, (width - totalWidth) / 2);
-  tiles.forEach((tile, index) => {
-    const tileBox = new api.Container();
-    const background = new api.Graphics();
-    background
-      .roundRect(0, 0, tileWidth, tileHeight, 3)
-      .fill(COLORS.cream)
-      .stroke({ width: tile.red ? 2 : 1, color: tile.red ? COLORS.red : COLORS.creamEdge });
-    tileBox.position.set(x + offsetX + index * (tileWidth + gap), y);
-    tileBox.addChild(background);
-    const texture = textures.get(tileAssetKey(tile));
-    if (texture) {
-      const sprite = new api.Sprite(texture);
-      sprite.anchor.set(0.5);
-      sprite.position.set(tileWidth / 2, tileHeight / 2);
-      sprite.width = tileWidth * 0.82;
-      sprite.height = tileHeight * 0.84;
-      tileBox.addChild(sprite);
-    } else {
-      tileBox.addChild(
-        createLabel(
-          api,
-          compactTileLabel(tile),
-          tileWidth / 2,
-          tileHeight / 2,
-          Math.max(6, tileWidth * 0.32),
-          tileTextColor(tile),
-          0.5,
-          0.5,
-          '700',
-        ),
-      );
-    }
-    if (tile.red) {
-      const redMark = new api.Graphics();
-      redMark.circle(tileWidth - 3, 3, Math.max(1, tileWidth * 0.08)).fill(COLORS.red);
-      tileBox.addChild(redMark);
-    }
-    parent.addChild(tileBox);
-  });
+  tiles.forEach(
+    // 按位置绘制手牌的底板、纹理与缺失纹理时的文字
+    (tile, index) => {
+      const tileBox = new api.Container();
+      const background = new api.Graphics();
+      background
+        .roundRect(0, 0, tileWidth, tileHeight, 3)
+        .fill(COLORS.cream)
+        .stroke({ width: tile.red ? 2 : 1, color: tile.red ? COLORS.red : COLORS.creamEdge });
+      tileBox.position.set(x + offsetX + index * (tileWidth + gap), y);
+      tileBox.addChild(background);
+      const texture = textures.get(tileAssetKey(tile));
+      if (texture) {
+        const sprite = new api.Sprite(texture);
+        sprite.anchor.set(0.5);
+        sprite.position.set(tileWidth / 2, tileHeight / 2);
+        sprite.width = tileWidth * 0.82;
+        sprite.height = tileHeight * 0.84;
+        tileBox.addChild(sprite);
+      } else {
+        tileBox.addChild(
+          createLabel(
+            api,
+            compactTileLabel(tile),
+            tileWidth / 2,
+            tileHeight / 2,
+            Math.max(6, tileWidth * 0.32),
+            tileTextColor(tile),
+            0.5,
+            0.5,
+            '700',
+          ),
+        );
+      }
+      if (tile.red) {
+        const redMark = new api.Graphics();
+        redMark.circle(tileWidth - 3, 3, Math.max(1, tileWidth * 0.08)).fill(COLORS.red);
+        tileBox.addChild(redMark);
+      }
+      parent.addChild(tileBox);
+    },
+  );
 }
 
 // 绘制牌河网格，按桌面方向分行收纳弃牌并避免越过牌桌边界
@@ -931,57 +936,60 @@ function addRiverTiles(
   const rows = Math.ceil(visibleTiles.length / columns);
   const gridHeight = rows * tileHeight + Math.max(0, rows - 1) * gap;
   const offsetY = maxHeight === undefined ? 0 : Math.max(0, (maxHeight - gridHeight) / 2);
-  visibleTiles.forEach((tile, index) => {
-    const column = index % columns;
-    const row = Math.floor(index / columns);
-    const rowTileCount = Math.min(columns, visibleTiles.length - row * columns);
-    const rowWidth = rowTileCount * tileWidth + Math.max(0, rowTileCount - 1) * gap;
-    const rowOffsetX = Math.max(0, (maxWidth - rowWidth) / 2);
-    const highlighted = highlightKind !== null && tile.kind === highlightKind;
-    const riichiDiscard = tile.id === riichiDiscardId;
-    const tileBox = new api.Container();
-    const background = new api.Graphics();
-    background
-      .roundRect(0, 0, tileWidth, tileHeight, 3)
-      .fill(COLORS.cream)
-      .stroke({
-        width: highlighted ? Math.max(3, Math.min(5, Math.round(tileWidth * 0.1))) : 1,
-        color: highlighted ? COLORS.highlightRed : COLORS.creamEdge,
-      });
-    const tileX = x + rowOffsetX + column * (tileWidth + gap);
-    const tileY = y + offsetY + row * (tileHeight + gap);
-    tileBox.position.set(tileX, tileY);
-    if (riichiDiscard) {
-      tileBox.pivot.set(tileWidth / 2, tileHeight / 2);
-      tileBox.position.set(tileX + tileWidth / 2, tileY + tileHeight / 2);
-      tileBox.rotation = Math.PI / 2;
-    }
-    tileBox.addChild(background);
-    if (highlighted) addTileHighlight(api, tileBox, tileWidth, tileHeight);
-    parent.addChild(tileBox);
-    const texture = textures.get(tileAssetKey(tile));
-    if (texture) {
-      const sprite = new api.Sprite(texture);
-      sprite.anchor.set(0.5);
-      sprite.position.set(tileWidth / 2, tileHeight / 2);
-      sprite.width = tileWidth * 0.84;
-      sprite.height = tileHeight * 0.86;
-      tileBox.addChild(sprite);
-    } else {
-      const label = createLabel(
-        api,
-        compactTileLabel(tile),
-        tileWidth / 2,
-        tileHeight / 2,
-        Math.max(7, tileWidth * 0.32),
-        tileTextColor(tile),
-        0.5,
-        0.5,
-        '700',
-      );
-      tileBox.addChild(label);
-    }
-  });
+  visibleTiles.forEach(
+    // 按行列绘制弃牌，并突出显示选中牌种与立直弃牌
+    (tile, index) => {
+      const column = index % columns;
+      const row = Math.floor(index / columns);
+      const rowTileCount = Math.min(columns, visibleTiles.length - row * columns);
+      const rowWidth = rowTileCount * tileWidth + Math.max(0, rowTileCount - 1) * gap;
+      const rowOffsetX = Math.max(0, (maxWidth - rowWidth) / 2);
+      const highlighted = highlightKind !== null && tile.kind === highlightKind;
+      const riichiDiscard = tile.id === riichiDiscardId;
+      const tileBox = new api.Container();
+      const background = new api.Graphics();
+      background
+        .roundRect(0, 0, tileWidth, tileHeight, 3)
+        .fill(COLORS.cream)
+        .stroke({
+          width: highlighted ? Math.max(3, Math.min(5, Math.round(tileWidth * 0.1))) : 1,
+          color: highlighted ? COLORS.highlightRed : COLORS.creamEdge,
+        });
+      const tileX = x + rowOffsetX + column * (tileWidth + gap);
+      const tileY = y + offsetY + row * (tileHeight + gap);
+      tileBox.position.set(tileX, tileY);
+      if (riichiDiscard) {
+        tileBox.pivot.set(tileWidth / 2, tileHeight / 2);
+        tileBox.position.set(tileX + tileWidth / 2, tileY + tileHeight / 2);
+        tileBox.rotation = Math.PI / 2;
+      }
+      tileBox.addChild(background);
+      if (highlighted) addTileHighlight(api, tileBox, tileWidth, tileHeight);
+      parent.addChild(tileBox);
+      const texture = textures.get(tileAssetKey(tile));
+      if (texture) {
+        const sprite = new api.Sprite(texture);
+        sprite.anchor.set(0.5);
+        sprite.position.set(tileWidth / 2, tileHeight / 2);
+        sprite.width = tileWidth * 0.84;
+        sprite.height = tileHeight * 0.86;
+        tileBox.addChild(sprite);
+      } else {
+        const label = createLabel(
+          api,
+          compactTileLabel(tile),
+          tileWidth / 2,
+          tileHeight / 2,
+          Math.max(7, tileWidth * 0.32),
+          tileTextColor(tile),
+          0.5,
+          0.5,
+          '700',
+        );
+        tileBox.addChild(label);
+      }
+    },
+  );
 }
 
 // 将与上下牌河相同的横向网格旋转到左右两侧，保持四边结构一致
@@ -1084,16 +1092,22 @@ function getHumanActionPositions(
     else row.push({ item, width });
   }
   const actionY = layout.handY - (layout.desktop ? 18 : 10);
-  return rows.flatMap((row, rowIndex) => {
-    const rowWidth = row.reduce((sum, entry) => sum + entry.width, 0) + Math.max(0, row.length - 1) * gap;
-    let x = (layout.width - rowWidth) / 2;
-    const y = actionY - height - (rows.length - 1 - rowIndex) * (height + gap);
-    return row.map(({ item, width }) => {
-      const positioned = { item, x, y, width, height };
-      x += width + gap;
-      return positioned;
-    });
-  });
+  return rows.flatMap(
+    // 将每行操作按钮居中排列，按行号计算纵向位置
+    (row, rowIndex) => {
+      const rowWidth = row.reduce((sum, entry) => sum + entry.width, 0) + Math.max(0, row.length - 1) * gap;
+      let x = (layout.width - rowWidth) / 2;
+      const y = actionY - height - (rows.length - 1 - rowIndex) * (height + gap);
+      return row.map(
+        // 分配当前按钮区域并推进下一按钮的横向位置
+        ({ item, width }) => {
+          const positioned = { item, x, y, width, height };
+          x += width + gap;
+          return positioned;
+        },
+      );
+    },
+  );
 }
 
 // 绘制舒适的绿色绒面背景，使用柔和线条减少冷峻的生成式视觉感
@@ -1245,38 +1259,41 @@ function drawCenterScore(
       '700',
     ),
   );
-  doraTiles.forEach((tile, index) => {
-    const tileX = doraStripX + doraTextWidth + doraGap + index * (doraTileWidth + doraGap);
-    const tileBackground = new api.Graphics();
-    tileBackground
-      .roundRect(tileX, doraStripY, doraTileWidth, doraTileHeight, 3)
-      .fill(COLORS.cream)
-      .stroke({ width: 1, color: COLORS.gold });
-    root.addChild(tileBackground);
-    const texture = textures.get(tileAssetKey(tile));
-    if (texture) {
-      const sprite = new api.Sprite(texture);
-      sprite.anchor.set(0.5);
-      sprite.position.set(tileX + doraTileWidth / 2, doraStripY + doraTileHeight / 2);
-      sprite.width = doraTileWidth * 0.84;
-      sprite.height = doraTileHeight * 0.86;
-      root.addChild(sprite);
-    } else {
-      root.addChild(
-        createLabel(
-          api,
-          compactTileLabel(tile),
-          tileX + doraTileWidth / 2,
-          doraStripY + doraTileHeight / 2,
-          Math.max(7, doraTileWidth * 0.32),
-          tileTextColor(tile),
-          0.5,
-          0.5,
-          '700',
-        ),
-      );
-    }
-  });
+  doraTiles.forEach(
+    // 依次绘制宝牌指示牌的边框、纹理与文字回退
+    (tile, index) => {
+      const tileX = doraStripX + doraTextWidth + doraGap + index * (doraTileWidth + doraGap);
+      const tileBackground = new api.Graphics();
+      tileBackground
+        .roundRect(tileX, doraStripY, doraTileWidth, doraTileHeight, 3)
+        .fill(COLORS.cream)
+        .stroke({ width: 1, color: COLORS.gold });
+      root.addChild(tileBackground);
+      const texture = textures.get(tileAssetKey(tile));
+      if (texture) {
+        const sprite = new api.Sprite(texture);
+        sprite.anchor.set(0.5);
+        sprite.position.set(tileX + doraTileWidth / 2, doraStripY + doraTileHeight / 2);
+        sprite.width = doraTileWidth * 0.84;
+        sprite.height = doraTileHeight * 0.86;
+        root.addChild(sprite);
+      } else {
+        root.addChild(
+          createLabel(
+            api,
+            compactTileLabel(tile),
+            tileX + doraTileWidth / 2,
+            doraStripY + doraTileHeight / 2,
+            Math.max(7, doraTileWidth * 0.32),
+            tileTextColor(tile),
+            0.5,
+            0.5,
+            '700',
+          ),
+        );
+      }
+    },
+  );
   const windOffset = desktop ? 16 : 10;
   const windLabels: Array<{ text: string; x: number; y: number }> = [
     { text: '东', x: center.centerX, y: center.frameTop - windOffset },
@@ -1444,51 +1461,54 @@ function drawMeldTiles(
   highlightKind: number | null,
 ): number {
   const gap = Math.max(1, tileWidth * 0.12);
-  meld.tiles.forEach((tile, index) => {
-    const tileBox = new api.Container();
-    const background = new api.Graphics();
-    const highlighted = highlightKind !== null && tile.kind === highlightKind;
-    background
-      .roundRect(0, 0, tileWidth, tileHeight, 3)
-      .fill(COLORS.cream)
-      .stroke({
-        width: highlighted ? Math.max(3, Math.min(5, Math.round(tileWidth * 0.1))) : tile.red ? 2 : 1,
-        color: highlighted ? COLORS.highlightRed : tile.red ? COLORS.red : COLORS.creamEdge,
-      });
-    const tileX = x + index * (tileWidth + gap);
-    tileBox.position.set(tileX, y);
-    if (meld.calledTileId === tile.id) {
-      tileBox.pivot.set(tileWidth / 2, tileHeight / 2);
-      tileBox.position.set(tileX + tileWidth / 2, y + tileHeight / 2);
-      tileBox.rotation = Math.PI / 2;
-    }
-    tileBox.addChild(background);
-    if (highlighted) addTileHighlight(api, tileBox, tileWidth, tileHeight);
-    const texture = textures.get(tileAssetKey(tile));
-    if (texture) {
-      const sprite = new api.Sprite(texture);
-      sprite.anchor.set(0.5);
-      sprite.position.set(tileWidth / 2, tileHeight / 2);
-      sprite.width = tileWidth * 0.82;
-      sprite.height = tileHeight * 0.84;
-      tileBox.addChild(sprite);
-    } else {
-      tileBox.addChild(
-        createLabel(
-          api,
-          compactTileLabel(tile),
-          tileWidth / 2,
-          tileHeight / 2,
-          Math.max(6, tileWidth * 0.32),
-          tileTextColor(tile),
-          0.5,
-          0.5,
-          '700',
-        ),
-      );
-    }
-    parent.addChild(tileBox);
-  });
+  meld.tiles.forEach(
+    // 绘制副露牌，并旋转被鸣取的牌以标明来源
+    (tile, index) => {
+      const tileBox = new api.Container();
+      const background = new api.Graphics();
+      const highlighted = highlightKind !== null && tile.kind === highlightKind;
+      background
+        .roundRect(0, 0, tileWidth, tileHeight, 3)
+        .fill(COLORS.cream)
+        .stroke({
+          width: highlighted ? Math.max(3, Math.min(5, Math.round(tileWidth * 0.1))) : tile.red ? 2 : 1,
+          color: highlighted ? COLORS.highlightRed : tile.red ? COLORS.red : COLORS.creamEdge,
+        });
+      const tileX = x + index * (tileWidth + gap);
+      tileBox.position.set(tileX, y);
+      if (meld.calledTileId === tile.id) {
+        tileBox.pivot.set(tileWidth / 2, tileHeight / 2);
+        tileBox.position.set(tileX + tileWidth / 2, y + tileHeight / 2);
+        tileBox.rotation = Math.PI / 2;
+      }
+      tileBox.addChild(background);
+      if (highlighted) addTileHighlight(api, tileBox, tileWidth, tileHeight);
+      const texture = textures.get(tileAssetKey(tile));
+      if (texture) {
+        const sprite = new api.Sprite(texture);
+        sprite.anchor.set(0.5);
+        sprite.position.set(tileWidth / 2, tileHeight / 2);
+        sprite.width = tileWidth * 0.82;
+        sprite.height = tileHeight * 0.84;
+        tileBox.addChild(sprite);
+      } else {
+        tileBox.addChild(
+          createLabel(
+            api,
+            compactTileLabel(tile),
+            tileWidth / 2,
+            tileHeight / 2,
+            Math.max(6, tileWidth * 0.32),
+            tileTextColor(tile),
+            0.5,
+            0.5,
+            '700',
+          ),
+        );
+      }
+      parent.addChild(tileBox);
+    },
+  );
   return meld.tiles.length * (tileWidth + gap) - gap;
 }
 
@@ -1852,14 +1872,17 @@ function drawHumanControls(
   const selectedWaits = selectedHand ? getTenpaiWaits(selectedHand, human.melds) : [];
   const availableWaits = new Map<number, Tile>();
   if (selectedTileId === null) {
-    human.hand.forEach((tile) => {
-      getTenpaiWaits(
-        human.hand.filter((candidate) => candidate.id !== tile.id),
-        human.melds,
-      ).forEach((wait) => {
-        availableWaits.set(wait.kind, wait);
-      });
-    });
+    human.hand.forEach(
+      // 枚举各张手牌打出后的听牌结果，并按牌种合并等待
+      (tile) => {
+        getTenpaiWaits(
+          human.hand.filter((candidate) => candidate.id !== tile.id),
+          human.melds,
+        ).forEach((wait) => {
+          availableWaits.set(wait.kind, wait);
+        });
+      },
+    );
   } else {
     selectedWaits.forEach((wait) => availableWaits.set(wait.kind, wait));
   }
@@ -1965,18 +1988,21 @@ function drawTrainingPanel(
   const iconSize = desktop ? 42 : 34;
   const iconY = desktop ? 20 : 18;
   const icons = ['?', '⚙'];
-  icons.forEach((icon, index) => {
-    const x = width - margin - (icons.length - index) * (iconSize + 10);
-    const button = new api.Graphics();
-    button
-      .roundRect(x, iconY, iconSize, iconSize, 10)
-      .fill({ color: COLORS.panel, alpha: 0.92 })
-      .stroke({ width: 1, color: COLORS.panelLine });
-    root.addChild(button);
-    root.addChild(
-      createLabel(api, icon, x + iconSize / 2, iconY + iconSize / 2, desktop ? 21 : 17, COLORS.gold, 0.5, 0.5, '700'),
-    );
-  });
+  icons.forEach(
+    // 从牌桌右侧排列工具图标与按钮背景
+    (icon, index) => {
+      const x = width - margin - (icons.length - index) * (iconSize + 10);
+      const button = new api.Graphics();
+      button
+        .roundRect(x, iconY, iconSize, iconSize, 10)
+        .fill({ color: COLORS.panel, alpha: 0.92 })
+        .stroke({ width: 1, color: COLORS.panelLine });
+      root.addChild(button);
+      root.addChild(
+        createLabel(api, icon, x + iconSize / 2, iconY + iconSize / 2, desktop ? 21 : 17, COLORS.gold, 0.5, 0.5, '700'),
+      );
+    },
+  );
 }
 
 // 计算牌型说明和配置面板的统一尺寸，避免绘制与命中区域产生偏差
@@ -2092,85 +2118,91 @@ function drawUtilityPanel(
     const content = new api.Container();
     content.mask = clip;
     root.addChild(content);
-    YAKU_REFERENCES.forEach((entry, index) => {
-      const x = viewportX;
-      const y = viewportY + index * (cardHeight + gap) - scroll;
-      const card = new api.Graphics();
-      card
-        .roundRect(x, y, viewportWidth, cardHeight, 10)
-        .fill({ color: 0x376d4d, alpha: 0.9 })
-        .stroke({ width: 1, color: COLORS.panelLine });
-      content.addChild(card);
-      const implemented = IMPLEMENTED_YAKU.has(entry.name);
-      content.addChild(createLabel(api, entry.name, x + 14, y + 21, desktop ? 16 : 14, COLORS.gold, 0, 0.5, '700'));
-      content.addChild(
-        createLabel(
-          api,
-          implemented ? entry.han : '参考',
-          x + viewportWidth - 14,
-          y + 21,
-          desktop ? 10 : 9,
-          COLORS.cyan,
-          1,
-          0.5,
-          '600',
-        ),
-      );
-      const tileY = y + (desktop ? 54 : 50);
-      const tileGap = desktop ? 4 : 3;
-      const tileWidth = Math.max(
-        desktop ? 12 : 8,
-        Math.min(desktop ? 26 : 20, (viewportWidth - 28 - tileGap * (entry.sample.length - 1)) / entry.sample.length),
-      );
-      const tileHeight = tileWidth * 1.28;
-      entry.sample.forEach((kind, tileIndex) => {
-        const tile = YAKU_TILE_BY_KIND.get(kind);
-        if (!tile) return;
-        const tileX = x + 14 + tileIndex * (tileWidth + tileGap);
-        const tileBackground = new api.Graphics();
-        tileBackground
-          .roundRect(tileX, tileY, tileWidth, tileHeight, 3)
-          .fill(COLORS.cream)
-          .stroke({ width: 1, color: COLORS.creamEdge });
-        content.addChild(tileBackground);
-        const texture = textures.get(tileAssetKey(tile));
-        if (texture) {
-          const sprite = new api.Sprite(texture);
-          sprite.anchor.set(0.5);
-          sprite.position.set(tileX + tileWidth / 2, tileY + tileHeight / 2);
-          sprite.width = tileWidth * 0.84;
-          sprite.height = tileHeight * 0.86;
-          content.addChild(sprite);
-        } else {
-          content.addChild(
-            createLabel(
-              api,
-              compactTileLabel(tile),
-              tileX + tileWidth / 2,
-              tileY + tileHeight / 2,
-              Math.max(7, tileWidth * 0.32),
-              tileTextColor(tile),
-              0.5,
-              0.5,
-              '700',
-            ),
-          );
-        }
-      });
-      content.addChild(
-        createLabel(
-          api,
-          entry.detail,
-          x + 14,
-          y + cardHeight - (desktop ? 16 : 14),
-          desktop ? 11 : 10,
-          COLORS.white,
-          0,
-          0.5,
-          '500',
-        ),
-      );
-    });
+    YAKU_REFERENCES.forEach(
+      // 按滚动位置绘制役种参考卡片与实现状态
+      (entry, index) => {
+        const x = viewportX;
+        const y = viewportY + index * (cardHeight + gap) - scroll;
+        const card = new api.Graphics();
+        card
+          .roundRect(x, y, viewportWidth, cardHeight, 10)
+          .fill({ color: 0x376d4d, alpha: 0.9 })
+          .stroke({ width: 1, color: COLORS.panelLine });
+        content.addChild(card);
+        const implemented = IMPLEMENTED_YAKU.has(entry.name);
+        content.addChild(createLabel(api, entry.name, x + 14, y + 21, desktop ? 16 : 14, COLORS.gold, 0, 0.5, '700'));
+        content.addChild(
+          createLabel(
+            api,
+            implemented ? entry.han : '参考',
+            x + viewportWidth - 14,
+            y + 21,
+            desktop ? 10 : 9,
+            COLORS.cyan,
+            1,
+            0.5,
+            '600',
+          ),
+        );
+        const tileY = y + (desktop ? 54 : 50);
+        const tileGap = desktop ? 4 : 3;
+        const tileWidth = Math.max(
+          desktop ? 12 : 8,
+          Math.min(desktop ? 26 : 20, (viewportWidth - 28 - tileGap * (entry.sample.length - 1)) / entry.sample.length),
+        );
+        const tileHeight = tileWidth * 1.28;
+        entry.sample.forEach(
+          // 根据示例牌种绘制役种说明中的牌面
+          (kind, tileIndex) => {
+            const tile = YAKU_TILE_BY_KIND.get(kind);
+            if (!tile) return;
+            const tileX = x + 14 + tileIndex * (tileWidth + tileGap);
+            const tileBackground = new api.Graphics();
+            tileBackground
+              .roundRect(tileX, tileY, tileWidth, tileHeight, 3)
+              .fill(COLORS.cream)
+              .stroke({ width: 1, color: COLORS.creamEdge });
+            content.addChild(tileBackground);
+            const texture = textures.get(tileAssetKey(tile));
+            if (texture) {
+              const sprite = new api.Sprite(texture);
+              sprite.anchor.set(0.5);
+              sprite.position.set(tileX + tileWidth / 2, tileY + tileHeight / 2);
+              sprite.width = tileWidth * 0.84;
+              sprite.height = tileHeight * 0.86;
+              content.addChild(sprite);
+            } else {
+              content.addChild(
+                createLabel(
+                  api,
+                  compactTileLabel(tile),
+                  tileX + tileWidth / 2,
+                  tileY + tileHeight / 2,
+                  Math.max(7, tileWidth * 0.32),
+                  tileTextColor(tile),
+                  0.5,
+                  0.5,
+                  '700',
+                ),
+              );
+            }
+          },
+        );
+        content.addChild(
+          createLabel(
+            api,
+            entry.detail,
+            x + 14,
+            y + cardHeight - (desktop ? 16 : 14),
+            desktop ? 11 : 10,
+            COLORS.white,
+            0,
+            0.5,
+            '500',
+          ),
+        );
+      },
+    );
     if (limit > 0) {
       const track = new api.Graphics();
       const trackX = metrics.x + metrics.width - 18;
@@ -2282,114 +2314,121 @@ function drawReviewOverlay(
     ),
   );
 
-  state.players.forEach((player, index) => {
-    const column = index % metrics.columns;
-    const row = Math.floor(index / metrics.columns);
-    const cardX = metrics.contentX + column * (metrics.cardWidth + metrics.cardGap);
-    const cardY = metrics.contentY + row * (metrics.cardHeight + metrics.cardGap);
-    const card = new api.Graphics();
-    card
-      .roundRect(cardX, cardY, metrics.cardWidth, metrics.cardHeight, 10)
-      .fill({ color: COLORS.board, alpha: 0.92 })
-      .stroke({ width: 1, color: player.isHuman ? COLORS.gold : COLORS.panelLine });
-    root.addChild(card);
+  state.players.forEach(
+    // 按复盘网格布局展示各家的手牌、弃牌与分数
+    (player, index) => {
+      const column = index % metrics.columns;
+      const row = Math.floor(index / metrics.columns);
+      const cardX = metrics.contentX + column * (metrics.cardWidth + metrics.cardGap);
+      const cardY = metrics.contentY + row * (metrics.cardHeight + metrics.cardGap);
+      const card = new api.Graphics();
+      card
+        .roundRect(cardX, cardY, metrics.cardWidth, metrics.cardHeight, 10)
+        .fill({ color: COLORS.board, alpha: 0.92 })
+        .stroke({ width: 1, color: player.isHuman ? COLORS.gold : COLORS.panelLine });
+      root.addChild(card);
 
-    const winningTile = state.result?.type === 'ron' && state.result.winner === player.seat ? state.lastDiscard : null;
-    const reviewHand = winningTile ? [...player.hand, winningTile] : player.hand;
-    const visibleDiscards = getVisibleDiscards(player);
-    const score = state.matchScores[player.seat] ?? player.score;
-    const tileHeight = Math.max(12, Math.min(layout.desktop ? 30 : 20, metrics.cardHeight * 0.19));
-    const labelSize = layout.desktop ? 10 : 8;
-    const titleSize = layout.desktop ? 14 : 11;
-    root.addChild(
-      createLabel(
+      const winningTile =
+        state.result?.type === 'ron' && state.result.winner === player.seat ? state.lastDiscard : null;
+      const reviewHand = winningTile ? [...player.hand, winningTile] : player.hand;
+      const visibleDiscards = getVisibleDiscards(player);
+      const score = state.matchScores[player.seat] ?? player.score;
+      const tileHeight = Math.max(12, Math.min(layout.desktop ? 30 : 20, metrics.cardHeight * 0.19));
+      const labelSize = layout.desktop ? 10 : 8;
+      const titleSize = layout.desktop ? 14 : 11;
+      root.addChild(
+        createLabel(
+          api,
+          `${player.isHuman ? '你' : 'AI'} · ${player.name}`,
+          cardX + 12,
+          cardY + metrics.cardHeight * 0.15,
+          titleSize,
+          COLORS.white,
+          0,
+          0.5,
+          '700',
+        ),
+      );
+      root.addChild(
+        createLabel(
+          api,
+          `${score.toLocaleString()} 点 · 牌河 ${visibleDiscards.length}`,
+          cardX + metrics.cardWidth - 12,
+          cardY + metrics.cardHeight * 0.15,
+          labelSize,
+          COLORS.muted,
+          1,
+          0.5,
+          '500',
+        ),
+      );
+      root.addChild(
+        createLabel(
+          api,
+          winningTile
+            ? `手牌 ${player.hand.length} 张 · 和牌 ${compactTileLabel(winningTile)}`
+            : `手牌 ${reviewHand.length} 张`,
+          cardX + 12,
+          cardY + metrics.cardHeight * 0.31,
+          labelSize,
+          COLORS.cyan,
+          0,
+          0.5,
+          '600',
+        ),
+      );
+      drawReviewTileStrip(
         api,
-        `${player.isHuman ? '你' : 'AI'} · ${player.name}`,
+        root,
+        reviewHand,
         cardX + 12,
-        cardY + metrics.cardHeight * 0.15,
-        titleSize,
-        COLORS.white,
-        0,
-        0.5,
-        '700',
-      ),
-    );
-    root.addChild(
-      createLabel(
+        cardY + metrics.cardHeight * 0.36,
+        metrics.cardWidth - 24,
+        tileHeight,
+        textures,
+      );
+      root.addChild(
+        createLabel(
+          api,
+          `牌河 ${visibleDiscards.length} 张`,
+          cardX + 12,
+          cardY + metrics.cardHeight * 0.62,
+          labelSize,
+          COLORS.cyan,
+          0,
+          0.5,
+          '600',
+        ),
+      );
+      drawReviewTileStrip(
         api,
-        `${score.toLocaleString()} 点 · 牌河 ${visibleDiscards.length}`,
-        cardX + metrics.cardWidth - 12,
-        cardY + metrics.cardHeight * 0.15,
-        labelSize,
-        COLORS.muted,
-        1,
-        0.5,
-        '500',
-      ),
-    );
-    root.addChild(
-      createLabel(
-        api,
-        winningTile
-          ? `手牌 ${player.hand.length} 张 · 和牌 ${compactTileLabel(winningTile)}`
-          : `手牌 ${reviewHand.length} 张`,
+        root,
+        visibleDiscards,
         cardX + 12,
-        cardY + metrics.cardHeight * 0.31,
-        labelSize,
-        COLORS.cyan,
-        0,
-        0.5,
-        '600',
-      ),
-    );
-    drawReviewTileStrip(
-      api,
-      root,
-      reviewHand,
-      cardX + 12,
-      cardY + metrics.cardHeight * 0.36,
-      metrics.cardWidth - 24,
-      tileHeight,
-      textures,
-    );
-    root.addChild(
-      createLabel(
-        api,
-        `牌河 ${visibleDiscards.length} 张`,
-        cardX + 12,
-        cardY + metrics.cardHeight * 0.62,
-        labelSize,
-        COLORS.cyan,
-        0,
-        0.5,
-        '600',
-      ),
-    );
-    drawReviewTileStrip(
-      api,
-      root,
-      visibleDiscards,
-      cardX + 12,
-      cardY + metrics.cardHeight * 0.68,
-      metrics.cardWidth - 24,
-      tileHeight,
-      textures,
-    );
-  });
+        cardY + metrics.cardHeight * 0.68,
+        metrics.cardWidth - 24,
+        tileHeight,
+        textures,
+      );
+    },
+  );
 
-  getReviewActionButtons(layout, state).forEach((action) => {
-    addButton(
-      api,
-      root,
-      action.label,
-      action.x,
-      action.y,
-      action.width,
-      action.height,
-      action.primary,
-      !layout.desktop,
-    );
-  });
+  getReviewActionButtons(layout, state).forEach(
+    // 按预先计算的区域绘制复盘操作按钮
+    (action) => {
+      addButton(
+        api,
+        root,
+        action.label,
+        action.x,
+        action.y,
+        action.width,
+        action.height,
+        action.primary,
+        !layout.desktop,
+      );
+    },
+  );
 }
 
 // 绘制结算层，避免结束状态下误触牌面并提供下一步操作
@@ -2569,6 +2608,7 @@ function getCanvasHitRegions(
 ): HitRegion[] {
   if (screen === 'lobby') {
     const single = getLobbyModeRegions(layout)[0];
+    // 选择单人模式并进入牌局
     return single ? [{ ...single, onClick: () => handlers.onChooseMode('single') }] : [];
   }
   if (reviewMode) {
@@ -2577,6 +2617,7 @@ function getCanvasHitRegions(
       y: action.y,
       width: action.width,
       height: action.height,
+      // 按复盘按钮类型关闭复盘、进入下一局或重新开始
       onClick: () => {
         if (action.action === 'close') handlers.onCloseReview();
         if (action.action === 'next') handlers.onNextRound();
@@ -2594,6 +2635,7 @@ function getCanvasHitRegions(
         y: metrics.y + 18,
         width: closeWidth,
         height: closeHeight,
+        // 切换当前工具面板的显示状态
         onClick: () => handlers.onToggleUtilityPanel(utilityPanel),
       },
     ];
@@ -2621,6 +2663,7 @@ function getCanvasHitRegions(
       y: action.y,
       width: action.width,
       height: action.height,
+      // 按结算按钮类型打开复盘、进入下一局或重新开始
       onClick: () => {
         if (action.action === 'review') handlers.onOpenReview();
         if (action.action === 'next') handlers.onNextRound();
@@ -2637,16 +2680,20 @@ function getCanvasHitRegions(
       human.hand.length,
       getTableTileMetrics(layout).handTileHeight,
     );
-    human.hand.forEach((tile, index) => {
-      const selected = tile.id === selectedTileId;
-      regions.push({
-        x: handX + index * (tileWidth + handGap),
-        y: handY - (selected ? 8 : 4),
-        width: tileWidth,
-        height: Math.max(44, tileHeight + (selected ? 8 : 4)),
-        onClick: () => handlers.onSelectTile(tile.id),
-      });
-    });
+    human.hand.forEach(
+      // 根据手牌选择状态生成对应的点击命中区域
+      (tile, index) => {
+        const selected = tile.id === selectedTileId;
+        regions.push({
+          x: handX + index * (tileWidth + handGap),
+          y: handY - (selected ? 8 : 4),
+          width: tileWidth,
+          height: Math.max(44, tileHeight + (selected ? 8 : 4)),
+          // 将点击的手牌交给选牌逻辑
+          onClick: () => handlers.onSelectTile(tile.id),
+        });
+      },
+    );
   }
   const actionList = getHumanActionItems(state, selectedTileId, legalActions);
   for (const { item, x, y, width, height } of getHumanActionPositions(layout, actionList)) {
@@ -2655,6 +2702,7 @@ function getCanvasHitRegions(
       y,
       width,
       height,
+      // 执行当前操作按钮对应的合法动作
       onClick: () => handlers.onAction(item.action),
     });
   }
@@ -2666,6 +2714,7 @@ function getCanvasHitRegions(
     y: iconY,
     width: iconSize,
     height: iconSize,
+    // 切换役种说明面板
     onClick: () => handlers.onToggleUtilityPanel('yaku'),
   });
   regions.push({
@@ -2673,6 +2722,7 @@ function getCanvasHitRegions(
     y: iconY,
     width: iconSize,
     height: iconSize,
+    // 切换牌局设置面板
     onClick: () => handlers.onToggleUtilityPanel('settings'),
   });
   return regions;
@@ -3052,35 +3102,38 @@ export function PixiMahjongSurface({ view, handlers }: PixiMahjongSurfaceProps) 
         };
 
         void loadTileTextures(pixiModule)
-          .then((textures) => {
-            if (disposed || !appRef.current || !apiRef.current) return;
-            texturesRef.current = textures;
-            drawScene(
-              apiRef.current,
-              appRef.current,
-              screenRef.current,
-              utilityPanelRef.current,
-              utilityScrollRef.current,
-              stateRef.current,
-              reviewModeRef.current,
-              selectedTileRef.current,
-              legalActionsRef.current,
-              texturesRef.current,
-              trainingSpeedRef.current,
-              hasStartedRef.current,
-            );
-            hitRegionsRef.current = getCanvasHitRegions(
-              screenRef.current,
-              utilityPanelRef.current,
-              stateRef.current,
-              reviewModeRef.current,
-              selectedTileRef.current,
-              legalActionsRef.current,
-              getLayout(appRef.current.screen.width, appRef.current.screen.height),
-              handlersRef.current,
-              trainingSpeedRef.current,
-            );
-          })
+          .then(
+            // 纹理加载完成且组件仍有效时刷新场景与点击区域
+            (textures) => {
+              if (disposed || !appRef.current || !apiRef.current) return;
+              texturesRef.current = textures;
+              drawScene(
+                apiRef.current,
+                appRef.current,
+                screenRef.current,
+                utilityPanelRef.current,
+                utilityScrollRef.current,
+                stateRef.current,
+                reviewModeRef.current,
+                selectedTileRef.current,
+                legalActionsRef.current,
+                texturesRef.current,
+                trainingSpeedRef.current,
+                hasStartedRef.current,
+              );
+              hitRegionsRef.current = getCanvasHitRegions(
+                screenRef.current,
+                utilityPanelRef.current,
+                stateRef.current,
+                reviewModeRef.current,
+                selectedTileRef.current,
+                legalActionsRef.current,
+                getLayout(appRef.current.screen.width, appRef.current.screen.height),
+                handlersRef.current,
+                trainingSpeedRef.current,
+              );
+            },
+          )
           .catch(() => undefined);
 
         // 响应窗口尺寸变化并重绘当前牌桌
@@ -3121,6 +3174,7 @@ export function PixiMahjongSurface({ view, handlers }: PixiMahjongSurfaceProps) 
       }
     };
     void initialize();
+    // 卸载牌桌时移除监听并销毁 Pixi 场景与引用
     return () => {
       disposed = true;
       removeCanvasListeners?.();

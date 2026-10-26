@@ -1,3 +1,5 @@
+/** 在线编辑器：编辑器标签栏组件 */
+
 import type { KeyboardEvent, ReactElement } from 'react';
 
 import { getEditorTabId } from '../editor-dom';
@@ -43,44 +45,47 @@ export function EditorTabs({ activeEditorId, editors, onAdd, onClose, onSelect }
 
   return (
     <div className={styles.tabs} role="tablist" aria-label="编辑器列表">
-      {editors.map((editor, index) => {
-        const selected = editor.id === activeEditorId;
+      {editors.map(
+        // 根据活动文档渲染标签、关闭入口与分隔符
+        (editor, index) => {
+          const selected = editor.id === activeEditorId;
 
-        return (
-          <div key={editor.id} className={styles.tabSequenceItem}>
-            <div className={styles.editorTabItem} data-active={selected}>
-              <button
-                id={getEditorTabId(editor.id)}
-                className={selected ? styles.tabActive : styles.tab}
-                type="button"
-                role="tab"
-                aria-selected={selected}
-                aria-controls="source-panel"
-                tabIndex={selected ? 0 : -1}
-                onClick={() => onSelect(editor.id)}
-                onKeyDown={(event) => handleTabKeyDown(event, editor.id)}
-              >
-                {editor.title}
-              </button>
-              {canCloseEditor ? (
+          return (
+            <div key={editor.id} className={styles.tabSequenceItem}>
+              <div className={styles.editorTabItem} data-active={selected}>
                 <button
-                  className={styles.closeEditorButton}
+                  id={getEditorTabId(editor.id)}
+                  className={selected ? styles.tabActive : styles.tab}
                   type="button"
-                  aria-label={`关闭 ${editor.title}`}
-                  onClick={() => onClose(editor.id)}
+                  role="tab"
+                  aria-selected={selected}
+                  aria-controls="source-panel"
+                  tabIndex={selected ? 0 : -1}
+                  onClick={() => onSelect(editor.id)}
+                  onKeyDown={(event) => handleTabKeyDown(event, editor.id)}
                 >
-                  ×
+                  {editor.title}
                 </button>
+                {canCloseEditor ? (
+                  <button
+                    className={styles.closeEditorButton}
+                    type="button"
+                    aria-label={`关闭 ${editor.title}`}
+                    onClick={() => onClose(editor.id)}
+                  >
+                    ×
+                  </button>
+                ) : null}
+              </div>
+              {index < editors.length - 1 ? (
+                <span className={styles.tabSeparator} aria-hidden="true">
+                  /
+                </span>
               ) : null}
             </div>
-            {index < editors.length - 1 ? (
-              <span className={styles.tabSeparator} aria-hidden="true">
-                /
-              </span>
-            ) : null}
-          </div>
-        );
-      })}
+          );
+        },
+      )}
       <button className={styles.addEditorButton} type="button" onClick={onAdd} aria-label="新建编辑器">
         + 新建
       </button>

@@ -1,3 +1,5 @@
+/** 地图：第三方 SDK 数据的边界适配 */
+
 import type {
   BusLine,
   Coordinate,

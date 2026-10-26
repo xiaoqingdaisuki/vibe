@@ -1,3 +1,5 @@
+/** 数独：难度选择组件 */
+
 import { cn } from '@/lib/utils';
 import { SUDOKU_DIFFICULTIES } from '../engine';
 import type { SudokuDifficultyId } from '../types';

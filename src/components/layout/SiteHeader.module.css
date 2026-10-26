@@ -1,3 +1,5 @@
+/** 站点导航的布局、主题与响应式样式 */
+
 .header {
   background: var(--color-header-background);
   backdrop-filter: blur(12px);

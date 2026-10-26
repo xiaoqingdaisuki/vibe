@@ -1,3 +1,5 @@
+/** 放置角色游戏：战斗日志与倒计时组件 */
+
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -19,9 +21,11 @@ export function GameLog({ logs, character, combatCycleStartedAt, onClearLogs }: 
   const [isAtBottom, setIsAtBottom] = useState(true);
   const [now, setNow] = useState(() => Date.now());
 
+  // 战斗周期开始后每秒刷新当前时间，并在周期结束时清理计时器
   useEffect(() => {
     if (combatCycleStartedAt === null) return;
 
+    // 更新当前时间以刷新战斗倒计时
     const updateNow = () => setNow(Date.now());
     updateNow();
     const interval = window.setInterval(updateNow, 1_000);
@@ -33,12 +37,15 @@ export function GameLog({ logs, character, combatCycleStartedAt, onClearLogs }: 
 
   // 切换日志条目的展开/收起状态
   const toggleExpand = useCallback((timestamp: number) => {
-    setExpandedLogs((prev) => {
-      const next = new Set(prev);
-      if (next.has(timestamp)) next.delete(timestamp);
-      else next.add(timestamp);
-      return next;
-    });
+    setExpandedLogs(
+      // 切换指定日志的展开状态并保留其他展开项
+      (prev) => {
+        const next = new Set(prev);
+        if (next.has(timestamp)) next.delete(timestamp);
+        else next.add(timestamp);
+        return next;
+      },
+    );
   }, []);
 
   // 检测滚动位置，判断是否在底部
@@ -54,10 +61,11 @@ export function GameLog({ logs, character, combatCycleStartedAt, onClearLogs }: 
     const el = containerRef.current;
     if (!el) return;
 
-    // Scrolling the container directly keeps page scroll position unchanged.
+    // 直接滚动日志容器，保持页面滚动位置不变
     el.scrollTop = el.scrollHeight;
   }, []);
 
+  // 日志更新时仅在用户处于底部时跟随最新记录
   useEffect(() => {
     if (isAtBottom) {
       scrollToLatest();

@@ -1,3 +1,5 @@
+/** 在线编辑器：源码语言模式识别 */
+
 import type { EditorLanguage } from './types';
 
 export type PreviewSourceMode = EditorLanguage;

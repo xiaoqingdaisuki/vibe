@@ -1,3 +1,5 @@
+/** 验证在线编辑器：预览状态与跨窗口消息校验的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

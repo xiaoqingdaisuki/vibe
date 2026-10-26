@@ -1,3 +1,5 @@
+/** 通用按钮组件 */
+
 import { forwardRef } from 'react';
 
 import styles from './Button.module.css';

@@ -1,3 +1,5 @@
+/** 时区工具：客户端页面与交互编排 */
+
 'use client';
 
 import dayjs, { type Dayjs } from 'dayjs';
@@ -55,13 +57,18 @@ export function TimezoneTool() {
 
   // 每秒同步浏览器时间，避免服务端与客户端初始时间不一致
   useEffect(() => {
+    // 刷新当前时间以同步各时区时钟
     const updateTime = () => setCurrentTime(dayjs());
-    const animationFrameId = window.requestAnimationFrame(() => {
-      updateTime();
-      setLocalTimeZone(getLocalTimeZone());
-    });
+    const animationFrameId = window.requestAnimationFrame(
+      // 挂载后初始化当前时间与浏览器本地时区
+      () => {
+        updateTime();
+        setLocalTimeZone(getLocalTimeZone());
+      },
+    );
 
     const intervalId = window.setInterval(updateTime, 1000);
+    // 卸载时清理时间刷新、初始化与复制状态计时器
     return () => {
       window.cancelAnimationFrame(animationFrameId);
       window.clearInterval(intervalId);
@@ -125,24 +132,27 @@ export function TimezoneTool() {
           <p className={styles.sectionHint}>夏令时偏移会自动更新</p>
         </div>
         <div className={styles.worldGrid}>
-          {WORLD_TIME_ZONES.map((zone) => {
-            const value = currentTime
-              ? getWorldTimeValue(currentTime, zone)
-              : { clock: '--:--:--', offset: 'UTC--:--' };
+          {WORLD_TIME_ZONES.map(
+            // 按时区格式化当前时钟，初始化前展示稳定占位
+            (zone) => {
+              const value = currentTime
+                ? getWorldTimeValue(currentTime, zone)
+                : { clock: '--:--:--', offset: 'UTC--:--' };
 
-            return (
-              <article key={zone.id} className={styles.worldCard}>
-                <div>
-                  <h3 className={styles.city}>{zone.city}</h3>
-                  <p className={styles.region}>{zone.region}</p>
-                </div>
-                <div className={styles.worldReadout}>
-                  <time className={styles.worldTime}>{value.clock}</time>
-                  <span className={styles.worldOffset}>{value.offset}</span>
-                </div>
-              </article>
-            );
-          })}
+              return (
+                <article key={zone.id} className={styles.worldCard}>
+                  <div>
+                    <h3 className={styles.city}>{zone.city}</h3>
+                    <p className={styles.region}>{zone.region}</p>
+                  </div>
+                  <div className={styles.worldReadout}>
+                    <time className={styles.worldTime}>{value.clock}</time>
+                    <span className={styles.worldOffset}>{value.offset}</span>
+                  </div>
+                </article>
+              );
+            },
+          )}
         </div>
       </section>
 
@@ -156,23 +166,32 @@ export function TimezoneTool() {
           <p className={styles.sectionHint}>点击即可复制当前格式</p>
         </div>
         <div className={styles.formatGrid}>
-          {TIME_FORMATS.map((format) => {
-            const value = currentTime ? formatCopyValue(currentTime, format) : '正在同步时间…';
-            const copied = copyStatus?.id === format.id && copyStatus.message.startsWith('时间格式');
+          {TIME_FORMATS.map(
+            // 生成各时间格式的显示值与复制反馈
+            (format) => {
+              const value = currentTime ? formatCopyValue(currentTime, format) : '正在同步时间…';
+              const copied = copyStatus?.id === format.id && copyStatus.message.startsWith('时间格式');
 
-            return (
-              <article key={format.id} className={styles.formatCard}>
-                <div className={styles.formatHeading}>
-                  <h3>{format.label}</h3>
-                  <code>{format.pattern}</code>
-                </div>
-                <output className={styles.formatValue} translate="no">
-                  {value}
-                </output>
-                <CopyButton id={format.id} value={value} copied={copied} disabled={!currentTime} onCopy={handleCopy} />
-              </article>
-            );
-          })}
+              return (
+                <article key={format.id} className={styles.formatCard}>
+                  <div className={styles.formatHeading}>
+                    <h3>{format.label}</h3>
+                    <code>{format.pattern}</code>
+                  </div>
+                  <output className={styles.formatValue} translate="no">
+                    {value}
+                  </output>
+                  <CopyButton
+                    id={format.id}
+                    value={value}
+                    copied={copied}
+                    disabled={!currentTime}
+                    onCopy={handleCopy}
+                  />
+                </article>
+              );
+            },
+          )}
         </div>
       </section>
       <p className={styles.copyAnnouncement} aria-live="polite">

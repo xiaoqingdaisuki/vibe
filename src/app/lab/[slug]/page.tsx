@@ -1,3 +1,5 @@
+/** Lab 详情路由，通过显式加载映射选择应用并处理未上线状态 */
+
 import { notFound } from 'next/navigation';
 import { Breadcrumb } from '@/components/shared/Breadcrumb';
 import { getLabAppLoader } from '@/features/apps/loaders';

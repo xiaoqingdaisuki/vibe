@@ -1,3 +1,5 @@
+/** 放置角色游戏：角色快照与战斗日志持久化 */
+
 import type { Character, Item, LogEntry } from './types.ts';
 
 const CHARACTER_KEY_PREFIX = 'game:v2:character:';
@@ -149,7 +151,7 @@ export function saveCharacterSnapshot(
     storage.setItem(getCharacterStorageKey(snapshot.username), JSON.stringify(snapshot));
     storage.setItem(SESSION_KEY, JSON.stringify({ username: snapshot.username, lastLogin: snapshot.lastActive }));
   } catch {
-    // Storage can be unavailable or full; the game should keep running in memory.
+    // 存储不可用或已满时仍允许游戏在内存中继续运行
   }
 
   return snapshot;
@@ -185,7 +187,7 @@ export function savePersistedLogs(username: string, logs: readonly LogEntry[], s
   try {
     storage.setItem(getLogsStorageKey(username), JSON.stringify(logs.slice(-MAX_STORED_LOGS)));
   } catch {
-    // Logging persistence is best-effort only.
+    // 日志持久化失败时不阻断游戏
   }
 }
 

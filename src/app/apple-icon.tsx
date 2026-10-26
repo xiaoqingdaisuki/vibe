@@ -1,3 +1,5 @@
+/** 生成 iOS 主屏幕触控图标 */
+
 import { createPwaIconResponse } from './pwa-icon';
 
 export const size = {

@@ -1,3 +1,5 @@
+/** 验证通过显式动态导入映射按需加载 Lab 应用的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { labApps } from '../lab/registry.ts';

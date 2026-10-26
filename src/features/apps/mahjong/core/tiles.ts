@@ -1,3 +1,5 @@
+/** 麻将：牌种转换、牌山生成与可复现洗牌 */
+
 import type { Suit, Tile } from './types.ts';
 
 export const TILE_KIND_COUNT = 34;
@@ -17,17 +19,22 @@ function createTile(id: number, kind: number, copy: number, redFives: boolean): 
 
 // 创建标准 136 张牌山，并为三种五牌配置赤五
 export function createTileSet(redFives = true): Tile[] {
-  return Array.from({ length: TILE_COUNT }, (_, id) => {
-    const kind = Math.floor(id / 4);
-    const copy = id % 4;
-    return createTile(id, kind, copy, redFives);
-  });
+  return Array.from(
+    { length: TILE_COUNT },
+    // 按实体序号生成每种牌的四张副本
+    (_, id) => {
+      const kind = Math.floor(id / 4);
+      const copy = id % 4;
+      return createTile(id, kind, copy, redFives);
+    },
+  );
 }
 
 // 使用确定性伪随机数洗牌，确保相同 seed 得到相同牌山
 export function shuffleTiles(tiles: readonly Tile[], seed: number): Tile[] {
   const result = [...tiles];
   let value = seed >>> 0;
+  // 推进线性同余随机序列，保持洗牌结果可复现
   const nextRandom = () => {
     value = (value * 1664525 + 1013904223) >>> 0;
     return value / 4294967296;

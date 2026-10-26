@@ -1,3 +1,5 @@
+/** AI 助手：流式文本分帧发布与批处理调度 */
+
 export const TEXT_RENDER_INTERVAL_MS = 30;
 export const TEXT_RENDER_MAX_CHARS_PER_TICK = 50;
 export const MARKDOWN_RENDER_INTERVAL_MS = 100;
@@ -68,6 +70,7 @@ export function createLatestValueBatch<T>(intervalMs: number, publish: (value: T
 // 优先跟随浏览器绘制调度，非浏览器测试环境使用定时器回退
 function createTextFrameScheduler(intervalMs: number): TextFrameScheduler {
   return {
+    // 读取高精度时间供分帧调度计算间隔
     now: () => performance.now(),
     // 返回当前帧的取消函数，保证停止和卸载时没有残留回调
     request(callback) {
@@ -159,10 +162,13 @@ export function createStreamingTextPresenter({
   // 等待显示追上当前目标，取消时也会结束等待
   const drain = (): Promise<void> => {
     if (cancelled || cursor === target.length) return Promise.resolve();
-    return new Promise<void>((resolve) => {
-      waiters.push(resolve);
-      schedule();
-    });
+    return new Promise<void>(
+      // 登记等待完成的调用方并启动文本发布调度
+      (resolve) => {
+        waiters.push(resolve);
+        schedule();
+      },
+    );
   };
 
   // 暂停显示推进并保留当前可见文本，停止请求时不会继续追加内容
@@ -173,5 +179,6 @@ export function createStreamingTextPresenter({
     resolveFinish();
   };
 
+  // 读取当前已发布的可见文本
   return { append, push, drain, current: () => visible, cancel };
 }

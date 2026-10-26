@@ -1,3 +1,5 @@
+/** 判断浏览器环境是否需要展示 iOS 手动安装指引 */
+
 export interface PwaInstallEnvironment {
   userAgent: string;
   platform: string;

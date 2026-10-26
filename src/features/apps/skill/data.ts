@@ -1,3 +1,5 @@
+/** 技能参考：静态数据 */
+
 import type { Skill } from './types';
 
 // 技能参考数据列表

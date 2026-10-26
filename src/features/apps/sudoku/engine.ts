@@ -1,3 +1,5 @@
+/** 数独：规则与状态推进引擎 */
+
 import type { SudokuDifficultyId, SudokuGame } from './types';
 
 const GRID_SIZE = 9;
@@ -37,12 +39,13 @@ function createSolvedBoard(random: () => number): number[] {
   const rows = bands.flatMap((band) => shuffle([0, 1, 2], random).map((row) => band * BOX_SIZE + row));
   const columns = stacks.flatMap((stack) => shuffle([0, 1, 2], random).map((column) => stack * BOX_SIZE + column));
   const digits = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9], random);
+  // 通过行列位置计算满足宫格约束的基础数字偏移
   const pattern = (row: number, column: number) => (row * BOX_SIZE + Math.floor(row / BOX_SIZE) + column) % GRID_SIZE;
 
   return rows.flatMap((row) => columns.map((column) => digits[pattern(row, column)]));
 }
 
-// 生成行/列的随机排列顺序（保持 band/stack 结构）
+// 生成行列随机排列顺序，并保留各组三行与三列的宫格结构
 function createHouseOrder(random: () => number): number[] {
   return shuffle([0, 1, 2], random).flatMap((house) =>
     shuffle([0, 1, 2], random).map((position) => house * BOX_SIZE + position),
@@ -56,6 +59,7 @@ function transformMinimumClueGame(random: () => number): SudokuGame {
   const digitMap = shuffle([1, 2, 3, 4, 5, 6, 7, 8, 9], random);
   const transpose = random() >= 0.5;
 
+  // 按行列置换、转置与数字映射变换棋盘，保持空格不变
   const transformBoard = (board: number[]) =>
     Array.from({ length: GRID_SIZE * GRID_SIZE }, (_, index) => {
       const row = Math.floor(index / GRID_SIZE);
@@ -77,7 +81,7 @@ function getBoxIndex(row: number, column: number): number {
   return Math.floor(row / BOX_SIZE) * BOX_SIZE + Math.floor(column / BOX_SIZE);
 }
 
-// 初始化求解器状态（行/列/宫的 bitmask）
+// 初始化求解器的行、列与宫格位掩码
 function prepareSolver(board: number[]) {
   const rowMasks = Array<number>(GRID_SIZE).fill(0);
   const columnMasks = Array<number>(GRID_SIZE).fill(0);
@@ -114,6 +118,7 @@ export function countSolutions(board: number[], limit = 2): number {
 
   let solutionCount = 0;
 
+  // 优先搜索候选最少的空格，并在解数量达到上限时停止
   const search = () => {
     if (solutionCount >= limit) return;
 

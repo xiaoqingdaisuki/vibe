@@ -1,3 +1,5 @@
+/** 区块标题组件 */
+
 import styles from './SectionTitle.module.css';
 
 interface SectionTitleProps {

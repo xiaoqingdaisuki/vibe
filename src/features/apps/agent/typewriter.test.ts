@@ -1,3 +1,5 @@
+/** 验证AI 助手：回复完成动画的长度与时长策略的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

@@ -1,3 +1,5 @@
+/** RSS 阅读器：类型与数据契约 */
+
 export interface RssFeedItem {
   title: string;
   link: string;

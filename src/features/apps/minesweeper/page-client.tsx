@@ -1,3 +1,5 @@
+/** 扫雷：客户端页面与交互编排 */
+
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -39,7 +41,7 @@ export default function Minesweeper() {
   const [customError, setCustomError] = useState<string | null>(null);
   const [gameSequence, setGameSequence] = useState(0);
 
-
+  // 游玩阶段每秒累计用时，离开该阶段时停止计时
   useEffect(() => {
     if (status !== 'playing') return;
     const timer = window.setInterval(() => setElapsedSeconds((current) => current + 1), 1_000);

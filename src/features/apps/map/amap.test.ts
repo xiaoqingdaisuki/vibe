@@ -1,3 +1,5 @@
+/** 验证地图：高德 SDK 加载、请求与地图控制的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createMapController } from './amap.ts';
@@ -33,7 +35,7 @@ class FakeMap {
 }
 
 const options: MapControllerOptions = {
-  // 测试替身不读取 DOM；真实页面始终传入已挂载的 HTMLElement。
+  // 测试替身不读取 DOM；真实页面始终传入已挂载的 HTMLElement
   container: {} as HTMLElement,
   key: 'test-key',
   securityJsCode: 'test-security-code',

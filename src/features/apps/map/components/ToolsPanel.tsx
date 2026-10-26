@@ -1,3 +1,5 @@
+/** 地图：地图工具面板组件 */
+
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -45,6 +47,7 @@ function useRequestSequence(): { next: () => number; isCurrent: (request: number
     },
     [],
   );
+  // 生成下一次工具请求的序号
   return { next: () => ++sequence.current, isCurrent: (request) => request === sequence.current };
 }
 
@@ -160,10 +163,13 @@ function DistrictSection({ controller, onError, onNotice }: ToolsPanelProps): Re
       <div className={styles.sectionBody}>
         <form
           className={styles.inlineForm}
-          onSubmit={(event) => {
-            event.preventDefault();
-            void loadDistrict(keyword);
-          }}
+          onSubmit={
+            // 阻止表单默认导航并按关键词查询行政区划
+            (event) => {
+              event.preventDefault();
+              void loadDistrict(keyword);
+            }
+          }
         >
           <label className={styles.field}>
             <span className={styles.label}>行政区名称或编码</span>
@@ -408,10 +414,13 @@ function CoordinateSection({ controller, onError, onNotice }: ToolsPanelProps): 
             className={styles.input}
             value={source}
             disabled={!controller || pending}
-            onChange={(event) => {
-              const selected = coordinateSources.find((item) => item.value === event.target.value);
-              if (selected) setSource(selected.value);
-            }}
+            onChange={
+              // 校验所选坐标系后更新坐标转换来源
+              (event) => {
+                const selected = coordinateSources.find((item) => item.value === event.target.value);
+                if (selected) setSource(selected.value);
+              }
+            }
           >
             {coordinateSources.map((item) => (
               <option key={item.value} value={item.value}>

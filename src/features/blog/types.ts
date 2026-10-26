@@ -1,3 +1,5 @@
+/** 博客：类型与数据契约 */
+
 export interface BlogPost {
   slug: string;
   title: string;

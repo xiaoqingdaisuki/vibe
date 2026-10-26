@@ -1,3 +1,5 @@
+# 声明桌面工作区及共享依赖版本覆盖
+
 packages:
   - desktop
 

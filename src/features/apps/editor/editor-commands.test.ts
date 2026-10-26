@@ -1,3 +1,5 @@
+/** 验证在线编辑器：选区编辑与缩进命令的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { indentCode, outdentCode } from './editor-commands.ts';

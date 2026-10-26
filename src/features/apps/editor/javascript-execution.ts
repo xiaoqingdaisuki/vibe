@@ -1,3 +1,5 @@
+/** 在线编辑器：基于语法树的 JavaScript 执行包装 */
+
 import { parse } from 'acorn';
 
 const RESULT_VARIABLE = 'window.__VIBE_EDITOR_EXECUTION_RESULT__';

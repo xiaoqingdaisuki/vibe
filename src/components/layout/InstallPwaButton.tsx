@@ -1,3 +1,5 @@
+/** 应用安装入口组件 */
+
 'use client';
 
 import { useEffect, useState, useSyncExternalStore, type MouseEvent } from 'react';
@@ -181,6 +183,7 @@ export function InstallPwaButton() {
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
     window.addEventListener('appinstalled', handleAppInstalled);
 
+    // 卸载组件时移除安装提示与安装完成事件监听
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);

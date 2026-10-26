@@ -1,3 +1,5 @@
+/** 地图：地图操作图标组件 */
+
 type IconName =
   | 'search'
   | 'pin'

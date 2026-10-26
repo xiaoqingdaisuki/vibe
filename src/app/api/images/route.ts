@@ -1,3 +1,5 @@
+/** 代理图像生成请求并返回统一的错误响应 */
+
 import { NextResponse } from 'next/server';
 
 import { proxyAgentImage } from '@/features/apps/agent/agent-image-server-proxy';

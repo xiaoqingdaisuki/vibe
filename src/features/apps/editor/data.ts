@@ -1,3 +1,5 @@
+/** 在线编辑器：静态数据 */
+
 import type { EditorDocument, OnlineEditorWorkspace } from './types';
 
 export const DEFAULT_EDITOR_CODE = `const { useEffect, useState } = React;

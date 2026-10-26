@@ -1,3 +1,5 @@
+/** 验证GBA 模拟器：模拟速度的输入校验与转换的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { GBA_SPEEDS, getNextGbaSpeed } from './speed.ts';

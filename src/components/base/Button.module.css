@@ -1,3 +1,5 @@
+/** 通用按钮的布局、主题与响应式样式 */
+
 .button {
   display: inline-flex;
   align-items: center;
@@ -23,7 +25,7 @@
   cursor: not-allowed;
 }
 
-/* Primary */
+/* 主要按钮 */
 
 .primary {
   background: var(--color-accent);
@@ -38,7 +40,7 @@
   background: var(--color-accent-hover);
 }
 
-/* Secondary */
+/* 次要按钮 */
 
 .secondary {
   background: transparent;
@@ -54,7 +56,7 @@
   border-color: var(--color-accent);
 }
 
-/* Ghost */
+/* 透明背景按钮 */
 
 .ghost {
   background: transparent;
@@ -69,7 +71,7 @@
   background: var(--color-accent-wash);
 }
 
-/* Sizes */
+/* 按钮尺寸 */
 
 .sm {
   min-height: 36px;

@@ -1,3 +1,5 @@
+/** 在线编辑器：按语言加载格式化器并格式化源码 */
+
 import type { EditorLanguage } from './types';
 
 type PrettierPlugin = Record<string, unknown>;

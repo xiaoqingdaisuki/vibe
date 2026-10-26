@@ -1,3 +1,5 @@
+/** RSS 阅读器：订阅目标地址解析与内网访问防护 */
+
 import { isIP } from 'node:net';
 
 export interface DnsAddressRecord {

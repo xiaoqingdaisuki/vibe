@@ -1,3 +1,5 @@
+/** 验证冒险岛图鉴：筛选条件与地址栏同步的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

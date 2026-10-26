@@ -1,3 +1,5 @@
+/** 冒险岛图鉴：客户端页面与交互编排 */
+
 'use client';
 
 import { Fragment, useEffect, useState } from 'react';
@@ -36,10 +38,13 @@ const allColumns: Column[] = [
   { key: 'avoidability', label: '回避', statKey: 'avoidability' },
 ];
 
-const columns = allColumns.filter((column) => {
-  const statKey = column.statKey;
-  return !statKey || monstersWithDrops.some((monster) => monster.stats[statKey] !== null);
-});
+const columns = allColumns.filter(
+  // 隐藏所有怪物均缺少数据的属性列
+  (column) => {
+    const statKey = column.statKey;
+    return !statKey || monstersWithDrops.some((monster) => monster.stats[statKey] !== null);
+  },
+);
 
 const dropColumn: Column = { key: 'dropCount', label: '掉落道具' };
 
@@ -149,34 +154,37 @@ function MonsterRow({ monster, query }: { monster: MapleMonster; query: string }
           '—'
         )}
       </TableCell>
-      {displayColumns.map((column) => {
-        if (column.key === 'dropCount') {
-          return (
-            <Fragment key={column.key}>
-              <TableCell className={styles.drops} title={dropNames || '暂无掉落数据'}>
-                {visibleDrops.length ? `${visibleDrops.length} 件 · ${dropNames}` : '暂无掉落'}
-              </TableCell>
-              <TableCell className={styles.traits} title={traits}>
-                {traits}
-              </TableCell>
-            </Fragment>
-          );
-        }
+      {displayColumns.map(
+        // 按列类型渲染怪物名称、掉落摘要、特性或属性数值
+        (column) => {
+          if (column.key === 'dropCount') {
+            return (
+              <Fragment key={column.key}>
+                <TableCell className={styles.drops} title={dropNames || '暂无掉落数据'}>
+                  {visibleDrops.length ? `${visibleDrops.length} 件 · ${dropNames}` : '暂无掉落'}
+                </TableCell>
+                <TableCell className={styles.traits} title={traits}>
+                  {traits}
+                </TableCell>
+              </Fragment>
+            );
+          }
 
-        if (column.key === 'name') {
-          return (
-            <TableCell key={column.key}>
-              <a className={styles.monsterName} href={monster.sourceUrl} target="_blank" rel="noreferrer">
-                <span>{monster.name}</span>
-              </a>
-            </TableCell>
-          );
-        }
+          if (column.key === 'name') {
+            return (
+              <TableCell key={column.key}>
+                <a className={styles.monsterName} href={monster.sourceUrl} target="_blank" rel="noreferrer">
+                  <span>{monster.name}</span>
+                </a>
+              </TableCell>
+            );
+          }
 
-        return column.statKey ? (
-          <TableCell key={column.key}>{formatNumber(monster.stats[column.statKey])}</TableCell>
-        ) : null;
-      })}
+          return column.statKey ? (
+            <TableCell key={column.key}>{formatNumber(monster.stats[column.statKey])}</TableCell>
+          ) : null;
+        },
+      )}
     </TableRow>
   );
 }

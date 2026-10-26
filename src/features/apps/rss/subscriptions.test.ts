@@ -1,3 +1,5 @@
+/** 验证RSS 阅读器：订阅列表校验、迁移与序列化的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

@@ -1,3 +1,5 @@
+/** 速记本：类型与数据契约 */
+
 // 笔记数据：每条记录都是一段可自由编辑的文本
 export type NoteEntry = {
   id: string;

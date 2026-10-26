@@ -1,3 +1,5 @@
+/** 验证首页：首页最近更新条目解析的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { BlogPost } from '../../blog/types.ts';

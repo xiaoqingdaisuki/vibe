@@ -1,3 +1,5 @@
+/** 验证在线编辑器：预览沙箱的内容安全策略的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

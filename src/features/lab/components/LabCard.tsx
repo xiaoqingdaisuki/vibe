@@ -1,3 +1,5 @@
+/** Lab 应用目录：应用卡片组件 */
+
 import Link from 'next/link';
 import type { LabApp } from '../types';
 import styles from '../styles/LabCard.module.css';

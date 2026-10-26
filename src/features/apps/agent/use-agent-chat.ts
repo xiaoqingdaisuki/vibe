@@ -1,3 +1,5 @@
+/** AI 助手：消息发送、会话恢复与流式状态管理 */
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   callAgentApi,
@@ -119,6 +121,7 @@ export function useAgentChat(): AgentChatState {
   const isRestoringRef = useRef(true);
   const streamingCompleteIdsRef = useRef<Set<string>>(new Set());
 
+  // 同步最新消息引用，供异步发送流程读取
   useEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
@@ -141,10 +144,11 @@ export function useAgentChat(): AgentChatState {
         if (!cancelled) setMemoryEnabled(capabilities.memory_enabled);
       })
       .catch(() => {
-        // 能力探测失败时保留附件，避免误把临时会话内容丢掉。
+        // 能力探测失败时保留附件，避免误把临时会话内容丢掉
       });
     const conversationId = storage ? readStoredConversationId(storage, userId) : null;
 
+    // 仅在恢复任务仍有效时结束会话恢复状态
     const completeRestore = () => {
       if (cancelled) return;
       isRestoringRef.current = false;
@@ -160,39 +164,45 @@ export function useAgentChat(): AgentChatState {
 
     conversationIdRef.current = conversationId;
     void getAgentConversationMessages(conversationId, userId)
-      .then((restoredMessages) => {
-        if (cancelled) return;
-        const messages = restoredMessages.map(toChatMessage);
-        messagesRef.current = messages;
-        setMessages(messages);
-        setHasConversation(true);
-        setConnectionStatus('connected');
-      })
-      .catch((restoreError: unknown) => {
-        if (cancelled || isAbortError(restoreError)) return;
-        if (shouldDiscardStoredConversation(restoreError)) {
-          // 仅在服务端确认会话不存在时清理失效的本地引用
-          conversationIdRef.current = null;
-          const storage = getBrowserStorage();
-          if (storage) clearStoredConversationId(storage);
-          messagesRef.current = [];
-          streamingCompleteIdsRef.current = new Set();
-          setMessages([]);
-          setStreamingCompleteIds(new Set());
-          setInput('');
-          setError(null);
-          setConnectionStatus('idle');
-          setHasConversation(false);
-          setToolProgress(null);
-          return;
-        }
+      .then(
+        // 恢复成功后同步历史消息与连接状态，忽略已取消的任务
+        (restoredMessages) => {
+          if (cancelled) return;
+          const messages = restoredMessages.map(toChatMessage);
+          messagesRef.current = messages;
+          setMessages(messages);
+          setHasConversation(true);
+          setConnectionStatus('connected');
+        },
+      )
+      .catch(
+        // 区分会话失效与临时故障，决定清理引用或保留恢复入口
+        (restoreError: unknown) => {
+          if (cancelled || isAbortError(restoreError)) return;
+          if (shouldDiscardStoredConversation(restoreError)) {
+            // 仅在服务端确认会话不存在时清理失效的本地引用
+            conversationIdRef.current = null;
+            const storage = getBrowserStorage();
+            if (storage) clearStoredConversationId(storage);
+            messagesRef.current = [];
+            streamingCompleteIdsRef.current = new Set();
+            setMessages([]);
+            setStreamingCompleteIds(new Set());
+            setInput('');
+            setError(null);
+            setConnectionStatus('idle');
+            setHasConversation(false);
+            setToolProgress(null);
+            return;
+          }
 
-        // 临时网络或服务错误保留会话标识，刷新页面后仍可重试恢复
-        const message = restoreError instanceof Error ? restoreError.message : '会话历史恢复失败，请稍后刷新重试';
-        setError(message);
-        setConnectionStatus('error');
-        setHasConversation(true);
-      })
+          // 临时网络或服务错误保留会话标识，刷新页面后仍可重试恢复
+          const message = restoreError instanceof Error ? restoreError.message : '会话历史恢复失败，请稍后刷新重试';
+          setError(message);
+          setConnectionStatus('error');
+          setHasConversation(true);
+        },
+      )
       .finally(completeRestore);
 
     return () => {
@@ -243,6 +253,7 @@ export function useAgentChat(): AgentChatState {
       const textPresenter = createStreamingTextPresenter({
         intervalMs: TEXT_RENDER_INTERVAL_MS,
         maxCharsPerTick: TEXT_RENDER_MAX_CHARS_PER_TICK,
+        // 将分帧输出的文本合并到对应的助手消息
         publish: (content) => {
           setMessages((current) =>
             current.map((message) => (message.id === assistantId ? { ...message, content } : message)),
@@ -264,18 +275,21 @@ export function useAgentChat(): AgentChatState {
         setConnectionStatus('connected');
         setToolProgress(progress);
         setMessages((current) =>
-          current.map((message) => {
-            if (message.id !== assistantId) return message;
-            const calls = message.toolCalls || [];
-            const index = calls.findIndex(
-              (call) => (call.callId || call.toolName) === (progress.callId || progress.toolName),
-            );
-            const toolCalls =
-              index < 0
-                ? [...calls, progress]
-                : calls.map((call, callIndex) => (callIndex === index ? { ...call, ...progress } : call));
-            return { ...message, toolCalls };
-          }),
+          current.map(
+            // 按调用标识合并当前助手消息中的工具执行进度
+            (message) => {
+              if (message.id !== assistantId) return message;
+              const calls = message.toolCalls || [];
+              const index = calls.findIndex(
+                (call) => (call.callId || call.toolName) === (progress.callId || progress.toolName),
+              );
+              const toolCalls =
+                index < 0
+                  ? [...calls, progress]
+                  : calls.map((call, callIndex) => (callIndex === index ? { ...call, ...progress } : call));
+              return { ...message, toolCalls };
+            },
+          ),
         );
       };
 

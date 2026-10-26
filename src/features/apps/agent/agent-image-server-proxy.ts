@@ -1,3 +1,5 @@
+/** AI 助手：图像请求的服务端代理 */
+
 import { getAgentRequestTimeoutMs } from './agent-timeout.ts';
 
 interface ImageProxyResult {

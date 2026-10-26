@@ -1,3 +1,5 @@
+/** 地图：地图主界面的布局、主题与响应式样式 */
+
 .workspace {
   --map-panel-width: 380px;
   --map-header-height: calc(var(--space-48) + var(--space-8));

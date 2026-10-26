@@ -1,3 +1,5 @@
+/** 在线编辑器：隔离预览文档与运行时生成 */
+
 import type { Theme } from '@/lib/theme';
 
 import { createExecutableJavaScript } from './javascript-execution.ts';

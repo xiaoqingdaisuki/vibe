@@ -1,3 +1,5 @@
+/** 验证冒险岛图鉴：怪物筛选、排序与表格数据模型的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

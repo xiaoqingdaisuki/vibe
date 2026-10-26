@@ -1,3 +1,5 @@
+/** 验证扫雷：规则与状态推进引擎的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {

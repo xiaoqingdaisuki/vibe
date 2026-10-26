@@ -1,3 +1,5 @@
+/** AI 助手：安全 Markdown 渲染 */
+
 // 转义HTML特殊字符防止XSS注入
 function escapeHtml(text: string): string {
   return text
@@ -141,7 +143,7 @@ export function renderBlockMarkdown(content: string): string {
       continue;
     }
 
-    // Streaming can leave an incomplete Markdown marker — always consume it
+    // 流式输入可能留下未闭合的 Markdown 标记，仍需消费当前字符
     result.push(`<p>${renderInlineMarkdown(line)}</p>`);
     index += 1;
   }

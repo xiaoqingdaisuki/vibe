@@ -1,3 +1,5 @@
+/** 数独：客户端页面与交互编排 */
+
 'use client';
 
 import { CompletionPanel } from './components/CompletionPanel';

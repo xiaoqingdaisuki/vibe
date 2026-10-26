@@ -1,3 +1,5 @@
+/** 地图：高德 SDK 加载、请求与地图控制 */
+
 import {
   busLines,
   coordinate,
@@ -38,7 +40,7 @@ type SdkLoader = (key: string, securityJsCode: string) => Promise<unknown>;
 type RequestFailure = (error: Error) => void;
 const REQUEST_TIMEOUT = 18000;
 const SDK_TIMEOUT = 25000;
-// SDK 是浏览器全局资源；按配置共享加载以兼容 StrictMode 和页面重挂载。
+// SDK 是浏览器全局资源；按配置共享加载以兼容 StrictMode 和页面重挂载
 let sdkLoad: { key: string; securityJsCode: string; promise: Promise<unknown> } | undefined;
 let sdkSequence = 0;
 
@@ -111,7 +113,7 @@ function loadAmap(key: string, securityJsCode: string): Promise<unknown> {
     const url = new URL('https://webapi.amap.com/maps');
     url.search = new URLSearchParams({ v: '2.0', key, callback }).toString();
     script.src = url.href;
-    // JSONP 回调代表 SDK 已就绪；脚本下载完成时内部模块可能仍在加载。
+    // JSONP 回调代表 SDK 已就绪；脚本下载完成时内部模块可能仍在加载
     script.onerror = () => finish(new Error('无法加载高德地图，请检查网络连接。'));
     document.head.append(script);
   });
@@ -198,6 +200,7 @@ class AmapController implements MapController {
         if (error) reject(error);
         else resolve();
       };
+      // 取消当前 SDK 请求并通过统一收尾逻辑释放资源
       const cancel: RequestFailure = (error) => finish(error);
       const timer = setTimeout(() => finish(new Error('地图功能加载超时，请检查网络后重试。')), REQUEST_TIMEOUT);
       this.pending.add(cancel);
@@ -240,6 +243,7 @@ class AmapController implements MapController {
         if (error) reject(error);
         else resolve(value);
       };
+      // 取消当前 SDK 请求并通过统一收尾逻辑释放资源
       const cancel: RequestFailure = (error) => finish(error);
       const timer = setTimeout(() => finish(new Error('请求超时，请检查网络后重试。')), REQUEST_TIMEOUT);
       this.pending.add(cancel);

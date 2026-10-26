@@ -1,3 +1,5 @@
+/** 首页路由，组合站点介绍与最近更新 */
+
 import Link from 'next/link';
 import { BlogCard } from '@/features/blog/components/BlogCard';
 import { getBlogPosts } from '@/features/blog/lib/posts';
@@ -17,15 +19,15 @@ export default function HomePage() {
 
   return (
     <div className={styles.hero}>
-      {/* Large title with accent dot */}
+      {/* 带强调圆点的大标题 */}
       <div className={styles.titleWrap}>
         <h1 className={styles.title}>Vibe</h1>
       </div>
 
-      {/* Tagline */}
+      {/* 站点标语 */}
       <p className={styles.tagline}>Personal Web Lab</p>
 
-      {/* Category tags */}
+      {/* 分类标签 */}
       <div className={styles.categories}>
         <span className={`${styles.catTag} ${styles['catTag--accent']}`}>Apps</span>
         <span className={styles.catTag}>Blog</span>
@@ -35,10 +37,10 @@ export default function HomePage() {
         <span className={styles.catTag}>AI</span>
       </div>
 
-      {/* Divider */}
+      {/* 分隔线 */}
       <div className={styles.divider} />
 
-      {/* Original content */}
+      {/* 主要内容 */}
       <section className={`${styles.description} space-y-5 text-base leading-relaxed text-secondary`}>
         <p>
           Vibe is a personal Web Lab — not just a blog, but a container for various web applications, tools, games,

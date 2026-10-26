@@ -1,3 +1,5 @@
+/** 数独：通关结果面板组件 */
+
 import { formatElapsedTime } from '../game-state';
 import type { SudokuDifficultyId } from '../types';
 import styles from '../styles/Sudoku.module.css';

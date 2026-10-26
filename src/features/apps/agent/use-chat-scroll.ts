@@ -1,3 +1,5 @@
+/** AI 助手：消息滚动跟随与底部位置判断 */
+
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import type { ChatMessage } from './use-agent-chat';
@@ -28,22 +30,26 @@ export function useChatScroll(messages: ChatMessage[], isStreaming: boolean): Ch
   const prevCountRef = useRef(0);
   const shouldFollowRef = useRef(true);
 
+  // 滚动至消息底部并恢复自动跟随
   const scrollToBottom = useCallback((behavior: ScrollBehavior = 'smooth') => {
     shouldFollowRef.current = true;
     setShowScrollButton(false);
     messagesEndRef.current?.scrollIntoView({ behavior, block: 'end' });
   }, []);
 
+  // 根据当前滚动容器判断是否接近消息底部
   const isNearBottom = useCallback(() => {
     const element = scrollContainerRef.current;
     if (!element) return true;
     return isScrollNearBottom(element);
   }, []);
 
+  // 监听滚动位置以同步自动跟随和回到底部按钮状态
   useEffect(() => {
     const element = scrollContainerRef.current;
     if (!element) return;
 
+    // 用户滚动时更新是否继续跟随新消息
     const handleScroll = () => {
       const nearBottom = isNearBottom();
       shouldFollowRef.current = nearBottom;
@@ -55,6 +61,7 @@ export function useChatScroll(messages: ChatMessage[], isStreaming: boolean): Ch
     return () => element.removeEventListener('scroll', handleScroll);
   }, [isNearBottom]);
 
+  // 新消息到达时按用户位置与流式状态选择滚动方式
   useEffect(() => {
     if (messages.length === 0) return;
 

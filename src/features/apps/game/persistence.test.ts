@@ -1,3 +1,5 @@
+/** 验证放置角色游戏：角色快照与战斗日志持久化的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

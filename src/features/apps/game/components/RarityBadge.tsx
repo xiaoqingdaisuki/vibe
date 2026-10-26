@@ -1,3 +1,5 @@
+/** 放置角色游戏：稀有度标记组件 */
+
 'use client';
 
 import type { ItemRarity } from '../types';

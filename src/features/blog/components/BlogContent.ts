@@ -1,3 +1,5 @@
+/** 博客：文章正文组件 */
+
 import { createElement } from 'react';
 import type { BlogHeading } from '../lib/headings';
 import styles from './BlogContent.module.css';

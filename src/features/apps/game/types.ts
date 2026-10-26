@@ -1,3 +1,5 @@
+/** 放置角色游戏：类型与数据契约 */
+
 export type ClassType = 'warrior' | 'mage' | 'rogue';
 
 export type ItemType = 'material' | 'equipment' | 'chest' | 'skill_book';
@@ -50,7 +52,7 @@ export interface SkillInstance {
   level: number;
 }
 
-// Per-round combat detail
+// 每回合的战斗明细
 export interface CombatRoundDetail {
   round: number;
   playerDmg: number;
@@ -59,7 +61,7 @@ export interface CombatRoundDetail {
   playerHpAfter: number;
   isCritical: boolean;
   isDodged: boolean;
-  skillUsed?: string; // skill name if a skill was activated this round
+  skillUsed?: string; // 本回合触发技能时记录技能名称
 }
 
 export interface LogEntry {
@@ -86,18 +88,18 @@ export interface Character {
   inventory: Item[];
   equipment: Equipment;
   skills: SkillInstance[];
-  skillUsage: Record<string, number>; // skillId -> total usage count
+  skillUsage: Record<string, number>; // 按技能标识累计使用次数
   lastActive: number;
   createdAt: string;
-  inventoryMax: number; // max inventory slots, default 20, max 50
-  favorites: string[]; // item names marked as favorite (skip in bulk sell/sort)
+  inventoryMax: number; // 背包槽位上限默认二十，最多五十
+  favorites: string[]; // 收藏物品名称，批量出售或整理时跳过
   // 已发放一次超过20级老用户登录补偿
   mythicChestCompensationGranted?: boolean;
-  // Computed combat stats (populated by GameEngine before rendering)
+  // 渲染前由 GameEngine 填充的战斗属性
   _combatAtk?: number;
   _combatDef?: number;
   _combatSpell?: number;
-  // Rest cooldown timestamp (ms); null = ready
+  // 休息冷却结束的毫秒时间戳，空值表示已就绪
   lastRestTime?: number;
 }
 
@@ -149,7 +151,7 @@ export interface ClassDef {
   baseHp: number;
   growthPerLevel: Partial<Stats>;
   startingSkills: string[];
-  mainStat: keyof Stats; // warrior=str, mage=int, rogue=dex
+  mainStat: keyof Stats; // 战士使用力量，法师使用智力，盗贼使用敏捷
 }
 
 export interface ItemDef {
@@ -161,8 +163,8 @@ export interface ItemDef {
   rarity: ItemRarity;
   description: string;
   minLevel: number;
-  scaleWithClass?: boolean; // true → stats are per-class at equip time
-  classRequired?: ClassType; // required class to equip (undefined = any class)
+  scaleWithClass?: boolean; // 为真时在装备阶段按职业解析属性
+  classRequired?: ClassType; // 装备所需职业，未指定时允许任意职业
 }
 
 export interface SkillDef {
@@ -174,7 +176,7 @@ export interface SkillDef {
   effect: SkillEffect;
   maxLevel: number;
   classRequired?: ClassType;
-  cooldown: number; // number of rounds before this skill can be used again (0 = no cooldown)
+  cooldown: number; // 技能再次可用前需等待的回合数，零表示无冷却
 }
 
 export interface SkillEffect {

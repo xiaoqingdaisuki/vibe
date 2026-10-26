@@ -1,3 +1,5 @@
+/** 整理桌面发布所需的 Next standalone 文件与运行依赖 */
+
 import { copyFile, cp, lstat, mkdir, readdir, readlink, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { dirname, isAbsolute, join, resolve } from 'node:path';

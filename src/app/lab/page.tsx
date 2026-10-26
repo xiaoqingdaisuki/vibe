@@ -1,3 +1,5 @@
+/** Lab 目录路由，展示公开注册的实验应用 */
+
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SectionTitle } from '@/components/shared/SectionTitle';
 import { LabCard } from '@/features/lab/components/LabCard';

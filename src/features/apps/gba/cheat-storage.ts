@@ -1,3 +1,5 @@
+/** GBA 模拟器：金手指配置持久化 */
+
 import { sanitizeGbaCheats } from './cheats';
 import type { GbaCheat } from './types';
 
@@ -27,6 +29,6 @@ export function saveGbaCheats(romHash: string, cheats: readonly GbaCheat[]): voi
   try {
     localStorage.setItem(getGbaCheatStorageKey(romHash), JSON.stringify(cheats));
   } catch {
-    // 隐私模式或存储配额不足时保留当前运行内的金手指状态。
+    // 隐私模式或存储配额不足时保留当前运行内的金手指状态
   }
 }

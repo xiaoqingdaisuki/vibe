@@ -1,3 +1,5 @@
+/** 响应式表格组件 */
+
 import {
   forwardRef,
   type HTMLAttributes,

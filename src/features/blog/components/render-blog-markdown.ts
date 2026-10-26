@@ -1,9 +1,12 @@
+/** 博客：带标题锚点的文章渲染 */
+
 import { createElement, type ComponentProps, type JSX } from 'react';
 import { MDXRemote } from 'next-mdx-remote/rsc';
 import type { BlogHeading, BlogHeadingLevel } from '../lib/headings';
 
 // 创建带有锚点 ID 的标题渲染组件
 function createHeadingComponent(level: BlogHeadingLevel, headings: BlogHeading[], position: { current: number }) {
+  // 按标题出现顺序附加锚点，并保留原有标题属性
   return function BlogHeadingComponent({ children, ...props }: ComponentProps<'h2'>) {
     const heading = headings[position.current];
     position.current += 1;

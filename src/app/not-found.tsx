@@ -1,3 +1,5 @@
+/** 未找到页面时展示说明与返回主页入口 */
+
 import Link from 'next/link';
 import { PageHeader } from '@/components/shared/PageHeader';
 

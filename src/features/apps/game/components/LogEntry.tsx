@@ -1,3 +1,5 @@
+/** 放置角色游戏：日志条目组件 */
+
 'use client';
 
 import type { LogEntry } from '../types';

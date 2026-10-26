@@ -1,3 +1,5 @@
+/** 验证在线编辑器：按语言加载格式化器并格式化源码的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

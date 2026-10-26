@@ -1,3 +1,5 @@
+/** 扫雷：扫雷棋盘画布组件 */
+
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { loadBoardAssets } from '../board-assets';
@@ -29,6 +31,7 @@ interface MinesweeperCanvasProps {
 // 从 CSS 变量读取画布当前主题颜色
 function readCanvasColors(): CanvasColors {
   const computed = getComputedStyle(document.documentElement);
+  // 读取并去除主题变量值两端的空白
   const read = (name: string) => computed.getPropertyValue(name).trim();
 
   return {
@@ -60,35 +63,38 @@ function drawBoard(
   context.fillStyle = colors.border;
   context.fillRect(0, 0, canvas.width, canvas.height);
 
-  board.forEach((cell, index) => {
-    const row = Math.floor(index / config.columns);
-    const column = index % config.columns;
-    const x = column * cellSize;
-    const y = row * cellSize;
-    const centerX = x + cellSize / 2;
-    const centerY = y + cellSize / 2;
+  board.forEach(
+    // 按格子状态绘制底色、旗帜、地雷与相邻雷数
+    (cell, index) => {
+      const row = Math.floor(index / config.columns);
+      const column = index % config.columns;
+      const x = column * cellSize;
+      const y = row * cellSize;
+      const centerX = x + cellSize / 2;
+      const centerY = y + cellSize / 2;
 
-    context.fillStyle = cell.state === 'hidden' || cell.state === 'flagged' ? colors.accentWash : colors.background;
-    context.fillRect(x + inset, y + inset, cellSize - inset * 2, cellSize - inset * 2);
+      context.fillStyle = cell.state === 'hidden' || cell.state === 'flagged' ? colors.accentWash : colors.background;
+      context.fillRect(x + inset, y + inset, cellSize - inset * 2, cellSize - inset * 2);
 
-    if (cell.state === 'flagged') {
-      context.drawImage(assets.flag, x, y, cellSize, cellSize);
-    } else if (cell.state === 'revealed' && cell.mine) {
-      context.drawImage(cell.detonated ? assets.detonatedMine : assets.mine, x, y, cellSize, cellSize);
-    } else if (cell.state === 'revealed' && cell.adjacentMines > 0) {
-      context.fillStyle = cell.adjacentMines <= 2 ? colors.secondary : colors.foreground;
-      context.font = `700 ${Math.round(cellSize * 0.42)}px Inter, sans-serif`;
-      context.textAlign = 'center';
-      context.textBaseline = 'middle';
-      context.fillText(String(cell.adjacentMines), centerX, centerY + 1);
-    }
+      if (cell.state === 'flagged') {
+        context.drawImage(assets.flag, x, y, cellSize, cellSize);
+      } else if (cell.state === 'revealed' && cell.mine) {
+        context.drawImage(cell.detonated ? assets.detonatedMine : assets.mine, x, y, cellSize, cellSize);
+      } else if (cell.state === 'revealed' && cell.adjacentMines > 0) {
+        context.fillStyle = cell.adjacentMines <= 2 ? colors.secondary : colors.foreground;
+        context.font = `700 ${Math.round(cellSize * 0.42)}px Inter, sans-serif`;
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillText(String(cell.adjacentMines), centerX, centerY + 1);
+      }
 
-    if (hasCanvasFocus && index === focusedIndex) {
-      context.strokeStyle = colors.accent;
-      context.lineWidth = 4;
-      context.strokeRect(x + 5, y + 5, cellSize - 10, cellSize - 10);
-    }
-  });
+      if (hasCanvasFocus && index === focusedIndex) {
+        context.strokeStyle = colors.accent;
+        context.lineWidth = 4;
+        context.strokeRect(x + 5, y + 5, cellSize - 10, cellSize - 10);
+      }
+    },
+  );
 }
 
 // 根据指针在画布上的坐标计算对应单元格索引
@@ -144,12 +150,14 @@ export function MinesweeperCanvas({
     drawBoard(canvas, board, config, focusedIndex, hasCanvasFocus, colors, assets);
   });
 
-
+  // 棋盘数据或焦点变化时重绘最新画面
   useEffect(() => {
     void renderLatestBoard();
   }, [board, config, focusedIndex, hasCanvasFocus]);
 
+  // 监听根节点主题变化并触发棋盘重绘
   useEffect(() => {
+    // 使用最新棋盘与主题重新绘制画布
     const redraw = () => void renderLatestBoard();
     const observer = new MutationObserver(redraw);
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });

@@ -1,3 +1,5 @@
+/** AI 助手：客户端页面与交互编排 */
+
 'use client';
 
 import { useEffect, useId, useRef, useState } from 'react';
@@ -34,6 +36,7 @@ function TypewriterContent({
   const shouldShowCompletionCursor =
     isStreamingComplete && shouldAnimateTypewriter(content.length) && !completionAnimationFinished;
 
+  // 回复完成后按内容长度结束光标反馈，并清理动画计时器
   useEffect(() => {
     if (!isStreamingComplete || !shouldAnimateTypewriter(content.length)) return;
 
@@ -54,9 +57,7 @@ function TypewriterContent({
   );
 }
 
-/* ============================================
-   Icon components (inline SVG, no dep)
-   ============================================ */
+// 使用无额外依赖的内联 SVG 图标组件
 
 // 机器人头像图标
 function AgentIcon() {
@@ -278,9 +279,7 @@ function ChevronDownIcon() {
   );
 }
 
-/* ============================================
-   Helpers
-   ============================================ */
+// 界面辅助逻辑
 
 // 格式化时间戳为 HH:mm
 function formatTime(ts: number): string {
@@ -288,9 +287,7 @@ function formatTime(ts: number): string {
   return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
 }
 
-/* ============================================
-   Components
-   ============================================ */
+// 聊天界面组件
 
 // 带复制反馈的消息复制按钮，优先复制气泡中的选中文本
 function CopyButton({ text, contentRef }: { text: string; contentRef: RefObject<HTMLDivElement | null> }) {
@@ -298,6 +295,7 @@ function CopyButton({ text, contentRef }: { text: string; contentRef: RefObject<
   const resetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectedTextRef = useRef('');
 
+  // 组件卸载时取消复制状态的重置计时器
   useEffect(() => {
     return () => {
       if (resetTimerRef.current) clearTimeout(resetTimerRef.current);
@@ -547,7 +545,7 @@ interface ComposerAttachments {
   images: AgentImageAttachment[];
 }
 
-// 计算图片内容指纹，避免重复图片触发重复模型输入。
+// 计算图片内容指纹，避免重复图片触发重复模型输入
 async function getImageFingerprint(file: File): Promise<string> {
   const bytes = await file.arrayBuffer();
   if (globalThis.crypto?.subtle) {
@@ -557,7 +555,7 @@ async function getImageFingerprint(file: File): Promise<string> {
   return `${file.name}:${file.size}:${file.lastModified}`;
 }
 
-// 在浏览器内解析文本附件，文档正文只保存在当前页面状态中。
+// 在浏览器内解析文本附件，文档正文只保存在当前页面状态中
 async function parseLocalSessionDocument(file: File): Promise<AgentSessionDocument> {
   if (file.size > 2_500_000) throw new Error(`${file.name} 超过 2.5MB 临时文档限制`);
   const text = (await file.text()).replace(/\r\n?/g, '\n').trim();
@@ -611,6 +609,7 @@ function AgentComposer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fieldId = useId();
 
+  // 输入变化时按内容高度调整文本框，并限制最大高度
   useEffect(() => {
     const element = inputRef.current;
     if (!element) return;
@@ -618,10 +617,12 @@ function AgentComposer({
     element.style.height = `${Math.min(element.scrollHeight, 160)}px`;
   }, [input]);
 
+  // 输入组件挂载后聚焦消息文本框
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
+  // 在会话可发送时提交文本与当前附件
   const submit = () => {
     if (!isStreaming && !isRestoring) {
       void onSend(input, {
@@ -678,10 +679,13 @@ function AgentComposer({
         </div>
       ) : null}
       <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          submit();
-        }}
+        onSubmit={
+          // 阻止表单默认导航并提交聊天消息
+          (event) => {
+            event.preventDefault();
+            submit();
+          }
+        }
         className={`${styles.inputWrap} ${focused ? styles.inputWrapFocused : ''}`}
       >
         <input
@@ -690,10 +694,13 @@ function AgentComposer({
           accept=".txt,.md,.markdown,.json,.csv,.pdf,.docx,image/*"
           multiple
           className={styles.fileInput}
-          onChange={(event) => {
-            onPickFiles(event.target.files);
-            event.currentTarget.value = '';
-          }}
+          onChange={
+            // 读取所选附件后重置输入，允许再次选择同一文件
+            (event) => {
+              onPickFiles(event.target.files);
+              event.currentTarget.value = '';
+            }
+          }
           aria-label="上传文件或图片"
         />
         <button
@@ -712,12 +719,15 @@ function AgentComposer({
           id={fieldId}
           value={input}
           onChange={(event) => onInputChange(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !event.shiftKey) {
-              event.preventDefault();
-              submit();
+          onKeyDown={
+            // 按 Enter 发送消息，保留 Shift 加 Enter 的换行行为
+            (event) => {
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                submit();
+              }
             }
-          }}
+          }
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder="输入消息..."
@@ -758,7 +768,9 @@ function NewConversationDialog({ onCancel, onConfirm }: { onCancel: () => void; 
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // 订阅 Escape 按键以取消确认弹窗，并在卸载时移除监听
   useEffect(() => {
+    // 按下 Escape 时触发弹窗取消操作
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') onCancel();
     };
@@ -811,9 +823,7 @@ function NewConversationDialog({ onCancel, onConfirm }: { onCancel: () => void; 
   );
 }
 
-/* ============================================
-   AgentChat — Main component
-   ============================================ */
+// AgentChat 主组件
 
 // Agent聊天主组件，组装所有子组件并管理聊天状态
 export default function AgentChat() {
@@ -840,60 +850,66 @@ export default function AgentChat() {
   const { messagesEndRef, scrollContainerRef, showScrollButton, scrollToBottom } = useChatScroll(messages, isStreaming);
   const hasMessages = messages.length > 0;
 
-  // 将本地文件转换为临时文档、原始 PDF/DOCX 或图片附件。
+  // 将本地文件转换为临时文档、原始 PDF/DOCX 或图片附件
   const handlePickFiles = (files: FileList | null) => {
     if (!files) return;
-    void (async () => {
-      try {
-        const documents: AgentSessionDocument[] = [];
-        const rawFiles: AgentDocumentAttachment[] = [];
-        const images: AgentImageAttachment[] = [];
-        const imageFingerprints = new Set<string>();
-        for (const file of Array.from(files).slice(0, 6)) {
-          const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|avif)$/i.test(file.name);
-          if (isImage) {
-            const fingerprint = await getImageFingerprint(file);
-            if (imageFingerprints.has(fingerprint)) continue;
-            imageFingerprints.add(fingerprint);
-            images.push({ filename: file.name, blob: file, mimeType: file.type || 'image/*', fingerprint });
-          } else if (/\.(pdf|docx)$/i.test(file.name)) {
-            if (file.size > 2_500_000) throw new Error(`${file.name} 超过 2.5MB 临时文档限制`);
-            rawFiles.push({
-              filename: file.name,
-              blob: file,
-              mimeType:
-                file.type ||
-                (file.name.toLowerCase().endsWith('.pdf')
-                  ? 'application/pdf'
-                  : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
-            });
-          } else {
-            documents.push(await parseLocalSessionDocument(file));
+    void (
+      // 分类读取附件、校验大小并去重图片，统一更新错误状态
+      async () => {
+        try {
+          const documents: AgentSessionDocument[] = [];
+          const rawFiles: AgentDocumentAttachment[] = [];
+          const images: AgentImageAttachment[] = [];
+          const imageFingerprints = new Set<string>();
+          for (const file of Array.from(files).slice(0, 6)) {
+            const isImage = file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|avif)$/i.test(file.name);
+            if (isImage) {
+              const fingerprint = await getImageFingerprint(file);
+              if (imageFingerprints.has(fingerprint)) continue;
+              imageFingerprints.add(fingerprint);
+              images.push({ filename: file.name, blob: file, mimeType: file.type || 'image/*', fingerprint });
+            } else if (/\.(pdf|docx)$/i.test(file.name)) {
+              if (file.size > 2_500_000) throw new Error(`${file.name} 超过 2.5MB 临时文档限制`);
+              rawFiles.push({
+                filename: file.name,
+                blob: file,
+                mimeType:
+                  file.type ||
+                  (file.name.toLowerCase().endsWith('.pdf')
+                    ? 'application/pdf'
+                    : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+              });
+            } else {
+              documents.push(await parseLocalSessionDocument(file));
+            }
           }
+          setAttachments(
+            // 去重并合并当前附件，同时限制各类附件数量
+            (current) => {
+              const existingImageFingerprints = new Set(
+                current.images
+                  .map((image) => image.fingerprint)
+                  .filter((fingerprint): fingerprint is string => Boolean(fingerprint)),
+              );
+              const uniqueImages = images.filter(
+                (image) => !image.fingerprint || !existingImageFingerprints.has(image.fingerprint),
+              );
+              return {
+                documents: [...current.documents, ...documents].slice(0, 10),
+                files: [...current.files, ...rawFiles].slice(0, 10),
+                images: [...current.images, ...uniqueImages].slice(0, 4),
+              };
+            },
+          );
+          setAttachmentError(null);
+        } catch (error) {
+          setAttachmentError(error instanceof Error ? error.message : '附件读取失败，请重试');
         }
-        setAttachments((current) => {
-          const existingImageFingerprints = new Set(
-            current.images
-              .map((image) => image.fingerprint)
-              .filter((fingerprint): fingerprint is string => Boolean(fingerprint)),
-          );
-          const uniqueImages = images.filter(
-            (image) => !image.fingerprint || !existingImageFingerprints.has(image.fingerprint),
-          );
-          return {
-            documents: [...current.documents, ...documents].slice(0, 10),
-            files: [...current.files, ...rawFiles].slice(0, 10),
-            images: [...current.images, ...uniqueImages].slice(0, 4),
-          };
-        });
-        setAttachmentError(null);
-      } catch (error) {
-        setAttachmentError(error instanceof Error ? error.message : '附件读取失败，请重试');
       }
-    })();
+    )();
   };
 
-  // 发送当前输入和附件；关闭记忆时保留附件供同一会话后续追问继续参考。
+  // 发送当前输入和附件；关闭记忆时保留附件供同一会话后续追问继续参考
   const handleSend = (text: string, options?: SendMessageOptions) => {
     if (memoryEnabled === true) {
       setAttachments((current) => ({ ...current, documents: [], files: [] }));
@@ -902,7 +918,7 @@ export default function AgentChat() {
     void sendMessage(text, options);
   };
 
-  // 开启新会话时清理上一会话中的临时附件。
+  // 开启新会话时清理上一会话中的临时附件
   const handleStartNewConversation = async (): Promise<boolean> => {
     const succeeded = await startNewConversation();
     if (succeeded) setAttachments({ documents: [], files: [], images: [] });

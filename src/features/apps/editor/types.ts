@@ -1,3 +1,5 @@
+/** 在线编辑器：类型与数据契约 */
+
 export type EditorLanguage = 'css' | 'html' | 'javascript' | 'jsx';
 
 export interface EditorDocument {

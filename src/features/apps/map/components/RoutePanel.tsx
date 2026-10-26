@@ -1,3 +1,5 @@
+/** 地图：路线规划面板组件 */
+
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -57,6 +59,7 @@ const policies: Record<TravelMode, { value: number; name: string }[]> = {
   ],
 };
 
+// 将地点转换为路线端点输入状态
 function endpoint(place: Place | null): Endpoint {
   return { text: place?.name ?? '', place };
 }
@@ -160,6 +163,7 @@ export function RoutePanel({
     }
     const activeWaypoints = mode === 'driving' ? waypoints.filter((item) => item.text.trim()) : [];
     const requestId = ++sequence.current;
+    // 同时校验请求序号与目的地，丢弃过期结果
     const isCurrentRequest = () => requestId === sequence.current && destinationRef.current === destination;
     setPending('plan');
     try {
@@ -323,10 +327,13 @@ export function RoutePanel({
             type="button"
             className={styles.button}
             disabled={disabled || waypoints.length >= 3}
-            onClick={() => {
-              const key = nextWaypoint.current++;
-              setWaypoints((items) => [...items, { key, text: '', place: null }]);
-            }}
+            onClick={
+              // 分配稳定标识并添加一个空白途经点
+              () => {
+                const key = nextWaypoint.current++;
+                setWaypoints((items) => [...items, { key, text: '', place: null }]);
+              }
+            }
           >
             ＋ 添加途经点（最多 3 个）
           </button>

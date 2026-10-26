@@ -1,3 +1,5 @@
+/** 验证在线编辑器：代码语法高亮分词的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { tokenizeCode } from './tokenizer.ts';

@@ -1,3 +1,5 @@
+/** 验证GBA 模拟器：重启确认与存档保护策略的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { confirmGbaReset, RESET_CONFIRMATION_MESSAGES } from './reset-confirmation.ts';

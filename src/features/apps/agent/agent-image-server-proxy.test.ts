@@ -1,3 +1,5 @@
+/** 验证AI 助手：图像请求的服务端代理的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

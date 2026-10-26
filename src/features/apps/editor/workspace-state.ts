@@ -1,3 +1,5 @@
+/** 在线编辑器：工作区文档的增删、选择与编辑 */
+
 import { createDefaultEditor } from './data.ts';
 import type { OnlineEditorWorkspace } from './types';
 

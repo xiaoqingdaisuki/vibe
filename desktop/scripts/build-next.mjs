@@ -1,3 +1,5 @@
+/** 构建桌面应用使用的 Next standalone 服务并传递构建退出状态 */
+
 import { spawn } from 'node:child_process';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

@@ -1,3 +1,5 @@
+/** 页面标题组件 */
+
 import styles from './PageHeader.module.css';
 
 interface PageHeaderProps {

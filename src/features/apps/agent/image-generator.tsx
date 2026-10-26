@@ -1,3 +1,5 @@
+/** AI 助手：图像生成表单与结果展示 */
+
 'use client';
 
 import Image from 'next/image';
@@ -9,7 +11,15 @@ import styles from './styles/Agent.module.css';
 // 图像生成面板图标
 function ImageIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      aria-hidden="true"
+    >
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <circle cx="8.5" cy="9" r="1.5" />
       <path d="m3 17 5-5 4 4 3-3 6 6" />
@@ -26,6 +36,7 @@ export function ImageGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
   const promptId = useId();
 
+  // 校验提示词并提交图像生成请求，统一更新结果与错误状态
   const submit = async () => {
     const trimmedPrompt = prompt.trim();
     if (!trimmedPrompt || isGenerating) return;

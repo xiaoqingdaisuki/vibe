@@ -1,3 +1,5 @@
+/** 验证速记本：文本、命令与代码围栏解析的回归行为 */
+
 import assert from 'node:assert/strict';
 import test from 'node:test';
 

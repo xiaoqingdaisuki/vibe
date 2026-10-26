@@ -1,3 +1,5 @@
+/** 扫雷：类型与数据契约 */
+
 export type CellState = 'hidden' | 'revealed' | 'flagged';
 
 export type GameStatus = 'ready' | 'playing' | 'won' | 'lost';

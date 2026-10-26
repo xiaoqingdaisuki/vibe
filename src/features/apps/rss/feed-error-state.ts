@@ -1,3 +1,5 @@
+/** RSS 阅读器：订阅源失败提示与恢复操作 */
+
 import { createElement } from 'react';
 
 import styles from './styles/RSSReader.module.css';

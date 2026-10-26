@@ -1,3 +1,5 @@
+/** 放置角色游戏：规则与状态推进引擎 */
+
 import type {
   Character,
   Item,
@@ -51,20 +53,21 @@ export class GameEngine {
   public skillLevelUpLogs: { skillName: string; newLevel: number }[] = [];
   public defeatLogs: string[] = [];
 
+  // 绑定角色数据，并为旧存档补齐技能使用次数、背包容量和收藏
   constructor(character: Character) {
     this.character = character;
-    // Backwards compat: ensure skillUsage exists
+    // 兼容旧存档，补齐技能使用次数
     if (!this.character.skillUsage) {
       this.character.skillUsage = {};
       for (const sk of this.character.skills) {
         this.character.skillUsage[sk.skillId] = 0;
       }
     }
-    // Backwards compat: ensure inventoryMax exists
+    // 兼容旧存档，补齐背包容量
     if (!this.character.inventoryMax) {
       this.character.inventoryMax = 20;
     }
-    // Backwards compat: ensure favorites exists
+    // 兼容旧存档，补齐收藏列表
     if (!this.character.favorites) {
       this.character.favorites = [];
     }
@@ -113,13 +116,13 @@ export class GameEngine {
     const combatHpBonus = this.character.class === 'warrior' ? this._combatHpBonus : 0;
     playerHp += combatHpBonus;
 
-    // Buffs applied this combat (each buff can only be applied once per combat)
+    // 记录本场战斗已应用的增益，每种增益仅能生效一次
     const appliedBuffs = new Set<string>();
 
-    // Skill cooldowns: skillId -> remaining rounds
+    // 按技能标识记录剩余冷却回合数
     const skillCooldowns: Record<string, number> = {};
 
-    // Build lookup for class skills
+    // 建立职业技能查询表
     const classSkillIds = new Set(
       SKILLS.filter((s) => !s.classRequired || s.classRequired === this.character.class).map((s) => s.id),
     );
@@ -128,13 +131,13 @@ export class GameEngine {
     while (playerHp > 0 && monsterHp > 0 && rounds < 100) {
       rounds++;
 
-      // Decrement cooldowns at start of round
+      // 每回合开始时减少技能冷却时间
       for (const key of Object.keys(skillCooldowns)) {
         skillCooldowns[key]--;
         if (skillCooldowns[key] <= 0) delete skillCooldowns[key];
       }
 
-      // --- Skill activation (before attack) ---
+      // 在普通攻击前尝试触发技能
       let skillUsedName: string | undefined;
       let skillUsedId: string | undefined;
       let skillDmgBonus = 0;
@@ -153,7 +156,7 @@ export class GameEngine {
           skillUsedName = skillDef.name;
           skillUsedId = skillInst.skillId;
 
-          // Log level-up in combat
+          // 在战斗中记录技能升级
           if (levelUp) {
             this.skillLevelUpLogs.push({
               skillName: skillDef.name,
@@ -161,11 +164,11 @@ export class GameEngine {
             });
           }
 
-          // Apply effect
+          // 应用技能效果
           const category = SKILL_CATEGORY[skillInst.skillId] || 'damage';
           if (category === 'damage') {
             const scaledValue = getSkillEffectValue(skillDef, skillInst.level);
-            // Mage skills use spell power (INT + weapon INT), others use ATK
+            // 法师技能使用智力与武器智力构成的法术强度，其他职业使用攻击力
             const damageSource = this.character.class === 'mage' ? this.getSpellPower() : playerAtk;
             skillDmgBonus = Math.floor(damageSource * (scaledValue - 1));
           } else if (category === 'heal') {
@@ -173,11 +176,11 @@ export class GameEngine {
             skillHealAmount = Math.floor(this.character.maxHp * scaledValue);
             playerHp = Math.min(this.character.maxHp, playerHp + skillHealAmount);
           }
-          // buff: tracked in appliedBuffs, applied in calculatePlayerAtk/Def
+          // 增益记录于 appliedBuffs，并在攻击与防御计算时生效
         }
       }
 
-      // Player attack
+      // 玩家攻击
       const playerDamage = this.calculateDamage(
         Math.floor(playerAtk * (1 + this.getActiveBuffValue(appliedBuffs, learnedSkills, 'war_cry'))),
         monster.def,
@@ -206,7 +209,7 @@ export class GameEngine {
         break;
       }
 
-      // Monster attack
+      // 怪物攻击
       const dodgeRoll = skillUsedId === 'dodge' || this.rollDodge();
       if (dodgeRoll) {
         isDodged = true;
@@ -326,7 +329,6 @@ export class GameEngine {
       character: this.character,
     };
   }
-  /** Recalculate and attach combat stats to the character for UI display */
   // 重新计算并更新角色的战斗属性
   refreshCombatStats(): void {
     this.character._combatAtk = this.getCombatAtk();
@@ -357,10 +359,10 @@ export class GameEngine {
     const now = Date.now();
     const offlineMs = now - this.character.lastActive;
     const offlineMinutes = Math.floor(offlineMs / 60000);
-    const maxOfflineMinutes = 480; // 8 hours max
+    const maxOfflineMinutes = 480; // 最多计算八小时
 
     const effectiveMinutes = Math.min(offlineMinutes, maxOfflineMinutes);
-    const combats = Math.floor(effectiveMinutes / 2); // 1 combat per 2 minutes
+    const combats = Math.floor(effectiveMinutes / 2); // 每两分钟结算一场战斗
 
     const result: OfflineResult = {
       totalCombats: combats,
@@ -373,7 +375,7 @@ export class GameEngine {
     };
 
     for (let i = 0; i < combats; i++) {
-      // Auto-downgrade: try up to 30 weaker monster levels on loss
+      // 战败后逐级降低怪物等级，最多尝试三十级
       let monsterLevel = this.character.level;
       let victory = false;
 
@@ -382,7 +384,7 @@ export class GameEngine {
         const difficulty = this.getDifficultyTier(monsterLevel);
         const diffMult = 1 + (difficulty - 1) * 0.3;
 
-        // Offline combat: reduced player strength (80% of normal)
+        // 离线战斗使用正常状态八成的玩家强度
         const playerAtk = Math.floor(this.calculatePlayerAtk() * 0.8);
         const playerDef = Math.floor(this.calculatePlayerDef() * 0.8);
 
@@ -485,7 +487,7 @@ export class GameEngine {
     );
     return lines.join('\n');
   }
-  // 根据等级获取难度 tier
+  // 根据等级获取难度层级
   getDifficultyTier(level: number): number {
     const tier = DIFFICULTY_TIERS.find((t) => level >= t.minLevel && level <= t.maxLevel);
     return tier ? tier.tier : 1;
@@ -516,11 +518,11 @@ export class GameEngine {
       return true;
     }
 
-    // Inventory full: try to drop common items first, then uncommon
+    // 背包已满时优先丢弃普通物品，其次丢弃优秀物品
     const dropOrder: ItemRarity[] = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'transcendent'];
 
     for (const rarity of dropOrder) {
-      if (item.rarity === rarity) break; // don't drop items of same or higher rarity
+      if (item.rarity === rarity) break; // 保留与新物品同等或更高稀有度的物品
       const dropIdx = this.character.inventory.findIndex((i) => i.rarity === rarity);
       if (dropIdx >= 0) {
         this.character.inventory = [
@@ -532,7 +534,7 @@ export class GameEngine {
       }
     }
 
-    // Could not make space - item is lost
+    // 仍无法腾出空间时放弃新物品
     return false;
   }
 
@@ -548,7 +550,7 @@ export class GameEngine {
       : 0;
 
     if (classId === 'warrior') {
-      // 战士：主属性（STR）提升攻击，并从武器主属性获得生命加成。
+      // 战士：主属性（STR）提升攻击，并从武器主属性获得生命加成
       const atk = mainStat + weaponMainStat + accBonus;
       const hpBonus = weaponMainStat * 3;
       this._combatHpBonus = hpBonus;
@@ -556,7 +558,7 @@ export class GameEngine {
     }
 
     if (classId === 'rogue') {
-      // 盗贼：主属性（DEX）提升攻击，暴击率随敏捷成长。
+      // 盗贼：主属性（DEX）提升攻击，暴击率随敏捷成长
       const atk = mainStat + weaponMainStat + accBonus;
       this._rogueDex = mainStat + weaponMainStat + accBonus;
       const accLuk = this.statBonus(this.character.equipment.accessory, 'luk');
@@ -564,7 +566,7 @@ export class GameEngine {
       return Math.max(1, atk);
     }
 
-    // Mage: basic attack uses STR only (weak without spell power), spell damage uses INT
+    // 法师普通攻击仅使用力量，法术伤害使用智力
     const str = this.character.stats.str;
     const weaponStr = this.statBonus(this.character.equipment.weapon, 'str');
     this._rogueLuk = 0;
@@ -580,7 +582,7 @@ export class GameEngine {
     return def;
   }
 
-  // Class-specific combat bonuses resolved after ATK/DEF calculation
+  // 基础攻击与防御计算完成后再应用职业战斗加成
   private _combatHpBonus = 0;
   private _rogueDex = 0;
   private _rogueLuk = 0;
@@ -625,7 +627,7 @@ export class GameEngine {
   getCritChanceBonus(): number {
     const dex = this._rogueDex;
     const lukBonus = this._rogueLuk;
-    // Every 8 DEX = +1% crit, every 5 LUK = +1% crit (min 0, max 15%)
+    // 每八点敏捷和每五点幸运各增加百分之一暴击，总加成限制为百分之十五
     return Math.min(0.15, Math.floor(dex / 8) * 0.01 + Math.floor(lukBonus / 5) * 0.01);
   }
 
@@ -688,14 +690,14 @@ export class GameEngine {
   ): { skillDef: SkillDef; skillInst: { skillId: string; level: number }; levelUp: boolean; newLevel: number } | null {
     if (learnedSkills.length === 0) return null;
 
-    // Categorize skills and filter out those on cooldown
+    // 按技能类型分类，并排除仍在冷却中的技能
     const damageSkills: typeof learnedSkills = [];
     const healSkills: typeof learnedSkills = [];
     const buffSkills: typeof learnedSkills = [];
 
     for (const sk of learnedSkills) {
       const cat = SKILL_CATEGORY[sk.skillId] || 'damage';
-      // Skip if on cooldown
+      // 跳过冷却中的技能
       if ((skillCooldowns[sk.skillId] || 0) > 0) continue;
       if (cat === 'heal') healSkills.push(sk);
       else if (cat === 'buff') buffSkills.push(sk);
@@ -705,23 +707,23 @@ export class GameEngine {
     let pool: typeof learnedSkills = [];
     let forceActivate = false;
 
-    // 1) Always try damage skills (when off cooldown)
+    // 优先尝试已结束冷却的伤害技能
     if (damageSkills.length > 0) {
       pool = damageSkills;
       forceActivate = true;
     }
-    // 2) Heal: only when HP < 35%
+    // 生命值低于百分之三十五时才尝试治疗
     else if (healSkills.length > 0 && currentHp < maxHp * 0.35) {
       pool = healSkills;
       forceActivate = true;
     }
-    // 3) Buff: only once per combat, 50% chance
+    // 每种增益每场战斗最多生效一次，触发概率为一半
     else if (buffSkills.length > 0 && appliedBuffs.size === 0) {
       pool = buffSkills;
-      forceActivate = false; // 50% chance
+      forceActivate = false; // 触发概率为百分之五十
     }
 
-    // Buffs: 50% activation chance; other types always activate
+    // 增益技能有一半概率触发，其他类型必定触发
     if (!forceActivate && Math.random() >= 0.5) return null;
 
     if (pool.length === 0) return null;
@@ -730,15 +732,15 @@ export class GameEngine {
     const skillDef = SKILLS.find((s) => s.id === skillInst.skillId);
     if (!skillDef) return null;
 
-    // Mark buff as applied this combat
+    // 标记本场战斗已应用此增益
     if (SKILL_CATEGORY[skillInst.skillId] === 'buff') {
       appliedBuffs.add(skillInst.skillId);
     }
 
-    // Set cooldown
+    // 设置技能冷却
     skillCooldowns[skillInst.skillId] = skillDef.cooldown;
 
-    // Ensure skillUsage map exists
+    // 确保技能使用次数映射存在
     if (!this.character.skillUsage) {
       this.character.skillUsage = {};
       for (const sk of this.character.skills) {
@@ -746,14 +748,14 @@ export class GameEngine {
       }
     }
 
-    // Increment usage and check level-up
+    // 累计使用次数并检查技能升级
     const lvlResult = tryLevelUpSkill(this.character.skillUsage, skillInst.skillId, skillInst.level);
     this.character.skillUsage[skillInst.skillId] = lvlResult.usage;
 
     const levelUp = lvlResult.leveledUp;
     const newLevel = lvlResult.newLevel;
 
-    // Update skill instance if leveled up
+    // 升级成功后同步技能实例等级
     if (levelUp) {
       skillInst.level = newLevel;
     }
@@ -766,10 +768,10 @@ export class GameEngine {
     const index = Math.max(0, Math.min(level - 1, MONSTERS.length - 1));
     const baseMonster = MONSTERS[index];
     const tier = this.getDifficultyTier(level);
-    // Stat multiplier: tier 1=1.0, tier 2=1.3, tier 3=1.6, tier 4=1.9, tier 5=2.2
+    // 难度一至五的属性倍率依次为 1.0、1.3、1.6、1.9、2.2
     const diffMult = 1 + (tier - 1) * 0.3;
 
-    // Scale stats with level
+    // 按等级缩放属性
     const hpScale = 1 + (level - 1) * 0.12;
     const atkScale = 1 + (level - 1) * 0.06;
     const defScale = 1 + (level - 1) * 0.04;
@@ -831,7 +833,7 @@ export class GameEngine {
 
       this.character.maxHp = Math.floor(this.character.maxHp * 1.05) + this.character.stats.vit * 2;
 
-      // Full restore after recalculating max HP
+      // 重新计算生命上限后恢复至满血
       this.character.hp = this.character.maxHp;
     }
 
@@ -910,7 +912,7 @@ export class GameEngine {
       return logs;
     }
 
-    // Check class requirement
+    // 校验装备职业限制
     const itemClassRequired = item.classRequired;
     if (itemClassRequired && this.character.class !== itemClassRequired) {
       const className = CLASSES.find((c) => c.id === itemClassRequired)?.name || itemClassRequired;
@@ -922,7 +924,7 @@ export class GameEngine {
       return logs;
     }
 
-    // Check equipment level requirement
+    // 校验装备等级限制
     const itemMinLevel = item.minLevel;
     if (itemMinLevel && this.character.level < itemMinLevel) {
       logs.push({
@@ -933,7 +935,7 @@ export class GameEngine {
       return logs;
     }
 
-    // Equip new item (resolve per-class stats if needed)
+    // 穿戴新装备，并按需解析职业属性
     const itemToEquip = { ...item };
     if (item.scaleWithClass && item.stats) {
       itemToEquip.stats = resolveStatsForClass(item.stats, this.character.class);
@@ -1052,9 +1054,10 @@ export class GameEngine {
     const chestRarity = chest.rarity;
     const rewards: Item[] = [];
 
-    // Each chest gives 1 item by default
+    // 每个宝箱默认产出一件物品
     let rewardCount = 1;
 
+    // 优先随机选择当前职业技能书并加入奖励列表
     const addSkillBook = () => {
       const classBooks = ITEMS.filter((it) => it.type === 'skill_book' && it.name.includes(this.getClassName()));
       const book =
@@ -1064,7 +1067,7 @@ export class GameEngine {
       if (book) rewards.push({ ...book });
     };
 
-    // 1% chance to also drop a skill book (2 items total)
+    // 有百分之一概率额外产出一本技能书
     const skillBookTriggered = Math.random() < 0.01;
     if (skillBookTriggered) {
       rewardCount = 2;
@@ -1079,7 +1082,7 @@ export class GameEngine {
       const equipItem = randomEquipItem(chestRarity, this.character.level);
       if (equipItem) {
         rewards.push(equipItem);
-        // Mythic/transcendent items bypass the 1-item limit: add an extra item
+        // 神话与超越物品不占默认名额，额外添加一件奖励
         if (equipItem.rarity === 'mythic' || equipItem.rarity === 'transcendent') {
           const extraItem = randomEquipItem(chestRarity, this.character.level);
           if (extraItem) {
@@ -1146,10 +1149,13 @@ export class GameEngine {
       return logs;
     }
 
-    const upgradable = learnedClassSkills.filter((sk) => {
-      const def = SKILLS.find((s) => s.id === sk.skillId);
-      return def && sk.level < def.maxLevel;
-    });
+    const upgradable = learnedClassSkills.filter(
+      // 筛选仍未达到定义等级上限的已学职业技能
+      (sk) => {
+        const def = SKILLS.find((s) => s.id === sk.skillId);
+        return def && sk.level < def.maxLevel;
+      },
+    );
 
     if (upgradable.length === 0) {
       logs.push({
@@ -1432,10 +1438,10 @@ export class GameEngine {
       return logs;
     }
 
-    // Use the actual item's rarity for pricing
+    // 按物品实际稀有度定价
     const rarity = sampleItem.rarity;
 
-    // Sell price: gray=10, green=100, blue=200, purple+=chestPrice/10
+    // 普通、优秀、稀有售价为 10、100、200，更高品质按对应宝箱价格十分之一定价
     let unitPrice: number;
     if (rarity === 'common') {
       unitPrice = 10;
@@ -1444,7 +1450,7 @@ export class GameEngine {
     } else if (rarity === 'rare') {
       unitPrice = 200;
     } else {
-      // epic/legendary/mythic/transcendent: use equivalent chest price / 10
+      // 史诗及以上品质使用同级宝箱价格的十分之一
       const rarityToChest: Record<string, string> = {
         epic: 'epic_chest',
         legendary: 'legendary_chest',
@@ -1475,7 +1481,7 @@ export class GameEngine {
   private getExpandCost(): number {
     const current = this.character.inventoryMax;
     if (current >= 50) return Infinity;
-    // 20->21: 100, then ×1.35 each step
+    // 容量从二十扩至二十一花费一百金币，之后每级乘以 1.35
     const stepsFrom20 = current - 20;
     return Math.floor(100 * Math.pow(1.35, stepsFrom20));
   }
@@ -1515,19 +1521,23 @@ export class GameEngine {
       return logs;
     }
 
-    // Rarity order index (higher = better)
+    // 稀有度排序索引，数值越大品质越高
+    // 将稀有度转换为用于排序的等级索引
     const rarityIdx = (rarity: ItemRarity) => RARITY_ORDER.indexOf(rarity);
 
-    // Sort: rarity desc, then minLevel desc, then name asc
-    this.character.inventory.sort((a, b) => {
-      const rDiff = rarityIdx(b.rarity) - rarityIdx(a.rarity);
-      if (rDiff !== 0) return rDiff;
-      const lvlDiff = (b.minLevel || 0) - (a.minLevel || 0);
-      if (lvlDiff !== 0) return lvlDiff;
-      return a.name.localeCompare(b.name);
-    });
+    // 依次按稀有度降序、最低等级降序和名称升序排序
+    this.character.inventory.sort(
+      // 依次按稀有度、等级降序和名称升序整理背包
+      (a, b) => {
+        const rDiff = rarityIdx(b.rarity) - rarityIdx(a.rarity);
+        if (rDiff !== 0) return rDiff;
+        const lvlDiff = (b.minLevel || 0) - (a.minLevel || 0);
+        if (lvlDiff !== 0) return lvlDiff;
+        return a.name.localeCompare(b.name);
+      },
+    );
 
-    // Merge duplicates (same id), keep favorites separate
+    // 合并相同标识的物品，并单独保留收藏项
     const seen = new Map<string, { item: Item; count: number }>();
 
     for (const item of this.character.inventory) {
@@ -1538,7 +1548,7 @@ export class GameEngine {
       }
     }
 
-    // Rebuild inventory from merged map, preserving sort order
+    // 按合并结果重建背包，并保留排序顺序
     this.character.inventory = [];
     for (const { item, count } of seen.values()) {
       for (let i = 0; i < count; i++) {
@@ -1577,7 +1587,7 @@ export class GameEngine {
       for (let i = 0; i < this.character.inventory.length && itemIndices.length < 999; i++) {
         if (this.character.inventory[i].id === itemId) {
           const itemName = this.character.inventory[i].name;
-          // Skip favorited items
+          // 跳过已收藏的物品
           if (this.character.favorites.includes(this.character.inventory[i].name)) {
             if (!skippedFavorite.includes(itemName)) {
               skippedFavorite.push(itemName);
@@ -1597,13 +1607,13 @@ export class GameEngine {
       const itemName = sampleItem.name;
       const sampleRarity = sampleItem.rarity;
 
-      // Block mythic/transcendent from bulk sell
+      // 批量出售时保留神话与超越物品
       if (BLOCKED_RARITIES.includes(sampleRarity)) {
         skippedBlocked.push(itemName);
         continue;
       }
 
-      // Calculate sell price from the actual item's rarity
+      // 根据物品实际稀有度计算售价
       const rarity = sampleRarity;
       let unitPrice: number;
       if (rarity === 'common') {
@@ -1629,7 +1639,7 @@ export class GameEngine {
       totalGold += sellPrice;
       soldCount += count;
 
-      // Remove items from inventory (create new array to trigger React re-render)
+      // 创建新数组移除背包物品，以触发 React 更新
       const removeSet = new Set(itemIndices);
       this.character.inventory = this.character.inventory.filter((_, i) => !removeSet.has(i));
     }

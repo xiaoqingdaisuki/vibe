@@ -1,3 +1,5 @@
+/** AI 助手：稳定块与增量尾部的流式渲染 */
+
 'use client';
 
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
