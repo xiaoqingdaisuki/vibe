@@ -94,16 +94,6 @@ const registeredLabApps: LabApp[] = [
     dataSource: 'local',
   },
   {
-    slug: 'maplestory',
-    title: '冒险岛怪物资料',
-    description: '浏览冒险岛国服怀旧服怪物的属性与掉落道具，支持本地检索和排序。',
-    category: 'tool',
-    tags: ['maplestory', 'monster'],
-    href: '/lab/maplestory',
-    featured: true,
-    dataSource: 'local',
-  },
-  {
     slug: 'minesweeper',
     title: '扫雷',
     description: '经典扫雷游戏，支持预设与自定义难度。',

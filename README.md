@@ -14,7 +14,6 @@ Live site: [vibe-xiaoqingdaisuki.vercel.app](https://vibe-xiaoqingdaisuki.vercel
 | 笔记           | `/lab/note`        | 记录临时备忘与常用指令，支持编辑、删除和代码块复制，内容只保存在本地浏览器。 |
 | 代码编辑器     | `/lab/editor`      | 在线编辑 React 与 HTML、CSS、JavaScript，支持代码格式化和实时预览。          |
 | 时区工具       | `/lab/timezone`    | 根据设备时区实时显示本地与世界时间，一键复制常用代码时间格式。               |
-| 冒险岛怪物资料 | `/lab/maplestory`  | 浏览冒险岛国服怀旧服怪物的属性与掉落道具，支持本地检索和排序。               |
 | 数独           | `/lab/sudoku`      | 数独游戏，支持五级难度与键盘操作。                                           |
 | RSS Reader     | `/lab/rss`         | 管理并持久化 RSS/Atom 订阅，通过服务端代理获取和解析订阅内容。               |
 | 扫雷           | `/lab/minesweeper` | 经典扫雷游戏，支持预设与自定义难度。                                         |
