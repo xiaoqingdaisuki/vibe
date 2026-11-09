@@ -2,16 +2,8 @@
 
 'use client';
 
-import { useSyncExternalStore } from 'react';
-import {
-  DEFAULT_THEME,
-  getNextTheme,
-  parseTheme,
-  THEME_CHANGE_EVENT,
-  toggleTheme,
-  type Theme,
-  type ThemeStorage,
-} from '@/lib/theme';
+import { getNextTheme, THEME_CHANGE_EVENT, toggleTheme, type ThemeStorage } from '@/lib/theme';
+import { useTheme } from './ThemeProvider';
 import styles from './ThemeToggle.module.css';
 
 // 太阳图标组件
@@ -47,22 +39,6 @@ function MoonIcon() {
   );
 }
 
-// 订阅主题变更事件
-function subscribeToTheme(onThemeChange: () => void): () => void {
-  window.addEventListener(THEME_CHANGE_EVENT, onThemeChange);
-  return () => window.removeEventListener(THEME_CHANGE_EVENT, onThemeChange);
-}
-
-// 获取当前主题快照
-function getThemeSnapshot(): Theme {
-  return parseTheme(document.documentElement.dataset.theme);
-}
-
-// 获取服务端默认主题
-function getServerThemeSnapshot(): Theme {
-  return DEFAULT_THEME;
-}
-
 // 获取本地存储用于主题持久化
 function getThemeStorage(): ThemeStorage | undefined {
   try {
@@ -74,7 +50,7 @@ function getThemeStorage(): ThemeStorage | undefined {
 
 // 亮色/暗色主题切换按钮
 export function ThemeToggle() {
-  const theme = useSyncExternalStore(subscribeToTheme, getThemeSnapshot, getServerThemeSnapshot);
+  const theme = useTheme();
   const nextTheme = getNextTheme(theme);
 
   // 切换并持久化主题，再通知其他界面同步更新
@@ -83,6 +59,7 @@ export function ThemeToggle() {
       root: document.documentElement,
       themeColorMeta: document.querySelector('meta[name="theme-color"]'),
       storage: getThemeStorage(),
+      cookieDocument: document,
     });
     window.dispatchEvent(new Event(THEME_CHANGE_EVENT));
   };

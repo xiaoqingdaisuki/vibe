@@ -1,14 +1,13 @@
 /** 站点根布局，组合元数据、主题初始化与公共页面外壳 */
 
 import type { Metadata, Viewport } from 'next';
-import Script from 'next/script';
+import { cookies } from 'next/headers';
 import { SiteHeader } from '@/components/layout/SiteHeader';
 import { SiteFooter } from '@/components/layout/SiteFooter';
 import { ServiceWorkerRegistration } from '@/components/layout/ServiceWorkerRegistration';
-import { DEFAULT_THEME, getThemeInitializationScript } from '@/lib/theme';
+import { ThemeProvider } from '@/components/layout/ThemeProvider';
+import { getThemeInitializationScript, parseTheme, THEME_COLORS, THEME_COOKIE_NAME } from '@/lib/theme';
 import './globals.css';
-
-const themeInitializationScript = getThemeInitializationScript();
 
 export const metadata: Metadata = {
   title: {
@@ -42,33 +41,48 @@ export const metadata: Metadata = {
   },
 };
 
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 5,
-  userScalable: true,
-  themeColor: '#ffffff',
-  viewportFit: 'cover',
-};
+// 使浏览器工具栏颜色与服务端首屏主题保持一致
+export async function generateViewport(): Promise<Viewport> {
+  const cookieStore = await cookies();
+  const theme = parseTheme(cookieStore.get(THEME_COOKIE_NAME)?.value);
+  return {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 5,
+    userScalable: true,
+    themeColor: THEME_COLORS[theme],
+    viewportFit: 'cover',
+  };
+}
 
 // 全局布局：站点外壳，包含头部、主内容区和页脚
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const cookieStore = await cookies();
+  const cookieTheme = cookieStore.get(THEME_COOKIE_NAME)?.value;
+  const theme = parseTheme(cookieTheme);
+
   return (
-    <html lang="en" data-theme={DEFAULT_THEME} data-scroll-behavior="smooth" suppressHydrationWarning>
+    <html lang="en" data-theme={theme} data-scroll-behavior="smooth" suppressHydrationWarning>
+      <head>
+        {/* 同步内联脚本在首屏绘制前迁移旧设置，不等待 Next 客户端运行时 */}
+        <script
+          id="theme-initialization"
+          dangerouslySetInnerHTML={{ __html: getThemeInitializationScript(cookieTheme) }}
+        />
+      </head>
       <body>
-        <Script id="theme-initialization" strategy="beforeInteractive">
-          {themeInitializationScript}
-        </Script>
-        <ServiceWorkerRegistration />
-        <div className="flex min-h-screen flex-col">
-          <SiteHeader />
-          <main className="flex-1">{children}</main>
-          <SiteFooter />
-        </div>
+        <ThemeProvider initialTheme={theme}>
+          <ServiceWorkerRegistration />
+          <div className="flex min-h-screen flex-col">
+            <SiteHeader />
+            <main className="flex-1">{children}</main>
+            <SiteFooter />
+          </div>
+        </ThemeProvider>
       </body>
     </html>
   );
