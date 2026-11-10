@@ -145,6 +145,8 @@ class AmapController implements MapController {
   private tool?: DrawingTool;
   private toolVersion = 0;
   private pickTimer: ReturnType<typeof setTimeout> | undefined;
+  private gestureId = 0;
+  private placeGestureId = -1;
   private destroyed = false;
   private lastView: MapView;
   private readonly layers = new Map<string, SdkObject>();
@@ -177,6 +179,7 @@ class AmapController implements MapController {
     invoke(this.map, 'on', ['moveend', this.handleMove]);
     invoke(this.map, 'on', ['zoomend', this.handleMove]);
     invoke(this.map, 'on', ['resize', this.handleResize]);
+    options.container.addEventListener('pointerdown', this.beginGesture, { capture: true });
   }
 
   // 销毁后阻止新请求和绘制，避免卸载组件仍收到异步结果
@@ -184,9 +187,15 @@ class AmapController implements MapController {
     if (this.destroyed) throw new Error('地图已关闭，请重新打开地图。');
   }
 
-  // 将地图点击收敛为稳定坐标，绘制期间不触发地点拾取
+  // 每次真实按下开启独立手势，避免地点事件后的底图事件覆盖同一次选择
+  private beginGesture = (): void => {
+    this.gestureId += 1;
+    this.cancelPick();
+  };
+
+  // 已命中地点的同一次点击不再逆地理编码，绘制期间也不拾取位置
   private handlePick = (value: unknown): void => {
-    if (this.destroyed || this.tool) return;
+    if (this.destroyed || this.tool || this.placeGestureId === this.gestureId) return;
     this.cancelPick();
     const location = coordinate(object(value).lnglat);
     if (location) {
@@ -206,12 +215,13 @@ class AmapController implements MapController {
 
   // 地图已有地点标注可直接打开，空白区域保留普通浏览手势
   private handleHotspot = (value: unknown): void => {
-    if (this.destroyed || this.tool) return;
+    if (this.destroyed || this.tool || this.placeGestureId === this.gestureId) return;
     this.cancelPick();
     const data = object(value);
     const location = coordinate(data.lnglat);
     const name = text(data.name);
     if (!location || !name) return;
+    this.placeGestureId = this.gestureId;
     this.options.onPlace({
       id: text(data.id) || `point:${location.join(',')}`,
       name,
@@ -446,8 +456,9 @@ class AmapController implements MapController {
   async details(id: string): Promise<Place> {
     const search = await this.service('PlaceSearch', { extensions: 'all' });
     const result = searchResult(await this.request(search, 'getDetails', [id]), 1);
-    if (!result.places[0]) throw new Error('暂时无法获取此地点的详细信息。');
-    return result.places[0];
+    const selected = result.places.find((place) => place.id === id);
+    if (!selected) throw new Error('暂时无法获取此地点的详细信息。');
+    return selected;
   }
 
   // 将所选 GCJ-02 坐标解析为地址和附近地标
@@ -610,7 +621,10 @@ class AmapController implements MapController {
     content.addEventListener('click', (event) => {
       event.stopPropagation();
       this.cancelPick();
-      if (!this.destroyed && !this.tool) this.options.onPlace(place);
+      if (!this.destroyed && !this.tool) {
+        this.placeGestureId = this.gestureId;
+        this.options.onPlace(place);
+      }
     });
     return { overlay, content };
   }
@@ -853,6 +867,7 @@ class AmapController implements MapController {
   destroy(): void {
     if (this.destroyed) return;
     this.stopDrawing();
+    this.options.container.removeEventListener('pointerdown', this.beginGesture, { capture: true });
     if (this.mouse) invoke(this.mouse, 'off', ['draw', this.handleDraw]);
     invoke(this.map, 'off', ['click', this.handlePick]);
     invoke(this.map, 'off', ['hotspotclick', this.handleHotspot]);

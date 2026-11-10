@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { getEventListeners } from 'node:events';
 import { createMapController } from './amap.ts';
 import {
   busLines,
@@ -41,8 +42,8 @@ class FakeMap {
 }
 
 const options: MapControllerOptions = {
-  // 测试替身不读取 DOM；真实页面始终传入已挂载的 HTMLElement
-  container: {} as HTMLElement,
+  // 使用原生事件目标验证手势监听，SDK 替身不依赖元素布局
+  container: new EventTarget() as HTMLElement,
   key: 'test-key',
   securityJsCode: 'test-security-code',
   initialView: { center: [116, 40], zoom: 12 },
@@ -96,7 +97,7 @@ test('map picks keep a short landmark title and a separate full address without 
     },
     location,
   );
-  assert.equal(selected.name, '街角餐厅附近');
+  assert.equal(selected.name, '街角餐厅');
   assert.equal(selected.address, '香港中环威灵顿街17-19号');
   assert.deepEqual(selected.location, location);
 });
@@ -147,7 +148,7 @@ test('map pick headings and route endpoint names never inherit the formatted adm
     },
     [113.947587, 22.520557],
   );
-  assert.equal(selected.name, '华润深圳湾·悦府1期附近');
+  assert.equal(selected.name, '华润深圳湾·悦府1期');
   assert.equal(selected.address, '广东省深圳市南山区粤海街道深圳湾体育中心华润深圳湾·悦府1期');
   const fallback = reversedPlace(
     { regeocode: { formattedAddress: '广东省深圳市南山区', addressComponent: {} } },
@@ -708,7 +709,10 @@ test('map picking waits for a single click and ignores double-click zoom, draggi
       Map: InteractiveMap,
     }),
   );
-  const click = listeners.get('click');
+  const click = (value: unknown): void => {
+    options.container.dispatchEvent(new Event('pointerdown'));
+    listeners.get('click')?.(value);
+  };
   const resize = listeners.get('resize');
   resize?.();
   assert.equal(resizes, 1);
@@ -738,13 +742,19 @@ test('map picking waits for a single click and ignores double-click zoom, draggi
   assert.equal(listeners.size, 0);
 });
 
-test('place details resolve the selected POI id rather than searching an ambiguous name', async () => {
+test('place details resolve only the selected POI id and reject mismatched detail records', async () => {
   let requested = '';
+  let mismatched = false;
   class PlaceSearch {
     getDetails(id: string, callback: Callback): void {
       requested = id;
       callback('complete', {
-        poiList: { pois: [{ id, name: '同名地点', location: [116, 40], address: '选中地点的地址' }] },
+        poiList: {
+          pois: [
+            { id: 'other-id', name: '其他地点', location: [117, 40], address: '不应覆盖的地址' },
+            ...(mismatched ? [] : [{ id, name: '同名地点', location: [116, 40], address: '选中地点的地址' }]),
+          ],
+        },
       });
     }
   }
@@ -753,7 +763,49 @@ test('place details resolve the selected POI id rather than searching an ambiguo
   assert.equal(requested, 'selected-id');
   assert.equal(place.id, 'selected-id');
   assert.equal(place.address, '选中地点的地址');
+  mismatched = true;
+  await assert.rejects(controller.details('selected-id'), /详细信息/);
   controller.destroy();
+});
+
+test('one POI click never triggers a delayed blank-map lookup in either SDK event order', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const events = new Map<string, (...args: unknown[]) => void>();
+  const picks: unknown[] = [];
+  const places: unknown[] = [];
+  class InteractiveMap extends FakeMap {
+    constructor() {
+      super();
+      this.listeners = events;
+    }
+  }
+  const controller = await createMapController(
+    {
+      ...options,
+      onPick: (point) => picks.push(point),
+      onPlace: (place) => places.push(place),
+    },
+    async () => ({ Map: InteractiveMap }),
+  );
+  const hotspot = { id: 'chosen-poi', name: '漾日湾畔', lnglat: [113.938658, 22.519678] };
+  const blank = { lnglat: [113.9386, 22.5196] };
+  for (const order of [
+    ['hotspotclick', 'click'],
+    ['click', 'hotspotclick'],
+  ]) {
+    options.container.dispatchEvent(new Event('pointerdown'));
+    for (const event of order) events.get(event)?.(event === 'click' ? blank : hotspot);
+    context.mock.timers.tick(500);
+    assert.equal(picks.length, 0);
+  }
+  assert.equal(places.length, 2);
+  options.container.dispatchEvent(new Event('pointerdown'));
+  events.get('click')?.(blank);
+  context.mock.timers.tick(280);
+  assert.deepEqual(picks, [blank.lnglat]);
+  controller.destroy();
+  assert.equal(getEventListeners(options.container, 'pointerdown').length, 0);
+  assert.equal(events.size, 0);
 });
 
 test('drawing completes once, restores browsing and publishes the same active tool as the controller', async () => {

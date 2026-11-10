@@ -174,7 +174,7 @@ export function reversedPlace(value: unknown, location: Coordinate): Place {
   const street = joinAddressParts([text(streetNumber.street).trim(), text(streetNumber.number).trim()]);
   return {
     id: `point:${location.join(',')}`,
-    name: landmark ? `${landmark}附近` : street || text(component.township).trim() || '地图选点',
+    name: landmark || street || text(component.township).trim() || '地图选点',
     location,
     address,
     city: text(component.city) || text(component.province),

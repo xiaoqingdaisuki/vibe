@@ -276,10 +276,10 @@ export default function MapApp() {
     }
   }
 
-  // 显式选点始终按点击坐标解析完整地址，普通地点点击保留兴趣点详情
+  // 已命中的地图地点直接用于路线或详情，不用附近位置反查覆盖原地点
   function selectMapPlace(selected: Place): void {
-    if (picking) {
-      void pickLocation(selected.location);
+    if (routePick) {
+      finishRoutePick(selected, routePick);
       return;
     }
     selectPlace(selected);
@@ -302,7 +302,7 @@ export default function MapApp() {
       // 补充详情时仍校验选点序号，旧地点不得覆盖后来打开的地点
       void controller.details(selected.id).then(
         (details) => {
-          if (id === pickId.current) setPlace(details);
+          if (id === pickId.current) setPlace({ ...details, name: selected.name, location: selected.location });
         },
         () => {
           if (id === pickId.current) setNotice('地点详情暂不可用，仍可使用当前坐标规划路线。');
