@@ -7,6 +7,7 @@ import {
   busLines,
   coordinate,
   districtResult,
+  reversedPlace,
   routePlans,
   searchResult,
   suggestions,
@@ -76,6 +77,63 @@ test('SDK coordinate adaptation supports valid SDK objects and rejects broken or
   for (const value of [null, ['', 30], [0, Infinity], [181, 0], [0, 91], '116,40,0', { lng: 'bad', lat: 40 }]) {
     assert.equal(coordinate(value), undefined);
   }
+});
+
+test('map picks show the full address and house number without replacing the picked coordinate with a nearby POI', () => {
+  const location: [number, number] = [114.155, 22.282];
+  const selected = reversedPlace(
+    {
+      regeocode: {
+        formattedAddress: '香港中环威灵顿街17-19号',
+        addressComponent: {
+          province: '香港特别行政区',
+          city: [],
+          district: '中西区',
+          streetNumber: { street: '威灵顿街', number: '17-19号' },
+        },
+        pois: [{ name: '附近餐厅', address: '威灵顿街99号', location: [114.156, 22.283] }],
+      },
+    },
+    location,
+  );
+  assert.equal(selected.name, '香港中环威灵顿街17-19号');
+  assert.equal(selected.address, selected.name);
+  assert.deepEqual(selected.location, location);
+});
+
+test('map pick addresses fill missing regions and house numbers from structured data without duplication', () => {
+  const component = {
+    province: '北京市',
+    city: '北京市',
+    district: '海淀区',
+    township: '清华园街道',
+    streetNumber: { street: '双清路', number: '30号' },
+  };
+  for (const formattedAddress of ['双清路', '双清路30号', '海淀区双清路30号', '北京市海淀区双清路30号']) {
+    const selected = reversedPlace({ regeocode: { formattedAddress, addressComponent: component } }, [116, 40]);
+    assert.equal(selected.address, '北京市海淀区双清路30号');
+    assert.equal(selected.name, selected.address);
+  }
+  assert.equal(
+    reversedPlace({ regeocode: { addressComponent: component } }, [116, 40]).address,
+    '北京市海淀区清华园街道双清路30号',
+  );
+  assert.throws(() => reversedPlace({}, [116, 40]), /没有地址信息/);
+});
+
+test('map picks never borrow a house number from a nearby POI when the selected coordinate has none', () => {
+  const selected = reversedPlace(
+    {
+      regeocode: {
+        formattedAddress: '威灵顿街',
+        addressComponent: { province: '香港特别行政区', district: '中西区' },
+        pois: [{ name: '附近餐厅', address: '威灵顿街99号' }],
+      },
+    },
+    [114.155, 22.282],
+  );
+  assert.equal(selected.address, '香港特别行政区中西区威灵顿街');
+  assert.equal(selected.address.includes('99号'), false);
 });
 
 test('search and autocomplete distinguish no data from malformed responses and keep usable records', () => {
@@ -279,6 +337,117 @@ test('controller turns SDK no_data into an empty result and hides raw authentica
   controller.destroy();
 });
 
+test('nearby categories recover closer places hidden on later provider pages and paginate only after distance sorting', async (context) => {
+  context.mock.timers.enable({ apis: ['Date'] });
+  const requests: Record<string, unknown>[] = [];
+  class WebService {
+    static get(url: string, params: Record<string, unknown>, callback: Callback): void {
+      assert.equal(url, 'https://restapi.amap.com/v3/place/around');
+      requests.push(params);
+      const candidates = Array.from({ length: 30 }, (_, index) => ({
+        id: `${params.types}:${index}`,
+        name: `地点 ${index}`,
+        location: [116.4, 40 + index * 0.0005],
+        distance: 0,
+      }))
+        .reverse()
+        .filter((place) => Number(place.id.split(':')[1]) * 55.59754 <= Number(params.radius));
+      const offset = Number(params.offset);
+      const start = (Number(params.page) - 1) * offset;
+      callback('complete', {
+        status: '1',
+        count: String(candidates.length),
+        pois: candidates.slice(start, start + offset),
+      });
+    }
+  }
+  const controller = await createMapController(options, async () => ({ Map: FakeMap, WebService }));
+  for (const [type, page] of [
+    ['050000', 1],
+    ['100000', 1],
+    ['100000', 2],
+    ['100000', 3],
+    ['050500', 1],
+  ] as const) {
+    const result = await controller.search({
+      keyword: '',
+      city: '北京',
+      type,
+      center: [116.4, 40],
+      radius: 3000,
+      page,
+    });
+    assert.equal(result.page, page);
+    assert.equal(result.total, 30);
+    assert.deepEqual(
+      result.places.map((place) => place.id),
+      Array.from({ length: 10 }, (_, index) => `${type}:${(page - 1) * 10 + index}`),
+    );
+  }
+  for (const request of requests) {
+    assert.equal(request.location, '116.400000,40.000000');
+    assert.equal(request.sortrule, 'distance');
+    assert.equal(request.offset, 25);
+    assert.ok(Number(request.radius) <= 3000);
+  }
+  const repeated = { keyword: '', city: '北京', type: '100000', center: [116.4, 40] as [number, number], radius: 3000 };
+  const calls = requests.length;
+  await controller.search(repeated);
+  assert.equal(requests.length, calls);
+  context.mock.timers.tick(60001);
+  await controller.search(repeated);
+  assert.ok(requests.length > calls);
+  controller.destroy();
+});
+
+test('nearby searches keep empty results distinct from malformed responses and API authentication failures', async () => {
+  let response: unknown = { status: '1', count: '0', pois: [] };
+  class WebService {
+    static get(_url: string, _params: unknown, callback: Callback): void {
+      callback('complete', response);
+    }
+  }
+  const controller = await createMapController(options, async () => ({
+    Map: FakeMap,
+    WebService,
+  }));
+  const request = { keyword: '', city: '', type: '100000', center: [116, 40] as [number, number] };
+  assert.deepEqual(await controller.search(request), { places: [], total: 0, page: 1 });
+  response = { status: '1', pois: 'invalid' };
+  await assert.rejects(controller.search({ ...request, keyword: 'invalid' }), /数据格式/);
+  response = { status: '0', info: 'INVALID_USER_KEY' };
+  await assert.rejects(controller.search({ ...request, keyword: 'retry' }), /鉴权/);
+  response = { status: '0', info: 'USER_ABROAD_DAILY_QUERY_OVER_LIMIT' };
+  await assert.rejects(controller.search({ ...request, keyword: 'abroad' }), /境外.*额度/);
+  response = { status: '0', info: 'USER_DAILY_QUERY_OVER_LIMIT' };
+  await assert.rejects(controller.search({ ...request, keyword: 'quota' }), /调用次数/);
+  response = { status: '1', count: '0', pois: [] };
+  assert.deepEqual(await controller.search({ ...request, keyword: 'retry' }), { places: [], total: 0, page: 1 });
+  controller.destroy();
+});
+
+test('destroying a map cancels active nearby requests and prevents queued category requests from starting', async () => {
+  let markStarted: (() => void) | undefined;
+  const started = new Promise<void>((resolve) => {
+    markStarted = resolve;
+  });
+  let calls = 0;
+  class WebService {
+    static get(): void {
+      calls += 1;
+      markStarted?.();
+    }
+  }
+  const controller = await createMapController(options, async () => ({ Map: FakeMap, WebService }));
+  const request = { keyword: '', city: '', type: '050000', center: [116, 40] as [number, number] };
+  const first = assert.rejects(controller.search(request), /关闭/);
+  const second = assert.rejects(controller.search({ ...request, type: '100000' }), /关闭/);
+  await started;
+  controller.destroy();
+  await Promise.all([first, second]);
+  assert.equal(calls, 1);
+});
+
 test('controller rejects malformed completed data and cancels in-flight requests when destroyed', async () => {
   let hold = false;
   class PlaceSearch {
@@ -440,16 +609,20 @@ test('custom markers render untrusted names as plain text and focus accounts for
       createElement: () => {
         const attributes = new Map<string, string>();
         const listeners = new Map<string, (event: { stopPropagation: () => void }) => void>();
-        return {
+        const element = {
           textContent: '',
           title: '',
           attributes,
           listeners,
+          append: (child: { textContent: string }): void => {
+            element.textContent += child.textContent;
+          },
           addEventListener: (name: string, listener: (event: { stopPropagation: () => void }) => void) =>
             listeners.set(name, listener),
           classList: { add: () => {}, toggle: () => {} },
           setAttribute: (name: string, value: string) => attributes.set(name, value),
         };
+        return element;
       },
     },
   });
@@ -462,6 +635,9 @@ test('custom markers render untrusted names as plain text and focus accounts for
     controller.showPlaces([place]);
     controller.focus(place);
     assert.equal(contents[0].textContent, '1');
+    assert.equal(contents[1].textContent, place.name);
+    assert.equal(contents[1].attributes.get('aria-label'), `查看${place.name}`);
+    assert.equal('innerHTML' in contents[1], false);
     assert.equal(contents[0].title, place.name);
     assert.equal(contents[0].attributes.get('aria-label'), `查看${place.name}`);
     assert.equal('innerHTML' in contents[0], false);
@@ -475,6 +651,8 @@ test('custom markers render untrusted names as plain text and focus accounts for
     });
     assert.equal(stopped, true);
     assert.deepEqual(selectedPlaces, [place]);
+    controller.showPlaces([place], { preserveView: true });
+    assert.equal(fitCalls.length, 2);
     controller.destroy();
     contents[0].listeners.get('click')?.({ stopPropagation: () => {} });
     assert.equal(selectedPlaces.length, 1);
@@ -488,6 +666,7 @@ test('map picking waits for a single click and ignores double-click zoom, draggi
   context.mock.timers.enable({ apis: ['setTimeout'] });
   const picks: unknown[] = [];
   const places: unknown[] = [];
+  let resizes = 0;
   const listeners = new Map<string, (...args: unknown[]) => void>();
   class InteractiveMap extends FakeMap {
     constructor() {
@@ -496,12 +675,22 @@ test('map picking waits for a single click and ignores double-click zoom, draggi
     }
   }
   const controller = await createMapController(
-    { ...options, onPick: (point) => picks.push(point), onPlace: (place) => places.push(place) },
+    {
+      ...options,
+      onPick: (point) => picks.push(point),
+      onPlace: (place) => places.push(place),
+      onResize: () => {
+        resizes += 1;
+      },
+    },
     async () => ({
       Map: InteractiveMap,
     }),
   );
   const click = listeners.get('click');
+  const resize = listeners.get('resize');
+  resize?.();
+  assert.equal(resizes, 1);
   click?.({ lnglat: [116, 40] });
   assert.equal(picks.length, 0);
   context.mock.timers.tick(280);
@@ -521,6 +710,8 @@ test('map picking waits for a single click and ignores double-click zoom, draggi
   }
   click?.({ lnglat: [118, 40] });
   controller.destroy();
+  resize?.();
+  assert.equal(resizes, 1);
   context.mock.timers.tick(500);
   assert.equal(picks.length, 1);
   assert.equal(listeners.size, 0);

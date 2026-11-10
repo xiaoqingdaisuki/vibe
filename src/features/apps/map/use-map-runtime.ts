@@ -17,6 +17,7 @@ interface RuntimeOptions {
   onPick: (coordinate: Coordinate) => void;
   onPlace: (place: Place) => void;
   onMove: (view: MapView) => void;
+  onResize: () => void;
   onToolResult: (message: string) => void;
   onDrawingChange: (tool: DrawingTool | null) => void;
   onLocation: (result: LocationResult, controller: MapController) => void;
@@ -35,6 +36,8 @@ export function useMapRuntime({ containerRef, retry, ...events }: RuntimeOptions
   const onPlace = useEffectEvent((place: Place) => events.onPlace(place));
   // 同步视图和自绘比例尺
   const onMove = useEffectEvent((view: MapView) => events.onMove(view));
+  // SDK 完成尺寸更新后才让界面重新定位选点气泡
+  const onResize = useEffectEvent(() => events.onResize());
   // 显示地图绘制和测量结果
   const onToolResult = useEffectEvent((message: string) => events.onToolResult(message));
   // 绘图状态由控制器统一发布，避免关闭面板后残留已开启的工具
@@ -75,6 +78,7 @@ export function useMapRuntime({ containerRef, retry, ...events }: RuntimeOptions
           onPick,
           onPlace,
           onMove,
+          onResize,
           onToolResult,
           onDrawingChange,
           getPadding,

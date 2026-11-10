@@ -70,13 +70,14 @@ export default function MapApp() {
   const requestId = useRef(0);
   const pickId = useRef(0);
   const hasInteracted = useRef(false);
+  const nearbyAnchor = useRef<Coordinate | null>(null);
   const [retry, setRetry] = useState(0);
   const [panel, setPanel] = useState<Panel | null>(null);
   const [scopeOpen, setScopeOpen] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
-  const [picking, setPicking] = useState(false);
   const [drawingTool, setDrawingTool] = useState<DrawingTool | null>(null);
   const [routePick, setRoutePick] = useState<'start' | 'end' | null>(null);
+  const picking = routePick !== null;
   const [routePoint, setRoutePoint] = useState<{ endpoint: 'start' | 'end'; place: Place } | null>(null);
   const [keyword, setKeyword] = useState('');
   const [city, setCity] = useState('');
@@ -89,7 +90,6 @@ export default function MapApp() {
   const [view, setView] = useState<MapView>({ center: [116.397428, 39.90923], zoom: 13 });
   const [currentLocation, setCurrentLocation] = useState<Place | null>(null);
   const [place, setPlace] = useState<Place | null>(null);
-  const [destination, setDestination] = useState<Place | null>(null);
   const [result, setResult] = useState<SearchResult | null>(null);
   const [lastSearch, setLastSearch] = useState<SearchRequest | null>(null);
   const [route, setRoute] = useState<{ plans: RoutePlan[]; request: RouteRequest; selected: string } | null>(null);
@@ -100,8 +100,12 @@ export default function MapApp() {
     containerRef: canvasRef,
     retry,
     onPick: pickLocation,
-    onPlace: selectPlace,
+    onPlace: selectMapPlace,
     onMove: setView,
+    // 横竖屏变化后按地图的新尺寸保留气泡完整可见
+    onResize: () => {
+      if (place && panel === 'place') controller?.focus(place);
+    },
     onToolResult: setNotice,
     onDrawingChange: setDrawingTool,
     onNotice: setNotice,
@@ -225,7 +229,6 @@ export default function MapApp() {
     pickId.current += 1;
     setBusy(false);
     controller?.stopDrawing();
-    setPicking(false);
     setRoutePick(null);
     setPanelCollapsed(false);
     if (document.activeElement instanceof HTMLElement) panelTriggerRef.current = document.activeElement;
@@ -238,7 +241,6 @@ export default function MapApp() {
     requestId.current += 1;
     pickId.current += 1;
     setBusy(false);
-    setPicking(false);
     setRoutePick(null);
     controller?.stopDrawing();
     setPanel(null);
@@ -248,15 +250,14 @@ export default function MapApp() {
   // 取消选点时作废请求，并恢复被收起的路线表单
   function cancelPicking(): void {
     pickId.current += 1;
-    setPicking(false);
     setRoutePick(null);
     if (routePick) setPanelCollapsed(false);
   }
 
   // 地图点选逆地理编码，晚到的旧结果不会覆盖新地点
   async function pickLocation(location: Coordinate): Promise<void> {
-    if (!controller || !picking) return;
-    setPicking(false);
+    if (!controller) return;
+    setRoutePick(null);
     requestId.current += 1;
     setBusy(false);
     const id = ++pickId.current;
@@ -275,18 +276,23 @@ export default function MapApp() {
     }
   }
 
-  // 选择地点时同步地图标记与自绘详情
-  function selectPlace(selected: Place): void {
-    if (picking && routePick) {
-      finishRoutePick(selected, routePick);
+  // 显式选点始终按点击坐标解析完整地址，普通地点点击保留兴趣点详情
+  function selectMapPlace(selected: Place): void {
+    if (picking) {
+      void pickLocation(selected.location);
       return;
     }
+    selectPlace(selected);
+  }
+
+  // 选择地点时同步地图标记与自绘详情
+  function selectPlace(selected: Place): void {
     if (panel === 'search') searchScrollRef.current = panelBodyRef.current?.scrollTop ?? 0;
     pickId.current += 1;
     requestId.current += 1;
     setBusy(false);
     controller?.stopDrawing();
-    setPicking(false);
+    setRoutePick(null);
     setPanelCollapsed(false);
     setPlace(selected);
     setPanel('place');
@@ -305,12 +311,16 @@ export default function MapApp() {
     }
   }
 
-  // 将地图选中的位置交还路线端点，不打开无关的地点详情
+  // 统一从地图或详情设置路线端点，保留另一端并清除旧路线
   function finishRoutePick(selected: Place, endpoint: 'start' | 'end'): void {
+    requestId.current += 1;
     pickId.current += 1;
+    setBusy(false);
+    controller?.stopDrawing();
+    controller?.clearRoute();
+    setRoute(null);
     setRoutePoint({ endpoint, place: selected });
     setRoutePick(null);
-    setPicking(false);
     setPanelCollapsed(false);
     setPanel('route');
     setError('');
@@ -319,12 +329,14 @@ export default function MapApp() {
   // 统一关键字、附近分类与翻页查询，并保护请求顺序
   async function searchPlaces(request: SearchRequest): Promise<void> {
     if (!controller) return;
+    nearbyAnchor.current = request.center ? [...request.center] : null;
+    setNearby(Boolean(request.center));
     searchScrollRef.current = 0;
     pickId.current += 1;
     controller.stopDrawing();
     const id = ++requestId.current;
     setBusy(true);
-    setPicking(false);
+    setRoutePick(null);
     setPanelCollapsed(false);
     setError('');
     setPanel('search');
@@ -337,7 +349,7 @@ export default function MapApp() {
       const found = await controller.search(request);
       if (id !== requestId.current) return;
       setResult(found);
-      controller.showPlaces(found.places);
+      controller.showPlaces(found.places, { preserveView: Boolean(request.center) });
       if (request.keyword) rememberSearch(request.keyword);
     } catch (reason) {
       if (id === requestId.current) {
@@ -361,11 +373,11 @@ export default function MapApp() {
       keyword: keyword.trim(),
       city: city.trim(),
       page: 1,
-      ...(nearby ? { center: controller?.getView().center ?? view.center, radius } : {}),
+      ...(nearby ? { center: nearbyAnchor.current ?? controller?.getView().center ?? view.center, radius } : {}),
     });
   }
 
-  // 点击附近类别直接检索当前地图中心周围地点
+  // 切换附近品类继续使用原目标点，只有显式选择新地点才更换搜索中心
   function searchNearby(category: (typeof NEARBY)[number], center?: Coordinate): void {
     setKeyword(category.name);
     setNearby(true);
@@ -374,7 +386,7 @@ export default function MapApp() {
       type: category.type,
       city,
       page: 1,
-      center: center ?? controller?.getView().center ?? view.center,
+      center: center ?? nearbyAnchor.current ?? controller?.getView().center ?? view.center,
       radius,
     });
   }
@@ -415,19 +427,6 @@ export default function MapApp() {
     } finally {
       setLocating(false);
     }
-  }
-
-  // 地点详情中的出行入口把已选地点交给路线表单
-  function goTo(selected: Place): void {
-    requestId.current += 1;
-    pickId.current += 1;
-    setBusy(false);
-    controller?.stopDrawing();
-    setDestination(selected);
-    setPicking(false);
-    setPanelCollapsed(false);
-    setPanel('route');
-    setError('');
   }
 
   // 路线结果在自绘面板和地图几何之间保持一致
@@ -500,7 +499,7 @@ export default function MapApp() {
         ref={canvasRef}
         data-map-canvas
         className={`${styles.canvas} ${picking ? styles.picking : ''}`}
-        aria-label="高德地图，可拖动和缩放；使用地图选点查询任意位置"
+        aria-label="高德地图，可拖动和缩放；点击位置查看完整地址"
       />
 
       <div ref={dockRef} className={styles.searchDock}>
@@ -569,7 +568,17 @@ export default function MapApp() {
             maxLength={40}
           />
           <label>
-            <input type="checkbox" checked={nearby} onChange={(event) => setNearby(event.target.checked)} />
+            <input
+              type="checkbox"
+              checked={nearby}
+              onChange={
+                // 用户退出周边范围后释放旧中心，下次从当前地图位置开始
+                (event) => {
+                  setNearby(event.target.checked);
+                  if (!event.target.checked) nearbyAnchor.current = null;
+                }
+              }
+            />
             附近
           </label>
           {nearby ? (
@@ -616,25 +625,6 @@ export default function MapApp() {
             {item.name}
           </button>
         ))}
-        <button
-          type="button"
-          className={`${styles.navButton} ${picking ? styles.active : ''}`}
-          disabled={!ready}
-          aria-pressed={picking}
-          onClick={
-            // 只有主动进入选点模式才允许点击底图查询地址
-            () => {
-              controller?.stopDrawing();
-              setNotice('');
-              setRoutePick(null);
-              setPicking((previous) => !previous);
-              pickId.current += 1;
-            }
-          }
-        >
-          <MapIcon name="pin" />
-          地图选点
-        </button>
         <button type="button" className={styles.navButton} disabled={!ready} onClick={() => controller?.fit()}>
           <MapIcon name="expand" />
           总览
@@ -650,7 +640,7 @@ export default function MapApp() {
 
       {picking ? (
         <div className={styles.pickBanner} role="status">
-          {routePick ? `点击地图选择${routePick === 'start' ? '起点' : '终点'}` : '点击地图选择位置'}
+          点击地图选择{routePick === 'start' ? '起点' : '终点'}
           <button type="button" className={styles.button} onClick={cancelPicking}>
             取消选点
           </button>
@@ -722,6 +712,7 @@ export default function MapApp() {
         <div ref={panelBodyRef} className={styles.panelBody} hidden={panelCollapsed}>
           {panel === 'search' ? (
             <>
+              {lastSearch?.center ? <p className={styles.muted}>以原目标点为中心 · 距离由近到远</p> : null}
               <details className={styles.nearbyCategories}>
                 <summary>搜索周边分类</summary>
                 <div className={styles.categories}>
@@ -765,7 +756,7 @@ export default function MapApp() {
               place={place}
               saved={library.favorites.some((item) => item.id === place.id)}
               onFavorite={toggleFavorite}
-              onRoute={goTo}
+              onRoute={finishRoutePick}
               onNearby={
                 // 以选中地点为中心开始附近搜索并清空旧关键词
                 (selected) => {
@@ -781,7 +772,6 @@ export default function MapApp() {
             <RoutePanel
               controller={controller}
               currentLocation={currentLocation}
-              destination={destination}
               active={panel === 'route'}
               mapPoint={routePoint}
               onPick={
@@ -789,7 +779,6 @@ export default function MapApp() {
                 (endpoint) => {
                   controller?.stopDrawing();
                   setRoutePick(endpoint);
-                  setPicking(true);
                   setPanelCollapsed(true);
                   setNotice('');
                   pickId.current += 1;

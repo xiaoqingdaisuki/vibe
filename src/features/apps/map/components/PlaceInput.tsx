@@ -31,14 +31,14 @@ interface SuggestionState {
 }
 
 // 把有坐标的搜索建议转为应用地点，缺少坐标时留待正式搜索
-function suggestionPlace(suggestion: PlaceSuggestion, city: string): Place | null {
+function suggestionPlace(suggestion: PlaceSuggestion): Place | null {
   if (!suggestion.location) return null;
   return {
     id: suggestion.id || `suggestion-${suggestion.location.join(',')}`,
     name: suggestion.name,
     location: suggestion.location,
     address: suggestion.district,
-    city,
+    city: '',
     district: suggestion.district,
     type: '',
   };
@@ -117,7 +117,7 @@ export function PlaceInput({
 
   // 提交建议并保留坐标，阻止选项点击造成输入提前失焦
   function choose(suggestion: PlaceSuggestion): void {
-    const place = suggestionPlace(suggestion, city);
+    const place = suggestionPlace(suggestion);
     onChange(suggestion.name, place);
     onChoose?.(suggestion.name, place);
     setFocused(false);

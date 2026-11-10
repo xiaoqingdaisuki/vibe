@@ -525,19 +525,6 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.externalLink {
-  display: inline-flex;
-  align-items: center;
-  min-height: 40px;
-  margin-top: var(--space-12);
-  font-size: var(--text-sm);
-  color: var(--color-accent);
-  border-radius: var(--radius-sm);
-}
-.externalLink:hover,
-.externalLink:active {
-  background: var(--color-accent-wash);
-}
 .sectionHeading {
   display: flex;
   align-items: center;
@@ -756,7 +743,10 @@
 }
 
 .canvas :global(.vibe-map-marker) {
+  --marker-background: var(--color-panel-background);
+  --marker-border: var(--color-border-strong);
   position: relative;
+  bottom: var(--space-6);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -764,10 +754,11 @@
   width: 40px;
   height: 40px;
   padding: 0;
-  background: var(--color-panel-background);
+  background: var(--marker-background);
   color: var(--color-foreground);
-  border: 1px solid var(--color-border-strong);
-  border-radius: 50%;
+  border: 1px solid var(--marker-border);
+  border-radius: var(--radius-md);
+  box-shadow: 0 2px 8px #0000001a;
   font-family: var(--font-display);
   font-size: var(--text-sm);
   font-weight: 600;
@@ -780,30 +771,68 @@
 .canvas :global(.vibe-map-marker)::after {
   content: '';
   position: absolute;
-  bottom: calc(-1 * var(--space-4));
+  top: calc(100% - var(--space-4));
   left: calc(50% - var(--space-4));
-  width: var(--space-8);
-  height: var(--space-8);
-  background: inherit;
+  width: 8px;
+  height: 8px;
+  background: var(--marker-background);
   border-right: 1px solid;
   border-bottom: 1px solid;
-  border-color: inherit;
+  border-color: var(--marker-border);
   transform: rotate(45deg);
   clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+.canvas :global(.vibe-map-marker-label) {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+.canvas :global(.vibe-map-marker-place) {
+  --marker-border: var(--color-accent-soft);
+  width: max-content;
+  min-width: 120px;
+  max-width: min(280px, calc(100vw - var(--space-64)));
+  height: auto;
+  min-height: 48px;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-md);
+  text-align: left;
+  line-height: 1.5;
+}
+.canvas :global(.vibe-map-marker-place)::before {
+  content: '';
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  border: 3px solid var(--color-accent);
+  border-radius: 50%;
+  background: var(--color-panel-background);
+}
+.canvas :global(.vibe-map-marker-place .vibe-map-marker-label) {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 .canvas :global(.vibe-map-marker:hover),
 .canvas :global(.vibe-map-marker:active),
 .canvas :global(.vibe-map-marker-selected) {
+  --marker-background: var(--color-accent-wash);
+  --marker-border: var(--color-accent);
   color: var(--color-accent);
   background: var(--color-accent-wash);
   border-color: var(--color-accent);
 }
 .canvas :global(.vibe-map-marker-endpoint) {
+  --marker-background: var(--color-foreground);
   background: var(--color-foreground);
   color: var(--color-background);
 }
 .canvas :global(.vibe-map-marker-endpoint:hover),
 .canvas :global(.vibe-map-marker-endpoint:active) {
+  --marker-background: var(--color-accent-wash);
   background: var(--color-accent-wash);
   color: var(--color-accent);
 }

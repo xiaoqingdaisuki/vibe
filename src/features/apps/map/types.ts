@@ -130,7 +130,7 @@ export interface MapController {
   district(keyword: string): Promise<DistrictResult>;
   bus(keyword: string, city: string): Promise<BusLine[]>;
   convert(location: Coordinate, source: 'gps' | 'baidu' | 'mapbar'): Promise<Coordinate>;
-  showPlaces(places: Place[]): void;
+  showPlaces(places: Place[], options?: { preserveView?: boolean }): void;
   focus(place: Place): void;
   showRoute(plan: RoutePlan, request: RouteRequest): void;
   showBus(line: BusLine): void;
@@ -154,6 +154,7 @@ export interface MapControllerOptions {
   onPick: (location: Coordinate) => void;
   onPlace: (place: Place) => void;
   onMove: (view: MapView) => void;
+  onResize?: () => void;
   onToolResult: (message: string) => void;
   onDrawingChange?: (tool: DrawingTool | null) => void;
 }

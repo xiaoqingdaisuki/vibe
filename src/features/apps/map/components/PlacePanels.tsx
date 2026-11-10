@@ -2,7 +2,7 @@
 
 import { EmptyState } from '@/components/shared/EmptyState';
 import type { Place, RoutePlan, RouteRequest, SearchResult } from '../types';
-import { createNavigationUrl, formatDistance, formatDuration } from '../utils';
+import { formatDistance, formatDuration } from '../utils';
 import { MapIcon } from './MapIcon';
 import styles from '../styles/Map.module.css';
 
@@ -90,18 +90,20 @@ interface PlaceDetailsProps {
   place: Place;
   saved: boolean;
   onFavorite: (place: Place) => void;
-  onRoute: (place: Place) => void;
+  onRoute: (place: Place, endpoint: 'start' | 'end') => void;
   onNearby: (place: Place) => void;
   onShare: () => void;
 }
 
-// 自绘地点详情和导航入口，所有地点文本均由 React 安全渲染
+// 自绘地点详情和站内路线入口，所有地点文本均由 React 安全渲染
 export function PlaceDetailsPanel({ place, saved, onFavorite, onRoute, onNearby, onShare }: PlaceDetailsProps) {
   return (
     <>
       <p className={styles.badge}>{place.type.split(';')[0] || '地图位置'}</p>
       <h3 className={styles.placeTitle}>{place.name}</h3>
-      <p className={styles.description}>{place.address || '该位置暂无详细地址'}</p>
+      {place.address !== place.name ? (
+        <p className={styles.description}>{place.address || '该位置暂无详细地址'}</p>
+      ) : null}
       <dl className={styles.details}>
         <div>
           <dt>所在地区</dt>
@@ -119,10 +121,16 @@ export function PlaceDetailsPanel({ place, saved, onFavorite, onRoute, onNearby,
         ) : null}
       </dl>
       <div className={styles.row}>
-        <button type="button" className={styles.primaryButton} onClick={() => onRoute(place)}>
+        <button type="button" className={styles.button} onClick={() => onRoute(place, 'start')}>
+          <MapIcon name="route" />
+          从这出发
+        </button>
+        <button type="button" className={styles.primaryButton} onClick={() => onRoute(place, 'end')}>
           <MapIcon name="route" />
           去这里
         </button>
+      </div>
+      <div className={styles.row}>
         <button
           type="button"
           className={`${styles.button} ${saved ? styles.active : ''}`}
@@ -141,9 +149,6 @@ export function PlaceDetailsPanel({ place, saved, onFavorite, onRoute, onNearby,
           分享位置
         </button>
       </div>
-      <a className={styles.externalLink} href={createNavigationUrl(place)} target="_blank" rel="noopener noreferrer">
-        在高德地图中导航 ↗
-      </a>
     </>
   );
 }

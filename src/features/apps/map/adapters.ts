@@ -78,6 +78,36 @@ export function path(value: unknown): Coordinate[] {
   return result;
 }
 
+// 拼接地址片段时合并重复行政区和相邻重叠文字
+function joinAddressParts(parts: string[]): string {
+  return parts.reduce((address, part) => {
+    if (!part || address.endsWith(part)) return address;
+    if (part.startsWith(address)) return part;
+    let overlap = Math.min(address.length, part.length);
+    while (overlap > 0 && !address.endsWith(part.slice(0, overlap))) overlap -= 1;
+    return address + part.slice(overlap);
+  }, '');
+}
+
+// 优先使用服务完整地址，缺少地区或门牌号时仅用该坐标的结构化地址补齐
+function fullAddress(value: unknown, component: SdkObject): string {
+  const regions = [...new Set([text(component.province), text(component.city), text(component.district)])]
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const streetNumber = object(component.streetNumber);
+  const street = text(streetNumber.street).trim();
+  const number = text(streetNumber.number).trim();
+  const formatted = text(value).trim();
+  if (!formatted) return joinAddressParts([...regions, text(component.township).trim(), street, number]);
+  const regionIndex = regions.findIndex(
+    (region) =>
+      formatted.includes(region) ||
+      (/^(香港|澳门)特别行政区$/u.test(region) && formatted.startsWith(region.slice(0, 2))),
+  );
+  const address = joinAddressParts([...regions.slice(0, regionIndex < 0 ? regions.length : regionIndex), formatted]);
+  return street && number && address.endsWith(street) ? address + number : address;
+}
+
 // 将兴趣点适配为页面稳定的数据形状，忽略缺少地点坐标的记录
 export function place(value: unknown): Place | undefined {
   const data = object(value);
@@ -88,7 +118,11 @@ export function place(value: unknown): Place | undefined {
     id: text(data.id) || `point:${location.join(',')}:${name}`,
     name,
     location,
-    address: text(data.address) || text(data.formattedAddress),
+    address: fullAddress(text(data.formattedAddress) || data.address, {
+      province: data.pname ?? data.province,
+      city: data.cityname ?? data.city,
+      district: data.adname ?? data.district,
+    }),
     city: text(data.cityname) || text(data.city),
     district: text(data.adname) || text(data.district),
     type: text(data.type),
@@ -132,13 +166,12 @@ export function suggestions(value: unknown): PlaceSuggestion[] {
 // 将逆地理编码结果绑定原始点击坐标，避免附近 POI 替换所选位置
 export function reversedPlace(value: unknown, location: Coordinate): Place {
   const regeocode = object(object(value).regeocode);
-  const address = text(regeocode.formattedAddress);
-  if (!address) throw new Error('该坐标暂时没有地址信息。');
   const component = object(regeocode.addressComponent);
-  const nearest = object(list(regeocode.pois)[0]);
+  const address = fullAddress(regeocode.formattedAddress, component);
+  if (!address) throw new Error('该坐标暂时没有地址信息。');
   return {
     id: `point:${location.join(',')}`,
-    name: text(nearest.name) ? `${text(nearest.name)}附近` : text(component.township) || '地图选点',
+    name: address,
     location,
     address,
     city: text(component.city) || text(component.province),

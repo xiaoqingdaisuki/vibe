@@ -17,6 +17,7 @@ import {
   weatherResult,
 } from './adapters.ts';
 import type { SdkObject } from './adapters';
+import { sortNearbyPlaces } from './helpers.ts';
 import type {
   BusLine,
   Coordinate,
@@ -63,10 +64,11 @@ function construct(owner: SdkObject, name: string, args: unknown[] = []): SdkObj
 // 将服务错误归一为简明提示，避免泄露完整请求地址和密钥
 function serviceError(value: unknown): Error {
   const code = typeof value === 'string' ? value : text(object(value).info) || text(object(value).message);
+  if (/ABROAD.*LIMIT/i.test(code)) return new Error('境外地点查询额度已用尽，请待额度恢复后重试。');
+  if (/LIMIT|QUOTA|TOO_FREQUENT/i.test(code)) return new Error('高德服务调用次数已受限，请稍后重试。');
   if (/KEY|SCODE|SECURITY|DOMAIN|USER|SERVICE_NOT_EXIST/i.test(code)) {
     return new Error('高德服务鉴权失败，请检查 Key、安全密钥、域名白名单及服务权限。');
   }
-  if (/LIMIT|QUOTA|TOO_FREQUENT/i.test(code)) return new Error('高德服务调用次数已受限，请稍后重试。');
   if (/DENIED|PERMISSION/i.test(code)) return new Error('定位权限未开启，请允许浏览器访问位置。');
   return new Error('高德服务暂时无法完成请求，请检查网络或稍后重试。');
 }
@@ -128,6 +130,11 @@ class AmapController implements MapController {
   private readonly options: MapControllerOptions;
   private readonly pending = new Set<RequestFailure>();
   private readonly pluginLoads = new Map<string, Promise<void>>();
+  private readonly nearbyPages = new Map<string, { expires: number; promise: Promise<SearchResult> }>();
+  private nearbyQueue: Promise<void> = Promise.resolve();
+  private nearbyLastRequest = -Infinity;
+  private nearbyTimer: ReturnType<typeof setTimeout> | undefined;
+  private nearbyResume: (() => void) | undefined;
   private readonly markers = new Map<string, { overlay: SdkObject; content: HTMLElement }>();
   private routeOverlays: SdkObject[] = [];
   private districtOverlays: SdkObject[] = [];
@@ -169,6 +176,7 @@ class AmapController implements MapController {
     invoke(this.map, 'on', ['zoomstart', this.cancelPick]);
     invoke(this.map, 'on', ['moveend', this.handleMove]);
     invoke(this.map, 'on', ['zoomend', this.handleMove]);
+    invoke(this.map, 'on', ['resize', this.handleResize]);
   }
 
   // 销毁后阻止新请求和绘制，避免卸载组件仍收到异步结果
@@ -218,6 +226,11 @@ class AmapController implements MapController {
   // 读取视野并通知页面，避免页面接触 SDK 对象
   private handleMove = (): void => {
     if (!this.destroyed) this.options.onMove(this.getView());
+  };
+
+  // 地图内部视口更新后通知界面，避免用旧尺寸放置气泡
+  private handleResize = (): void => {
+    if (!this.destroyed) this.options.onResize?.();
   };
 
   // 延迟加载能力插件，设置超时并允许失败后再次尝试
@@ -305,6 +318,23 @@ class AmapController implements MapController {
   // 搜索关键词或周边地点，统一分页和坐标校验
   async search(request: SearchRequest): Promise<SearchResult> {
     const page = Math.min(100, Math.max(1, Math.floor(request.page ?? 1)));
+    if (request.center) {
+      await this.plugin('WebService');
+      const radius = Math.min(50000, Math.max(100, request.radius ?? 3000));
+      const scoped = { ...request, center: request.center };
+      const first = await this.nearbyPage(scoped, radius, 1);
+      const total = Math.min(first.total, 1000);
+      const required = page * 10;
+      const initial = await this.nearbyCandidates(scoped, radius, first, Math.min(total, required));
+      const boundary = sortNearbyPlaces(initial, request.center)[required - 1]?.distance;
+      // 收紧到当前候选的距离边界，补齐被上游权重排序挤到后页的更近地点
+      const narrowedRadius = boundary === undefined ? radius : Math.min(radius, Math.ceil(boundary * 1.01) + 5);
+      const narrowed = narrowedRadius === radius ? first : await this.nearbyPage(scoped, narrowedRadius, 1);
+      const candidates = await this.nearbyCandidates(scoped, narrowedRadius, narrowed, Math.min(narrowed.total, 1000));
+      const unique = [...new Map(candidates.map((place) => [place.id, place])).values()];
+      const places = sortNearbyPlaces(unique, request.center).filter((place) => (place.distance ?? 0) <= radius);
+      return { places: places.slice((page - 1) * 10, required), total, page };
+    }
     const search = await this.service('PlaceSearch', {
       city: request.city || '全国',
       citylimit: false,
@@ -313,14 +343,87 @@ class AmapController implements MapController {
       pageIndex: page,
       extensions: 'all',
     });
-    const data = request.center
-      ? await this.request(search, 'searchNearBy', [
-          request.keyword,
-          request.center,
-          Math.min(50000, Math.max(100, request.radius ?? 3000)),
-        ])
-      : await this.request(search, 'search', [request.keyword]);
-    return searchResult(data, page);
+    return searchResult(await this.request(search, 'search', [request.keyword]), page);
+  }
+
+  // 有界缓存一分钟内的周边查询页，重复品类和翻页复用同一批候选
+  private nearbyPage(
+    request: SearchRequest & { center: Coordinate },
+    radius: number,
+    page: number,
+  ): Promise<SearchResult> {
+    const params = {
+      location: request.center.map((value) => value.toFixed(6)).join(','),
+      keywords: request.keyword,
+      types: request.type || '',
+      radius,
+      sortrule: 'distance',
+      offset: 25,
+      page,
+      extensions: 'all',
+    };
+    const key = JSON.stringify(params);
+    const cached = this.nearbyPages.get(key);
+    if (cached && cached.expires > Date.now()) return cached.promise;
+    // 查询按间隔串行发送，防止切换品类和候选补查触发服务频率限制
+    const promise = this.nearbyQueue.then(async () => {
+      await this.waitForNearbySlot();
+      const data = object(
+        await this.request(object(this.sdk.WebService), 'get', ['https://restapi.amap.com/v3/place/around', params]),
+      );
+      if (text(data.status) !== '1') throw serviceError(data);
+      return searchResult({ poiList: { pois: data.pois, count: data.count } }, page);
+    });
+    this.nearbyQueue = promise.then(
+      () => {},
+      () => {},
+    );
+    this.nearbyPages.delete(key);
+    if (this.nearbyPages.size >= 64) {
+      const oldest = this.nearbyPages.keys().next().value;
+      if (oldest !== undefined) this.nearbyPages.delete(oldest);
+    }
+    this.nearbyPages.set(key, { expires: Date.now() + 60000, promise });
+    void promise.catch(() => {
+      if (this.nearbyPages.get(key)?.promise === promise) this.nearbyPages.delete(key);
+    });
+    return promise;
+  }
+
+  // 周边服务最多每秒两次请求，卸载时取消等待并拒绝后续查询
+  private async waitForNearbySlot(): Promise<void> {
+    this.assertActive();
+    const delay = Math.max(0, 500 - (Date.now() - this.nearbyLastRequest));
+    if (delay > 0) {
+      await new Promise<void>((resolve) => {
+        this.nearbyResume = resolve;
+        this.nearbyTimer = setTimeout(resolve, delay);
+      });
+      this.nearbyResume = undefined;
+      this.nearbyTimer = undefined;
+      this.assertActive();
+    }
+    this.nearbyLastRequest = Date.now();
+  }
+
+  // 每批最多排队四页，补齐指定半径内的候选后再做统一距离分页
+  private async nearbyCandidates(
+    request: SearchRequest & { center: Coordinate },
+    radius: number,
+    first: SearchResult,
+    count: number,
+  ): Promise<Place[]> {
+    const places = [...first.places];
+    const pages = Math.ceil(count / 25);
+    for (let start = 2; start <= pages; start += 4) {
+      const results = await Promise.all(
+        Array.from({ length: Math.min(4, pages - start + 1) }, (_, index) =>
+          this.nearbyPage(request, radius, start + index),
+        ),
+      );
+      for (const result of results) places.push(...result.places);
+    }
+    return places;
   }
 
   // 获取输入建议但不接管输入框 DOM 或显示默认下拉组件
@@ -479,15 +582,29 @@ class AmapController implements MapController {
   }
 
   // 所有自定义标记通过 textContent 渲染，第三方名称不参与 HTML 解析
-  private marker(place: Place, label: string, endpoint = false): { overlay: SdkObject; content: HTMLElement } {
+  private marker(
+    place: Place,
+    label: string,
+    kind: 'result' | 'endpoint' | 'place' = 'result',
+  ): { overlay: SdkObject; content: HTMLElement } {
     const content = document.createElement('button');
     content.type = 'button';
-    content.className = `vibe-map-marker${endpoint ? ' vibe-map-marker-endpoint' : ''}`;
-    content.textContent = label;
+    content.className = `vibe-map-marker${kind === 'endpoint' ? ' vibe-map-marker-endpoint' : ''}${kind === 'place' ? ' vibe-map-marker-place' : ''}`;
+    const copy = document.createElement('span');
+    copy.className = 'vibe-map-marker-label';
+    copy.textContent = label;
+    content.append(copy);
     content.title = place.name;
     content.setAttribute('aria-label', `查看${place.name}`);
     const overlay = construct(this.sdk, 'Marker', [
-      { map: this.map, position: place.location, content, anchor: 'bottom-center', bubble: false },
+      {
+        map: this.map,
+        position: place.location,
+        content,
+        anchor: 'bottom-center',
+        bubble: false,
+        zIndex: kind === 'place' ? 200 : 100,
+      },
     ]);
     // 使用原生按钮点击同时支持鼠标、触屏与键盘，隔离底图拾取
     content.addEventListener('click', (event) => {
@@ -498,15 +615,16 @@ class AmapController implements MapController {
     return { overlay, content };
   }
 
-  // 自行绘制搜索结果并根据全部地点调整视野
-  showPlaces(places: Place[]): void {
+  // 周边结果只更新标记并保留视野，普通搜索仍适配全部地点
+  showPlaces(places: Place[], options: { preserveView?: boolean } = {}): void {
     this.assertActive();
     this.remove(this.selectedMarker ? [this.selectedMarker] : []);
     this.selectedMarker = undefined;
     this.remove([...this.markers.values()].map((marker) => marker.overlay));
     this.markers.clear();
     for (const [index, place] of places.entries()) this.markers.set(place.id, this.marker(place, String(index + 1)));
-    if (places.length) this.fitOverlays([...this.markers.values()].map((marker) => marker.overlay));
+    if (places.length && !options.preserveView)
+      this.fitOverlays([...this.markers.values()].map((marker) => marker.overlay));
   }
 
   // 聚焦已选地点，选择状态仅通过颜色表达
@@ -516,14 +634,9 @@ class AmapController implements MapController {
     this.selectedMarker = undefined;
     for (const [id, marker] of this.markers)
       marker.content.classList.toggle('vibe-map-marker-selected', id === place.id);
-    let selected = this.markers.get(place.id)?.overlay;
-    if (!selected) {
-      const marker = this.marker(place, '●');
-      marker.content.classList.add('vibe-map-marker-selected');
-      this.selectedMarker = marker.overlay;
-      selected = marker.overlay;
-    }
-    this.fitOverlays([selected], Math.max(15, this.getView().zoom));
+    const marker = this.marker(place, place.name, 'place');
+    this.selectedMarker = marker.overlay;
+    this.fitOverlays([marker.overlay], Math.max(15, this.getView().zoom));
   }
 
   // 绘制自定义路径，路线信息和起终点均由页面自行呈现
@@ -548,9 +661,9 @@ class AmapController implements MapController {
     this.clearRoute();
     this.routeOverlays = [
       this.line(plan.path),
-      this.marker(request.start, '起', true).overlay,
-      this.marker(request.end, '终', true).overlay,
-      ...request.waypoints.map((place, index) => this.marker(place, `途${index + 1}`, true).overlay),
+      this.marker(request.start, '起', 'endpoint').overlay,
+      this.marker(request.end, '终', 'endpoint').overlay,
+      ...request.waypoints.map((place, index) => this.marker(place, `途${index + 1}`, 'endpoint').overlay),
     ];
     this.fitOverlays(this.routeOverlays);
   }
@@ -748,7 +861,11 @@ class AmapController implements MapController {
     invoke(this.map, 'off', ['zoomstart', this.cancelPick]);
     invoke(this.map, 'off', ['moveend', this.handleMove]);
     invoke(this.map, 'off', ['zoomend', this.handleMove]);
+    invoke(this.map, 'off', ['resize', this.handleResize]);
     this.destroyed = true;
+    clearTimeout(this.nearbyTimer);
+    this.nearbyResume?.();
+    this.nearbyPages.clear();
     this.districtVersion += 1;
     for (const cancel of this.pending) cancel(new Error('地图已关闭。'));
     this.pending.clear();

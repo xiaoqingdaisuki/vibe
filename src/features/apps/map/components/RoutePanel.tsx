@@ -5,7 +5,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 
-import { sameCoordinate } from '../helpers';
+import { resolveRoutePlace, sameCoordinate } from '../helpers';
 import type { MapController, Place, RoutePlan, RouteRequest, TravelMode } from '../types';
 import { errorMessage } from '../utils';
 import styles from '../styles/Panels.module.css';
@@ -17,7 +17,6 @@ interface RoutePanelProps {
   onPick: (endpoint: 'start' | 'end') => void;
   controller: MapController | null;
   currentLocation: Place | null;
-  destination: Place | null;
   onPlan: (plans: RoutePlan[], request: RouteRequest) => void;
   onClear: () => void;
   onError: (message: string) => void;
@@ -74,28 +73,24 @@ export function RoutePanel({
   onPick,
   controller,
   currentLocation,
-  destination,
   onPlan,
   onClear,
   onError,
 }: RoutePanelProps): React.ReactNode {
   const [startInput, setStartInput] = useState<Endpoint | null>(null);
-  const [end, setEnd] = useState<Endpoint>(() => endpoint(destination));
-  const [receivedDestination, setReceivedDestination] = useState(destination);
+  const [end, setEnd] = useState<Endpoint>(() => endpoint(null));
   const [mode, setMode] = useState<TravelMode>('driving');
   const [policy, setPolicy] = useState(4);
-  const [cityInput, setCityInput] = useState<string | null>(null);
-  const [destinationCityInput, setDestinationCityInput] = useState<string | null>(null);
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [pending, setPending] = useState<'plan' | 'location' | null>(null);
   const [wasActive, setWasActive] = useState(active);
   const [receivedMapPoint, setReceivedMapPoint] = useState(mapPoint);
   const sequence = useRef(0);
-  const destinationRef = useRef(destination);
+  const mapPointRef = useRef(mapPoint);
   const nextWaypoint = useRef(1);
   const start = startInput ?? endpoint(currentLocation);
-  const city = cityInput ?? start.place?.city ?? currentLocation?.city ?? '';
-  const destinationCity = destinationCityInput ?? end.place?.city ?? city;
+  const city = start.place?.city.trim() || currentLocation?.city.trim() || '';
+  const destinationCity = end.place?.city.trim() || city;
   const disabled = !controller || pending !== null;
 
   if (wasActive !== active) {
@@ -107,19 +102,8 @@ export function RoutePanel({
     setReceivedMapPoint(mapPoint);
     if (mapPoint?.endpoint === 'start') {
       setStartInput(endpoint(mapPoint.place));
-      setCityInput(null);
     } else if (mapPoint) {
       setEnd(endpoint(mapPoint.place));
-      setDestinationCityInput(null);
-    }
-  }
-
-  if (destination !== receivedDestination) {
-    setReceivedDestination(destination);
-    setPending(null);
-    if (destination) {
-      setEnd(endpoint(destination));
-      setDestinationCityInput(null);
     }
   }
 
@@ -131,10 +115,10 @@ export function RoutePanel({
     [active],
   );
 
-  // 跟踪外部终点变化，避免旧规划结果覆盖地图中新选择的地点
+  // 跟踪外部起终点变化，避免旧规划结果覆盖地图中新选择的地点
   useEffect(() => {
-    destinationRef.current = destination;
-  }, [destination]);
+    mapPointRef.current = mapPoint;
+  }, [mapPoint]);
 
   // 按交通方式切换合法策略，保留驾车途经点以便切回
   function selectMode(value: TravelMode): void {
@@ -147,7 +131,6 @@ export function RoutePanel({
     if (!controller || pending) return;
     if (currentLocation) {
       setStartInput(endpoint(currentLocation));
-      setCityInput(null);
       return;
     }
     const request = ++sequence.current;
@@ -156,7 +139,6 @@ export function RoutePanel({
       const result = await controller.locate();
       if (request !== sequence.current) return;
       setStartInput(endpoint(result.place));
-      setCityInput(null);
     } catch (error) {
       if (request === sequence.current) onError(errorMessage(error));
     } finally {
@@ -168,8 +150,6 @@ export function RoutePanel({
   function swapEndpoints(): void {
     setStartInput(end);
     setEnd(start);
-    setCityInput(destinationCity);
-    setDestinationCityInput(city);
     setWaypoints((items) => [...items].reverse());
   }
 
@@ -181,19 +161,15 @@ export function RoutePanel({
       onError('请填写起点和终点，或使用当前位置作为起点。');
       return;
     }
-    if (mode === 'transit' && (!city.trim() || !destinationCity.trim())) {
-      onError('公交规划需要起点城市和终点城市，请先填写两个城市。');
-      return;
-    }
     const activeWaypoints = mode === 'driving' ? waypoints.filter((item) => item.text.trim()) : [];
     const requestId = ++sequence.current;
-    // 同时校验请求序号与目的地，丢弃过期结果
-    const isCurrentRequest = () => requestId === sequence.current && destinationRef.current === destination;
+    // 同时校验请求序号与所选端点，丢弃过期结果
+    const isCurrentRequest = () => requestId === sequence.current && mapPointRef.current === mapPoint;
     setPending('plan');
     try {
       const [resolvedStart, resolvedEnd, ...resolvedWaypoints] = await Promise.all([
-        start.place ? Promise.resolve(start.place) : controller.resolve(start.text.trim(), city.trim()),
-        end.place ? Promise.resolve(end.place) : controller.resolve(end.text.trim(), destinationCity.trim()),
+        resolveRoutePlace(controller, start, city),
+        resolveRoutePlace(controller, end, destinationCity),
         ...activeWaypoints.map((item) =>
           item.place ? Promise.resolve(item.place) : controller.resolve(item.text.trim(), city.trim()),
         ),
@@ -210,8 +186,8 @@ export function RoutePanel({
         mode,
         start: resolvedStart,
         end: resolvedEnd,
-        city: city.trim() || resolvedStart.city,
-        destinationCity: destinationCity.trim() || resolvedEnd.city || city.trim(),
+        city: resolvedStart.city,
+        destinationCity: resolvedEnd.city,
         policy,
         waypoints: resolvedWaypoints,
       };
@@ -302,33 +278,9 @@ export function RoutePanel({
           清除路线
         </button>
       </div>
-      <details className={styles.toolSection} open={mode === 'transit'}>
-        <summary>路线偏好、城市与途经点</summary>
+      <details className={styles.toolSection}>
+        <summary>路线偏好与途经点</summary>
         <div className={styles.sectionBody}>
-          <div className={styles.twoColumns}>
-            <label className={styles.field}>
-              <span className={styles.label}>起点城市{mode === 'transit' ? '（必填）' : ''}</span>
-              <input
-                className={styles.input}
-                value={city}
-                placeholder="城市或区号"
-                disabled={disabled}
-                required={mode === 'transit'}
-                onChange={(event) => setCityInput(event.target.value)}
-              />
-            </label>
-            <label className={styles.field}>
-              <span className={styles.label}>终点城市{mode === 'transit' ? '（必填）' : ''}</span>
-              <input
-                className={styles.input}
-                value={destinationCity}
-                placeholder="可填写其他城市"
-                disabled={disabled}
-                required={mode === 'transit'}
-                onChange={(event) => setDestinationCityInput(event.target.value)}
-              />
-            </label>
-          </div>
           <label className={styles.field}>
             <span className={styles.label}>路线偏好</span>
             <select

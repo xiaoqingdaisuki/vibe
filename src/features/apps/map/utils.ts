@@ -1,6 +1,6 @@
 /** 地图：格式化与转换工具 */
 
-import type { Coordinate, MapView, Place } from './types';
+import type { Coordinate, MapView } from './types';
 
 // 把服务错误转换为可以直接显示的提示
 export function errorMessage(error: unknown): string {
@@ -53,16 +53,6 @@ export function createShareUrl(origin: string, view: MapView): string {
   url.searchParams.set('lng', view.center[0].toFixed(6));
   url.searchParams.set('lat', view.center[1].toFixed(6));
   url.searchParams.set('zoom', String(Math.round(view.zoom)));
-  return url.toString();
-}
-
-// 生成高德外部导航链接，坐标仍使用高德坐标系
-export function createNavigationUrl(place: Place): string {
-  const url = new URL('https://uri.amap.com/navigation');
-  url.searchParams.set('to', `${place.location[0]},${place.location[1]},${place.name}`);
-  url.searchParams.set('mode', 'car');
-  url.searchParams.set('src', 'vibe-map');
-  url.searchParams.set('callnative', '1');
   return url.toString();
 }
 
