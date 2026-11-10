@@ -163,15 +163,18 @@ export function suggestions(value: unknown): PlaceSuggestion[] {
   });
 }
 
-// 将逆地理编码结果绑定原始点击坐标，避免附近 POI 替换所选位置
+// 选点名称使用附近地标或街道路号，完整地址独立保存且不改变原始坐标
 export function reversedPlace(value: unknown, location: Coordinate): Place {
   const regeocode = object(object(value).regeocode);
   const component = object(regeocode.addressComponent);
   const address = fullAddress(regeocode.formattedAddress, component);
   if (!address) throw new Error('该坐标暂时没有地址信息。');
+  const landmark = text(object(list(regeocode.pois)[0]).name).trim();
+  const streetNumber = object(component.streetNumber);
+  const street = joinAddressParts([text(streetNumber.street).trim(), text(streetNumber.number).trim()]);
   return {
     id: `point:${location.join(',')}`,
-    name: address,
+    name: landmark ? `${landmark}附近` : street || text(component.township).trim() || '地图选点',
     location,
     address,
     city: text(component.city) || text(component.province),

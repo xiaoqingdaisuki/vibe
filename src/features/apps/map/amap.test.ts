@@ -79,7 +79,7 @@ test('SDK coordinate adaptation supports valid SDK objects and rejects broken or
   }
 });
 
-test('map picks show the full address and house number without replacing the picked coordinate with a nearby POI', () => {
+test('map picks keep a short landmark title and a separate full address without changing the picked coordinate', () => {
   const location: [number, number] = [114.155, 22.282];
   const selected = reversedPlace(
     {
@@ -91,13 +91,13 @@ test('map picks show the full address and house number without replacing the pic
           district: '中西区',
           streetNumber: { street: '威灵顿街', number: '17-19号' },
         },
-        pois: [{ name: '附近餐厅', address: '威灵顿街99号', location: [114.156, 22.283] }],
+        pois: [{ name: '街角餐厅', address: '威灵顿街99号', location: [114.156, 22.283] }],
       },
     },
     location,
   );
-  assert.equal(selected.name, '香港中环威灵顿街17-19号');
-  assert.equal(selected.address, selected.name);
+  assert.equal(selected.name, '街角餐厅附近');
+  assert.equal(selected.address, '香港中环威灵顿街17-19号');
   assert.deepEqual(selected.location, location);
 });
 
@@ -112,7 +112,7 @@ test('map pick addresses fill missing regions and house numbers from structured 
   for (const formattedAddress of ['双清路', '双清路30号', '海淀区双清路30号', '北京市海淀区双清路30号']) {
     const selected = reversedPlace({ regeocode: { formattedAddress, addressComponent: component } }, [116, 40]);
     assert.equal(selected.address, '北京市海淀区双清路30号');
-    assert.equal(selected.name, selected.address);
+    assert.equal(selected.name, '双清路30号');
   }
   assert.equal(
     reversedPlace({ regeocode: { addressComponent: component } }, [116, 40]).address,
@@ -134,6 +134,27 @@ test('map picks never borrow a house number from a nearby POI when the selected 
   );
   assert.equal(selected.address, '香港特别行政区中西区威灵顿街');
   assert.equal(selected.address.includes('99号'), false);
+});
+
+test('map pick headings and route endpoint names never inherit the formatted administrative address', () => {
+  const selected = reversedPlace(
+    {
+      regeocode: {
+        formattedAddress: '广东省深圳市南山区粤海街道深圳湾体育中心华润深圳湾·悦府1期',
+        addressComponent: { province: '广东省', city: '深圳市', district: '南山区', township: '粤海街道' },
+        pois: [{ name: '华润深圳湾·悦府1期' }],
+      },
+    },
+    [113.947587, 22.520557],
+  );
+  assert.equal(selected.name, '华润深圳湾·悦府1期附近');
+  assert.equal(selected.address, '广东省深圳市南山区粤海街道深圳湾体育中心华润深圳湾·悦府1期');
+  const fallback = reversedPlace(
+    { regeocode: { formattedAddress: '广东省深圳市南山区', addressComponent: {} } },
+    selected.location,
+  );
+  assert.equal(fallback.name, '地图选点');
+  assert.equal(fallback.address, '广东省深圳市南山区');
 });
 
 test('search and autocomplete distinguish no data from malformed responses and keep usable records', () => {
