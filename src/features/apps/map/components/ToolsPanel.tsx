@@ -14,6 +14,7 @@ import styles from '../styles/Panels.module.css';
 
 interface ToolsPanelProps {
   controller: MapController | null;
+  drawingTool?: DrawingTool | null;
   onError: (message: string) => void;
   onNotice: (message: string) => void;
 }
@@ -476,8 +477,7 @@ function CoordinateSection({ controller, onError, onNotice }: ToolsPanelProps): 
 }
 
 // 自定义量算与绘图入口，让所有工具在同一张地图中操作
-function DrawingSection({ controller, onError, onNotice }: ToolsPanelProps): React.ReactNode {
-  const [activeTool, setActiveTool] = useState<DrawingTool | null>(null);
+function DrawingSection({ controller, drawingTool: activeTool, onError, onNotice }: ToolsPanelProps): React.ReactNode {
   const [pending, setPending] = useState(false);
   const sequence = useRequestSequence();
   const active = drawingTools.find((item) => item.value === activeTool);
@@ -490,7 +490,6 @@ function DrawingSection({ controller, onError, onNotice }: ToolsPanelProps): Rea
     try {
       await controller.draw(tool);
       if (!sequence.isCurrent(request)) return;
-      setActiveTool(tool);
       const label = drawingTools.find((item) => item.value === tool);
       onNotice(`${label?.label ?? '绘图'}已开启，${label?.hint ?? '请在地图上操作。'}`);
     } catch (error) {
@@ -503,14 +502,12 @@ function DrawingSection({ controller, onError, onNotice }: ToolsPanelProps): Rea
   // 停止当前绘图交互，保留已完成的图形
   function stopDrawing(): void {
     controller?.stopDrawing();
-    setActiveTool(null);
     onNotice('已停止绘图，完成的图形已保留。');
   }
 
   // 清除量算结果和绘图对象，恢复普通地图交互
   function clearDrawings(): void {
     controller?.clearDrawings();
-    setActiveTool(null);
     onNotice('已清除量算和绘图。');
   }
 

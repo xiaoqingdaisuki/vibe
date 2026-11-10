@@ -17,6 +17,7 @@ interface PlaceInputProps {
   value: string;
   selected: Place | null;
   onChange: (value: string, place: Place | null) => void;
+  onChoose?: (value: string, place: Place | null) => void;
   placeholder?: string;
   disabled?: boolean;
   required?: boolean;
@@ -51,6 +52,7 @@ export function PlaceInput({
   value,
   selected,
   onChange,
+  onChoose,
   placeholder = '输入地点名称',
   disabled = false,
   required = false,
@@ -60,12 +62,28 @@ export function PlaceInput({
   const [activeIndex, setActiveIndex] = useState(-1);
   const [suggestions, setSuggestions] = useState<SuggestionState | null>(null);
   const sequence = useRef(0);
+  const inputRef = useRef<HTMLDivElement>(null);
   const query = value.trim();
   const canSuggest = focused && query.length > 0 && !selected && !disabled && controller !== null;
   const currentSuggestions = suggestions?.query === query && suggestions.city === city ? suggestions : null;
   const items = currentSuggestions?.items ?? [];
   const expanded = canSuggest && currentSuggestions !== null;
   const active = activeIndex >= 0 && activeIndex < items.length ? activeIndex : -1;
+
+  // 点击或聚焦输入区域外才关闭建议，触屏滚动列表不提前失焦
+  useEffect(() => {
+    if (!focused) return;
+    // 保留建议列表内部的滚动、点击和键盘焦点
+    function dismissOutside(event: Event): void {
+      if (event.target instanceof Node && !inputRef.current?.contains(event.target)) setFocused(false);
+    }
+    document.addEventListener('pointerdown', dismissOutside);
+    document.addEventListener('focusin', dismissOutside);
+    return () => {
+      document.removeEventListener('pointerdown', dismissOutside);
+      document.removeEventListener('focusin', dismissOutside);
+    };
+  }, [focused]);
 
   // 与高德建议服务同步输入，并在输入变化或卸载时废弃旧请求
   useEffect(() => {
@@ -99,18 +117,25 @@ export function PlaceInput({
 
   // 提交建议并保留坐标，阻止选项点击造成输入提前失焦
   function choose(suggestion: PlaceSuggestion): void {
-    onChange(suggestion.name, suggestionPlace(suggestion, city));
+    const place = suggestionPlace(suggestion, city);
+    onChange(suggestion.name, place);
+    onChoose?.(suggestion.name, place);
     setFocused(false);
     setActiveIndex(-1);
   }
 
   // 支持方向键、回车与 Escape 操作自定义地点建议
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
+    if (event.nativeEvent.isComposing || event.keyCode === 229) {
+      if (event.key === 'Enter') event.preventDefault();
+      return;
+    }
     if (event.key === 'Escape') {
       event.stopPropagation();
       setFocused(false);
       return;
     }
+    if (event.key === 'Enter' && active < 0) setFocused(false);
     if (!expanded || items.length === 0) return;
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
@@ -125,7 +150,7 @@ export function PlaceInput({
   }
 
   return (
-    <div className={styles.placeInput}>
+    <div ref={inputRef} className={styles.placeInput}>
       <label className={styles.label} htmlFor={id}>
         {label}
       </label>
@@ -143,7 +168,6 @@ export function PlaceInput({
         disabled={disabled}
         required={required}
         onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
         onChange={
           // 更新地点输入，并重置建议列表的键盘选中位置
           (event) => {
@@ -167,7 +191,12 @@ export function PlaceInput({
                     className={active === index ? styles.suggestionActive : styles.suggestion}
                     type="button"
                     tabIndex={-1}
-                    onPointerDown={(event) => event.preventDefault()}
+                    onPointerDown={
+                      // 鼠标选择时保留输入焦点，触屏允许原生滚动
+                      (event) => {
+                        if (event.pointerType === 'mouse') event.preventDefault();
+                      }
+                    }
                     onClick={() => choose(suggestion)}
                   >
                     <strong>{suggestion.name}</strong>

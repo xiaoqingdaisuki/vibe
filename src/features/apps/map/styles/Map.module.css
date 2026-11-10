@@ -24,6 +24,10 @@
   position: absolute;
   inset: 0;
 }
+.picking,
+.picking :global(.amap-maps) {
+  cursor: crosshair;
+}
 .srOnly {
   position: absolute;
   width: 1px;
@@ -38,10 +42,10 @@
   left: var(--space-12);
   right: var(--space-12);
   z-index: 5;
-  padding: var(--space-8) var(--space-12);
+  padding: var(--space-8);
   background: var(--color-panel-background);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-sm);
 }
 
 .searchHeader {
@@ -66,8 +70,8 @@
 }
 .searchForm {
   display: flex;
-  align-items: flex-end;
-  gap: var(--space-8);
+  align-items: center;
+  gap: var(--space-4);
 }
 .searchInput {
   flex: 1;
@@ -79,6 +83,34 @@
   height: 1px;
   overflow: hidden;
   clip-path: inset(50%);
+}
+.searchInput input {
+  border-color: transparent;
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+}
+.searchInput > div > div {
+  position: absolute;
+  inset: calc(100% + var(--space-4)) 0 auto;
+}
+.scopeToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 40px;
+  padding: var(--space-4) var(--space-8);
+  color: var(--color-foreground-secondary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+.scopeToggle:hover,
+.scopeToggle:active {
+  color: var(--color-accent);
+  background: var(--color-accent-wash);
+}
+.scopeToggle span {
+  color: var(--color-foreground-muted);
 }
 .searchSubmit {
   display: flex;
@@ -97,6 +129,9 @@
   align-items: center;
   gap: var(--space-8);
   margin-top: var(--space-8);
+}
+.searchScope[hidden] {
+  display: none;
 }
 .searchScope > input {
   width: 0;
@@ -125,10 +160,19 @@
   accent-color: var(--color-accent);
 }
 .mainActions {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  position: absolute;
+  top: calc(var(--space-64) + var(--space-48));
+  left: var(--space-12);
+  right: var(--space-12);
+  z-index: 3;
+  display: flex;
   gap: var(--space-4);
-  margin-top: var(--space-8);
+  padding: var(--space-4);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  background: var(--color-panel-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
 }
 .navButton {
   display: flex;
@@ -136,6 +180,8 @@
   justify-content: center;
   gap: var(--space-4);
   min-height: 40px;
+  flex-shrink: 0;
+  padding: var(--space-4) var(--space-8);
   font-size: var(--text-sm);
   border-radius: var(--radius-sm);
   color: var(--color-foreground-secondary);
@@ -244,12 +290,31 @@
 .nearbyDock {
   position: absolute;
   z-index: 2;
-  top: calc(var(--space-64) * 3 + var(--space-40));
+  top: calc(var(--space-64) * 2 + var(--space-40));
   left: var(--space-12);
   right: var(--space-64);
   display: flex;
   gap: var(--space-8);
   overflow-x: auto;
+}
+.searchDock:has(.searchScope:not([hidden])) {
+  z-index: 7;
+}
+.pickBanner {
+  position: absolute;
+  z-index: 6;
+  top: calc(var(--space-64) * 2 + var(--space-40));
+  left: var(--space-12);
+  right: var(--space-12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  padding: var(--space-8) var(--space-12);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--color-panel-background);
+  font-size: var(--text-sm);
 }
 .nearbyDock .chip {
   flex-shrink: 0;
@@ -289,16 +354,20 @@
 .panel {
   position: absolute;
   z-index: 4;
-  bottom: var(--space-40);
+  bottom: var(--space-8);
   left: var(--space-12);
-  right: var(--space-64);
-  max-height: min(44%, calc(100% - var(--space-64) * 4 - var(--space-12)));
+  right: var(--space-12);
+  height: 48%;
+  max-height: calc(100% - var(--space-64) * 2 - var(--space-40));
   display: flex;
   flex-direction: column;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-panel-background);
   outline: none;
+}
+.workspace[data-collapsed='true'] .panel {
+  height: auto;
 }
 
 .panel[hidden] {
@@ -311,14 +380,21 @@
   gap: var(--space-8);
   padding: var(--space-8) var(--space-12);
   border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
 }
 .panelHeader h2 {
+  flex: 1;
   font-size: var(--text-lg);
 }
 .panelBody {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--space-16);
+  scrollbar-gutter: stable;
+  min-height: 0;
+}
+.panelBody[hidden] {
+  display: none;
 }
 .muted {
   color: var(--color-foreground-muted);
@@ -337,6 +413,32 @@
   flex-wrap: wrap;
   gap: var(--space-8);
   margin-bottom: var(--space-16);
+}
+.nearbyCategories {
+  margin-bottom: var(--space-12);
+}
+.nearbyCategories summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 40px;
+  cursor: pointer;
+  color: var(--color-foreground-secondary);
+  font-size: var(--text-sm);
+  list-style: none;
+}
+.nearbyCategories summary::after {
+  content: '+';
+}
+.nearbyCategories[open] summary::after {
+  content: '−';
+}
+.nearbyCategories summary:hover,
+.nearbyCategories summary:active {
+  color: var(--color-accent);
+}
+.nearbyCategories .categories {
+  margin-top: var(--space-8);
 }
 .placeList {
   display: flex;
@@ -560,9 +662,16 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-8);
-  max-height: max(var(--space-64), calc(100% - var(--space-64) * 4));
+  max-height: calc(100% - var(--space-64) * 3);
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+.workspace[data-panel='open'][data-collapsed='false'] .mapControls {
+  bottom: calc(48% + var(--space-20));
+  max-height: max(var(--space-40), calc(52% - var(--space-64) * 2 - var(--space-48)));
+}
+.workspace[data-panel='open'][data-collapsed='true'] .mapControls {
+  bottom: calc(var(--space-64) + var(--space-16));
 }
 .mapControls > .iconButton,
 .controlGroup {
@@ -581,7 +690,8 @@
 .notice {
   position: absolute;
   z-index: 6;
-  bottom: var(--space-40);
+  top: calc(var(--space-64) * 2 + var(--space-40));
+  bottom: auto;
   left: var(--space-12);
   right: var(--space-64);
   display: flex;
@@ -706,16 +816,36 @@
     right: auto;
   }
   .panel {
-    top: calc(var(--space-64) * 3 + var(--space-48));
-    bottom: var(--space-64);
+    top: calc(var(--space-64) + var(--space-64));
+    bottom: var(--space-40);
     left: var(--space-20);
     right: auto;
     width: var(--map-panel-width);
     max-height: none;
+    height: auto;
+  }
+  .workspace[data-collapsed='true'] .panel {
+    bottom: auto;
+  }
+  .mainActions {
+    top: var(--space-20);
+    left: calc(var(--map-panel-width) + var(--space-48));
+    right: var(--space-20);
+    width: max-content;
+    max-width: calc(100% - var(--map-panel-width) - var(--space-64) - var(--space-4));
+    margin-left: auto;
   }
   .nearbyDock {
-    top: var(--space-20);
-    left: calc(var(--map-panel-width) + var(--space-20) + var(--space-16));
+    top: calc(var(--space-64) * 2);
+    left: var(--space-20);
+    right: auto;
+    width: var(--map-panel-width);
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+  .pickBanner {
+    top: calc(var(--space-64) + var(--space-16));
+    left: calc(var(--map-panel-width) + var(--space-48));
     right: var(--space-20);
   }
   .runtimeState {
@@ -727,10 +857,18 @@
     right: var(--space-20);
     bottom: var(--space-48);
   }
+  .workspace[data-panel='open'][data-collapsed='false'] .mapControls {
+    bottom: var(--space-48);
+    max-height: calc(100% - var(--space-64) * 3);
+  }
+  .workspace[data-panel='open'][data-collapsed='true'] .mapControls {
+    bottom: var(--space-48);
+  }
   .notice {
     left: calc(var(--map-panel-width) + var(--space-20) + var(--space-16));
     right: calc(var(--space-64) + var(--space-16));
     bottom: var(--space-48);
+    top: auto;
     max-width: 600px;
     margin: 0 auto;
   }

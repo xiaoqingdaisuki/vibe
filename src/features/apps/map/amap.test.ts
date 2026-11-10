@@ -20,8 +20,13 @@ class FakeMap {
   center = [116, 40];
   zoom = 12;
   destroyed = false;
-  on(): void {}
-  off(): void {}
+  listeners = new Map<string, (...args: unknown[]) => void>();
+  on(name: string, listener: (...args: unknown[]) => void): void {
+    this.listeners.set(name, listener);
+  }
+  off(name: string): void {
+    this.listeners.delete(name);
+  }
   remove(): void {}
   destroy(): void {
     this.destroyed = true;
@@ -410,7 +415,12 @@ test('controller uses city-level fallback explicitly when accurate positioning f
 
 test('custom markers render untrusted names as plain text and focus accounts for overlay padding', async () => {
   const savedDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
-  const contents: { textContent: string; title: string; attributes: Map<string, string> }[] = [];
+  const contents: {
+    textContent: string;
+    title: string;
+    attributes: Map<string, string>;
+    listeners: Map<string, (event: { stopPropagation: () => void }) => void>;
+  }[] = [];
   const fitCalls: unknown[][] = [];
   const selectedPlaces: unknown[] = [];
   class MapWithOverlays extends FakeMap {
@@ -429,10 +439,14 @@ test('custom markers render untrusted names as plain text and focus accounts for
     value: {
       createElement: () => {
         const attributes = new Map<string, string>();
+        const listeners = new Map<string, (event: { stopPropagation: () => void }) => void>();
         return {
           textContent: '',
           title: '',
           attributes,
+          listeners,
+          addEventListener: (name: string, listener: (event: { stopPropagation: () => void }) => void) =>
+            listeners.set(name, listener),
           classList: { add: () => {}, toggle: () => {} },
           setAttribute: (name: string, value: string) => attributes.set(name, value),
         };
@@ -453,11 +467,111 @@ test('custom markers render untrusted names as plain text and focus accounts for
     assert.equal('innerHTML' in contents[0], false);
     assert.deepEqual(fitCalls[1].slice(1), [true, [80, 300, 16, 64], 15]);
     assert.equal(selectedPlaces.length, 0);
+    let stopped = false;
+    contents[0].listeners.get('click')?.({
+      stopPropagation: () => {
+        stopped = true;
+      },
+    });
+    assert.equal(stopped, true);
+    assert.deepEqual(selectedPlaces, [place]);
     controller.destroy();
+    contents[0].listeners.get('click')?.({ stopPropagation: () => {} });
+    assert.equal(selectedPlaces.length, 1);
   } finally {
     if (savedDocument) Object.defineProperty(globalThis, 'document', savedDocument);
     else Reflect.deleteProperty(globalThis, 'document');
   }
+});
+
+test('map picking waits for a single click and ignores double-click zoom, dragging and destroyed maps', async (context) => {
+  context.mock.timers.enable({ apis: ['setTimeout'] });
+  const picks: unknown[] = [];
+  const places: unknown[] = [];
+  const listeners = new Map<string, (...args: unknown[]) => void>();
+  class InteractiveMap extends FakeMap {
+    constructor() {
+      super();
+      this.listeners = listeners;
+    }
+  }
+  const controller = await createMapController(
+    { ...options, onPick: (point) => picks.push(point), onPlace: (place) => places.push(place) },
+    async () => ({
+      Map: InteractiveMap,
+    }),
+  );
+  const click = listeners.get('click');
+  click?.({ lnglat: [116, 40] });
+  assert.equal(picks.length, 0);
+  context.mock.timers.tick(280);
+  assert.deepEqual(picks, [[116, 40]]);
+  click?.({ lnglat: [116, 40] });
+  listeners.get('hotspotclick')?.({ id: 'poi', name: '地图地点', lnglat: [116, 40] });
+  context.mock.timers.tick(500);
+  assert.equal(picks.length, 1);
+  assert.equal(places.length, 1);
+  listeners.get('hotspotclick')?.({ name: '无效地点', lnglat: [500, 40] });
+  assert.equal(places.length, 1);
+  for (const gesture of ['dblclick', 'dragstart', 'zoomstart']) {
+    click?.({ lnglat: [117, 40] });
+    listeners.get(gesture)?.();
+    context.mock.timers.tick(500);
+    assert.equal(picks.length, 1);
+  }
+  click?.({ lnglat: [118, 40] });
+  controller.destroy();
+  context.mock.timers.tick(500);
+  assert.equal(picks.length, 1);
+  assert.equal(listeners.size, 0);
+});
+
+test('place details resolve the selected POI id rather than searching an ambiguous name', async () => {
+  let requested = '';
+  class PlaceSearch {
+    getDetails(id: string, callback: Callback): void {
+      requested = id;
+      callback('complete', {
+        poiList: { pois: [{ id, name: '同名地点', location: [116, 40], address: '选中地点的地址' }] },
+      });
+    }
+  }
+  const controller = await createMapController(options, async () => ({ Map: FakeMap, PlaceSearch }));
+  const place = await controller.details('selected-id');
+  assert.equal(requested, 'selected-id');
+  assert.equal(place.id, 'selected-id');
+  assert.equal(place.address, '选中地点的地址');
+  controller.destroy();
+});
+
+test('drawing completes once, restores browsing and publishes the same active tool as the controller', async () => {
+  let completed: ((value: unknown) => void) | undefined;
+  const tools: unknown[] = [];
+  let closed = 0;
+  class MouseTool {
+    on(_name: string, listener: (value: unknown) => void): void {
+      completed = listener;
+    }
+    off(): void {}
+    circle(): void {}
+    close(): void {
+      closed += 1;
+    }
+  }
+  const results: string[] = [];
+  const controller = await createMapController(
+    { ...options, onDrawingChange: (tool) => tools.push(tool), onToolResult: (message) => results.push(message) },
+    async () => ({ Map: FakeMap, MouseTool }),
+  );
+  await controller.draw('circle');
+  assert.equal(tools.at(-1), 'circle');
+  completed?.({ obj: { getRadius: () => 10 } });
+  assert.equal(tools.at(-1), null);
+  assert.equal(closed, 1);
+  assert.match(results[0], /10 米/);
+  completed?.({ obj: { getRadius: () => 10 } });
+  assert.equal(results.length, 1);
+  controller.destroy();
 });
 
 test('appearance restores the official vector default layer and combines independent satellite and traffic layers', async () => {

@@ -12,6 +12,9 @@ import styles from '../styles/Panels.module.css';
 import { PlaceInput } from './PlaceInput';
 
 interface RoutePanelProps {
+  active: boolean;
+  mapPoint: { endpoint: 'start' | 'end'; place: Place } | null;
+  onPick: (endpoint: 'start' | 'end') => void;
   controller: MapController | null;
   currentLocation: Place | null;
   destination: Place | null;
@@ -66,6 +69,9 @@ function endpoint(place: Place | null): Endpoint {
 
 // 自定义路线表单统一完成地点解析、交通方式和途经点规划
 export function RoutePanel({
+  active,
+  mapPoint,
+  onPick,
   controller,
   currentLocation,
   destination,
@@ -82,6 +88,8 @@ export function RoutePanel({
   const [destinationCityInput, setDestinationCityInput] = useState<string | null>(null);
   const [waypoints, setWaypoints] = useState<Waypoint[]>([]);
   const [pending, setPending] = useState<'plan' | 'location' | null>(null);
+  const [wasActive, setWasActive] = useState(active);
+  const [receivedMapPoint, setReceivedMapPoint] = useState(mapPoint);
   const sequence = useRef(0);
   const destinationRef = useRef(destination);
   const nextWaypoint = useRef(1);
@@ -89,6 +97,22 @@ export function RoutePanel({
   const city = cityInput ?? start.place?.city ?? currentLocation?.city ?? '';
   const destinationCity = destinationCityInput ?? end.place?.city ?? city;
   const disabled = !controller || pending !== null;
+
+  if (wasActive !== active) {
+    setWasActive(active);
+    setPending(null);
+  }
+
+  if (mapPoint !== receivedMapPoint) {
+    setReceivedMapPoint(mapPoint);
+    if (mapPoint?.endpoint === 'start') {
+      setStartInput(endpoint(mapPoint.place));
+      setCityInput(null);
+    } else if (mapPoint) {
+      setEnd(endpoint(mapPoint.place));
+      setDestinationCityInput(null);
+    }
+  }
 
   if (destination !== receivedDestination) {
     setReceivedDestination(destination);
@@ -104,7 +128,7 @@ export function RoutePanel({
     () => () => {
       sequence.current += 1;
     },
-    [],
+    [active],
   );
 
   // 跟踪外部终点变化，避免旧规划结果覆盖地图中新选择的地点
@@ -219,8 +243,31 @@ export function RoutePanel({
           </button>
         ))}
       </div>
-      <div className={styles.rowBetween}>
-        <p className={styles.hint}>输入地名，或从地图地点详情设为终点。</p>
+      <div className={styles.routeEndpoints}>
+        <div className={styles.endpointFields}>
+          <PlaceInput
+            controller={controller}
+            city={city}
+            label="起点"
+            value={start.text}
+            selected={start.place}
+            onChange={(text, place) => setStartInput({ text, place })}
+            placeholder="输入起点"
+            disabled={disabled}
+            required
+          />
+          <PlaceInput
+            controller={controller}
+            city={destinationCity}
+            label="终点"
+            value={end.text}
+            selected={end.place}
+            onChange={(text, place) => setEnd({ text, place })}
+            placeholder="输入终点"
+            disabled={disabled}
+            required
+          />
+        </div>
         <button
           type="button"
           className={styles.compactButton}
@@ -228,125 +275,121 @@ export function RoutePanel({
           onClick={swapEndpoints}
           aria-label="交换起点和终点"
         >
-          ⇅ 交换
+          ⇅
         </button>
       </div>
-      <PlaceInput
-        controller={controller}
-        city={city}
-        label="起点"
-        value={start.text}
-        selected={start.place}
-        onChange={(text, place) => setStartInput({ text, place })}
-        placeholder="我的位置或出发地"
-        disabled={disabled}
-        required
-      />
-      <button type="button" className={styles.textButton} disabled={disabled} onClick={() => void setCurrentStart()}>
-        {pending === 'location' ? '正在定位…' : '使用我的位置'}
-      </button>
-      <PlaceInput
-        controller={controller}
-        city={destinationCity}
-        label="终点"
-        value={end.text}
-        selected={end.place}
-        onChange={(text, place) => setEnd({ text, place })}
-        placeholder="想去哪里"
-        disabled={disabled}
-        required
-      />
-      <div className={styles.twoColumns}>
-        <label className={styles.field}>
-          <span className={styles.label}>起点城市{mode === 'transit' ? '（必填）' : ''}</span>
-          <input
-            className={styles.input}
-            value={city}
-            placeholder="城市或区号"
-            disabled={disabled}
-            required={mode === 'transit'}
-            onChange={(event) => setCityInput(event.target.value)}
-          />
-        </label>
-        <label className={styles.field}>
-          <span className={styles.label}>终点城市{mode === 'transit' ? '（必填）' : ''}</span>
-          <input
-            className={styles.input}
-            value={destinationCity}
-            placeholder="可填写其他城市"
-            disabled={disabled}
-            required={mode === 'transit'}
-            onChange={(event) => setDestinationCityInput(event.target.value)}
-          />
-        </label>
-      </div>
-      <label className={styles.field}>
-        <span className={styles.label}>路线偏好</span>
-        <select
-          className={styles.input}
-          value={policy}
+      <div className={styles.actions}>
+        <button
+          type="button"
+          className={styles.compactButton}
           disabled={disabled}
-          onChange={(event) => setPolicy(Number(event.target.value))}
+          onClick={() => void setCurrentStart()}
         >
-          {policies[mode].map((item) => (
-            <option key={item.value} value={item.value}>
-              {item.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      {mode === 'driving' ? (
-        <div className={styles.stack}>
-          {waypoints.map((item, index) => (
-            <div key={item.key} className={styles.waypoint}>
-              <PlaceInput
-                controller={controller}
-                city={city}
-                label={`途经点 ${index + 1}`}
-                value={item.text}
-                selected={item.place}
-                disabled={disabled}
-                onChange={(text, place) =>
-                  setWaypoints((items) =>
-                    items.map((point) => (point.key === item.key ? { ...point, text, place } : point)),
-                  )
-                }
-              />
-              <button
-                className={styles.compactButton}
-                type="button"
-                disabled={disabled}
-                aria-label={`移除途经点 ${index + 1}`}
-                onClick={() => setWaypoints((items) => items.filter((point) => point.key !== item.key))}
-              >
-                移除
-              </button>
-            </div>
-          ))}
-          <button
-            type="button"
-            className={styles.button}
-            disabled={disabled || waypoints.length >= 3}
-            onClick={
-              // 分配稳定标识并添加一个空白途经点
-              () => {
-                const key = nextWaypoint.current++;
-                setWaypoints((items) => [...items, { key, text: '', place: null }]);
-              }
-            }
-          >
-            ＋ 添加途经点（最多 3 个）
-          </button>
-        </div>
-      ) : null}
+          {pending === 'location' ? '正在定位…' : '我的位置'}
+        </button>
+        <button type="button" className={styles.compactButton} disabled={disabled} onClick={() => onPick('start')}>
+          地图选起点
+        </button>
+        <button type="button" className={styles.compactButton} disabled={disabled} onClick={() => onPick('end')}>
+          地图选终点
+        </button>
+      </div>
       <div className={styles.actions}>
         <button type="submit" className={styles.primaryButton} disabled={disabled}>
-          {pending === 'plan' ? '正在规划…' : '规划路线'}
+          {pending === 'plan' ? '正在规划…' : '搜索路线'}
         </button>
         <button type="button" className={styles.button} disabled={disabled} onClick={onClear}>
           清除路线
         </button>
       </div>
+      <details className={styles.toolSection} open={mode === 'transit'}>
+        <summary>路线偏好、城市与途经点</summary>
+        <div className={styles.sectionBody}>
+          <div className={styles.twoColumns}>
+            <label className={styles.field}>
+              <span className={styles.label}>起点城市{mode === 'transit' ? '（必填）' : ''}</span>
+              <input
+                className={styles.input}
+                value={city}
+                placeholder="城市或区号"
+                disabled={disabled}
+                required={mode === 'transit'}
+                onChange={(event) => setCityInput(event.target.value)}
+              />
+            </label>
+            <label className={styles.field}>
+              <span className={styles.label}>终点城市{mode === 'transit' ? '（必填）' : ''}</span>
+              <input
+                className={styles.input}
+                value={destinationCity}
+                placeholder="可填写其他城市"
+                disabled={disabled}
+                required={mode === 'transit'}
+                onChange={(event) => setDestinationCityInput(event.target.value)}
+              />
+            </label>
+          </div>
+          <label className={styles.field}>
+            <span className={styles.label}>路线偏好</span>
+            <select
+              className={styles.input}
+              value={policy}
+              disabled={disabled}
+              onChange={(event) => setPolicy(Number(event.target.value))}
+            >
+              {policies[mode].map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          {mode === 'driving' ? (
+            <div className={styles.stack}>
+              {waypoints.map((item, index) => (
+                <div key={item.key} className={styles.waypoint}>
+                  <PlaceInput
+                    controller={controller}
+                    city={city}
+                    label={`途经点 ${index + 1}`}
+                    value={item.text}
+                    selected={item.place}
+                    disabled={disabled}
+                    onChange={(text, place) =>
+                      setWaypoints((items) =>
+                        items.map((point) => (point.key === item.key ? { ...point, text, place } : point)),
+                      )
+                    }
+                  />
+                  <button
+                    className={styles.compactButton}
+                    type="button"
+                    disabled={disabled}
+                    aria-label={`移除途经点 ${index + 1}`}
+                    onClick={() => setWaypoints((items) => items.filter((point) => point.key !== item.key))}
+                  >
+                    移除
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                className={styles.button}
+                disabled={disabled || waypoints.length >= 3}
+                onClick={
+                  // 分配稳定标识并添加一个空白途经点
+                  () => {
+                    const key = nextWaypoint.current++;
+                    setWaypoints((items) => [...items, { key, text: '', place: null }]);
+                  }
+                }
+              >
+                ＋ 添加途经点（最多 3 个）
+              </button>
+            </div>
+          ) : null}
+        </div>
+      </details>
       <p className={styles.hint}>路线和预计时间由高德提供；公交支持跨城查询，路况可能实时变化。</p>
     </form>
   );

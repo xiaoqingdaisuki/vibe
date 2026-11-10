@@ -137,6 +137,7 @@ class AmapController implements MapController {
   private mouse?: SdkObject;
   private tool?: DrawingTool;
   private toolVersion = 0;
+  private pickTimer: ReturnType<typeof setTimeout> | undefined;
   private destroyed = false;
   private lastView: MapView;
   private readonly layers = new Map<string, SdkObject>();
@@ -157,10 +158,15 @@ class AmapController implements MapController {
         showBuildingBlock: true,
         showIndoorMap: false,
         keyboardEnable: true,
+        isHotspot: true,
         zooms: [3, 20],
       },
     ]);
     invoke(this.map, 'on', ['click', this.handlePick]);
+    invoke(this.map, 'on', ['hotspotclick', this.handleHotspot]);
+    invoke(this.map, 'on', ['dblclick', this.cancelPick]);
+    invoke(this.map, 'on', ['dragstart', this.cancelPick]);
+    invoke(this.map, 'on', ['zoomstart', this.cancelPick]);
     invoke(this.map, 'on', ['moveend', this.handleMove]);
     invoke(this.map, 'on', ['zoomend', this.handleMove]);
   }
@@ -173,8 +179,40 @@ class AmapController implements MapController {
   // 将地图点击收敛为稳定坐标，绘制期间不触发地点拾取
   private handlePick = (value: unknown): void => {
     if (this.destroyed || this.tool) return;
+    this.cancelPick();
     const location = coordinate(object(value).lnglat);
-    if (location) this.options.onPick(location);
+    if (location) {
+      // 等待双击判定，缩放和拖拽不会触发地址查询
+      this.pickTimer = setTimeout(() => {
+        this.pickTimer = undefined;
+        if (!this.destroyed && !this.tool) this.options.onPick(location);
+      }, 280);
+    }
+  };
+
+  // 取消未确认的单击，防止双击缩放和绘图结束被识别为选点
+  private cancelPick = (): void => {
+    clearTimeout(this.pickTimer);
+    this.pickTimer = undefined;
+  };
+
+  // 地图已有地点标注可直接打开，空白区域保留普通浏览手势
+  private handleHotspot = (value: unknown): void => {
+    if (this.destroyed || this.tool) return;
+    this.cancelPick();
+    const data = object(value);
+    const location = coordinate(data.lnglat);
+    const name = text(data.name);
+    if (!location || !name) return;
+    this.options.onPlace({
+      id: text(data.id) || `point:${location.join(',')}`,
+      name,
+      location,
+      address: '',
+      city: '',
+      district: '',
+      type: '',
+    });
   };
 
   // 读取视野并通知页面，避免页面接触 SDK 对象
@@ -299,6 +337,14 @@ class AmapController implements MapController {
     if (result.places[0]) return result.places[0];
     const geocoder = await this.service('Geocoder', { city: city || '全国' });
     return geocodedPlace(await this.request(geocoder, 'getLocation', [keyword]), keyword);
+  }
+
+  // 按兴趣点标识获取完整地址和电话，避免名称相同的地点被混淆
+  async details(id: string): Promise<Place> {
+    const search = await this.service('PlaceSearch', { extensions: 'all' });
+    const result = searchResult(await this.request(search, 'getDetails', [id]), 1);
+    if (!result.places[0]) throw new Error('暂时无法获取此地点的详细信息。');
+    return result.places[0];
   }
 
   // 将所选 GCJ-02 坐标解析为地址和附近地标
@@ -443,13 +489,20 @@ class AmapController implements MapController {
     const overlay = construct(this.sdk, 'Marker', [
       { map: this.map, position: place.location, content, anchor: 'bottom-center', bubble: false },
     ]);
-    invoke(overlay, 'on', ['click', () => this.options.onPlace(place)]);
+    // 使用原生按钮点击同时支持鼠标、触屏与键盘，隔离底图拾取
+    content.addEventListener('click', (event) => {
+      event.stopPropagation();
+      this.cancelPick();
+      if (!this.destroyed && !this.tool) this.options.onPlace(place);
+    });
     return { overlay, content };
   }
 
   // 自行绘制搜索结果并根据全部地点调整视野
   showPlaces(places: Place[]): void {
     this.assertActive();
+    this.remove(this.selectedMarker ? [this.selectedMarker] : []);
+    this.selectedMarker = undefined;
     this.remove([...this.markers.values()].map((marker) => marker.overlay));
     this.markers.clear();
     for (const [index, place] of places.entries()) this.markers.set(place.id, this.marker(place, String(index + 1)));
@@ -606,7 +659,7 @@ class AmapController implements MapController {
     if (this.destroyed || !isObject(overlay) || !this.tool) return;
     const tool = this.tool;
     this.drawings.push(overlay);
-    let message = '图形已绘制，可继续绘制或清除标注。';
+    let message = '图形已绘制，已恢复地图浏览。';
     const geometry = object(this.sdk.GeometryUtil);
     if (tool === 'distance' || tool === 'polyline') {
       const distance = numeric(invoke(geometry, 'distanceOfLine', [path(invoke(overlay, 'getPath'))]));
@@ -628,7 +681,8 @@ class AmapController implements MapController {
       const location = coordinate(invoke(overlay, 'getPosition'));
       if (location) message = `标注坐标：${location.map((number) => number.toFixed(6)).join(', ')}`;
     }
-    this.options.onToolResult(message);
+    this.stopDrawing();
+    this.options.onToolResult(`${message}；已结束绘制。`);
   };
 
   // 使用鼠标工具只绘制基础几何，测量结果由应用自行计算和展示
@@ -643,6 +697,8 @@ class AmapController implements MapController {
       invoke(this.mouse, 'on', ['draw', this.handleDraw]);
     }
     this.tool = tool;
+    this.options.onDrawingChange?.(tool);
+    this.cancelPick();
     const method = tool === 'distance' ? 'polyline' : tool === 'area' ? 'polygon' : tool;
     const options: SdkObject = { strokeColor: '#555555', strokeWeight: 3, fillColor: '#888888', fillOpacity: 0.16 };
     if (method === 'marker') {
@@ -658,7 +714,10 @@ class AmapController implements MapController {
   // 关闭当前绘制交互而保留已完成图形，并取消尚未完成的启动
   stopDrawing(): void {
     this.toolVersion += 1;
+    this.districtVersion += 1;
     this.tool = undefined;
+    this.cancelPick();
+    this.options.onDrawingChange?.(null);
     if (this.mouse) invoke(this.mouse, 'close', [false]);
   }
 
@@ -683,6 +742,10 @@ class AmapController implements MapController {
     this.stopDrawing();
     if (this.mouse) invoke(this.mouse, 'off', ['draw', this.handleDraw]);
     invoke(this.map, 'off', ['click', this.handlePick]);
+    invoke(this.map, 'off', ['hotspotclick', this.handleHotspot]);
+    invoke(this.map, 'off', ['dblclick', this.cancelPick]);
+    invoke(this.map, 'off', ['dragstart', this.cancelPick]);
+    invoke(this.map, 'off', ['zoomstart', this.cancelPick]);
     invoke(this.map, 'off', ['moveend', this.handleMove]);
     invoke(this.map, 'off', ['zoomend', this.handleMove]);
     this.destroyed = true;

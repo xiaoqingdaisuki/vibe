@@ -3,10 +3,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
+import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore, type FormEvent } from 'react';
 import { EmptyState } from '@/components/shared/EmptyState';
 import type {
   Coordinate,
+  DrawingTool,
   MapAppearance,
   MapView,
   Place,
@@ -61,13 +62,22 @@ export default function MapApp() {
   const canvasRef = useRef<HTMLDivElement>(null);
   const workspaceRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLElement>(null);
+  const panelBodyRef = useRef<HTMLDivElement>(null);
+  const searchScrollRef = useRef(0);
   const dockRef = useRef<HTMLDivElement>(null);
+  const toolbarRef = useRef<HTMLElement>(null);
   const panelTriggerRef = useRef<HTMLElement | null>(null);
   const requestId = useRef(0);
   const pickId = useRef(0);
   const hasInteracted = useRef(false);
   const [retry, setRetry] = useState(0);
   const [panel, setPanel] = useState<Panel | null>(null);
+  const [scopeOpen, setScopeOpen] = useState(false);
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [drawingTool, setDrawingTool] = useState<DrawingTool | null>(null);
+  const [routePick, setRoutePick] = useState<'start' | 'end' | null>(null);
+  const [routePoint, setRoutePoint] = useState<{ endpoint: 'start' | 'end'; place: Place } | null>(null);
   const [keyword, setKeyword] = useState('');
   const [city, setCity] = useState('');
   const [nearby, setNearby] = useState(false);
@@ -93,12 +103,14 @@ export default function MapApp() {
     onPlace: selectPlace,
     onMove: setView,
     onToolResult: setNotice,
+    onDrawingChange: setDrawingTool,
     onNotice: setNotice,
     getPadding: getMapPadding,
     // 记录定位地点，在用户尚未操作时聚焦地图并提示定位精度
     onLocation: (location, active) => {
       setCurrentLocation(location.place);
-      if (!hasInteracted.current) active.focus(location.place);
+      if (!hasInteracted.current)
+        active.setView({ center: location.place.location, zoom: location.approximate ? 12 : 15 });
       setNotice(
         location.approximate
           ? '已使用城市级 IP 定位，位置仅供参考。可再次尝试精确定位。'
@@ -108,6 +120,32 @@ export default function MapApp() {
   });
   const ready = status === 'ready' && controller !== null;
   const scale = getMapScale(view);
+
+  // 返回搜索列表时恢复浏览位置，其他任务从面板顶部开始
+  useEffect(() => {
+    if (panelBodyRef.current) panelBodyRef.current.scrollTop = panel === 'search' ? searchScrollRef.current : 0;
+  }, [panel, result]);
+
+  // 规划成功后直接展示路线方案，移动端无需越过整张表单寻找结果
+  useEffect(() => {
+    if (panel === 'route' && route?.request) {
+      panelRef.current?.querySelector('[aria-label="路线结果"]')?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [panel, route?.request]);
+
+  // 普通反馈自动消退，绘图指引和需要手动复制的分享链接保持可见
+  useEffect(() => {
+    if (!notice || drawingTool || notice.startsWith('请复制地图链接')) return;
+    const timer = window.setTimeout(() => setNotice(''), 5000);
+    return () => window.clearTimeout(timer);
+  }, [notice, drawingTool]);
+
+  // 等详情面板完成布局后聚焦地点，避免首次选点被底部面板遮挡
+  useEffect(() => {
+    if (!place || !controller || panel !== 'place') return;
+    const frame = requestAnimationFrame(() => controller.focus(place));
+    return () => cancelAnimationFrame(frame);
+  }, [place, controller, panel]);
 
   // 地图占满视口时停用被覆盖的站点页脚，离开应用后恢复焦点入口
   useEffect(() => {
@@ -124,43 +162,53 @@ export default function MapApp() {
   function getMapPadding(): [number, number, number, number] {
     const canvas = canvasRef.current?.getBoundingClientRect();
     const dock = dockRef.current?.getBoundingClientRect();
+    const toolbar = toolbarRef.current?.getBoundingClientRect();
     const visiblePanel = panelRef.current && !panelRef.current.hidden ? panelRef.current.getBoundingClientRect() : null;
     if (!canvas || !dock) return [64, 64, 64, 64];
     if (canvas.width >= 768) return [64, 64, Math.min(dock.right - canvas.left + 16, canvas.width / 2), 64];
-    const top = dock.bottom - canvas.top + 12;
+    const top = Math.max(dock.bottom, toolbar?.bottom ?? dock.bottom) - canvas.top + 12;
     const bottom = visiblePanel ? canvas.bottom - visiblePanel.top + 16 : 80;
     const factor = Math.min(1, Math.max(120, canvas.height - 120) / (top + bottom));
     return [Math.round(top * factor), Math.round(bottom * factor), 24, 64];
   }
 
-  // 面板开启时聚焦标题，保持键盘操作有明确起点
-  useEffect(() => {
-    if (!panel) return;
-    panelRef.current?.focus({ preventScroll: true });
-  }, [panel]);
-
-  // 即使浮层已收起，Escape 也能停止地图绘图交互
-  useEffect(() => {
-    // 关闭浮层后保留键盘使用者的操作位置
-    function onKey(event: KeyboardEvent): void {
-      if (event.key !== 'Escape') return;
-      setPanel(null);
+  // Escape 优先取消选点或绘图，下一次才关闭工作面板
+  const onEscape = useEffectEvent((event: KeyboardEvent) => {
+    if (event.key !== 'Escape') return;
+    if (picking) {
+      cancelPicking();
+      return;
+    }
+    if (drawingTool) {
       controller?.stopDrawing();
-      panelTriggerRef.current?.focus({ preventScroll: true });
+      setNotice('已停止绘图。');
+      return;
     }
-    // 地图底图点击只收起浮层，保留拖拽和缩放交互
-    function onOutside(event: PointerEvent): void {
-      if (!(event.target instanceof Element) || !event.target.closest('[data-map-canvas]')) return;
-      setPanel(null);
+    if (scopeOpen) {
+      setScopeOpen(false);
+      return;
     }
-    document.addEventListener('keydown', onKey);
-    document.addEventListener('pointerdown', onOutside);
-    // 面板关闭或卸载时移除键盘与外部点击监听
+    closePanel();
+  });
+
+  // 注册一次全局快捷键，通过 Effect Event 读取当前操作状态
+  useEffect(() => {
+    document.addEventListener('keydown', onEscape);
     return () => {
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('pointerdown', onOutside);
+      document.removeEventListener('keydown', onEscape);
     };
-  }, [controller]);
+  }, []);
+
+  // 搜索范围只作为临时下拉区域，点击外部即可收起且不关闭工作面板
+  useEffect(() => {
+    if (!scopeOpen) return;
+    // 保留范围区域内部的输入与选择操作
+    function closeScope(event: PointerEvent): void {
+      if (event.target instanceof Node && !dockRef.current?.contains(event.target)) setScopeOpen(false);
+    }
+    document.addEventListener('pointerdown', closeScope);
+    return () => document.removeEventListener('pointerdown', closeScope);
+  }, [scopeOpen]);
 
   // 离开页面时作废尚未完成的地点和搜索请求
   useEffect(
@@ -176,15 +224,39 @@ export default function MapApp() {
     requestId.current += 1;
     pickId.current += 1;
     setBusy(false);
-    if (next !== 'tools') controller?.stopDrawing();
+    controller?.stopDrawing();
+    setPicking(false);
+    setRoutePick(null);
+    setPanelCollapsed(false);
     if (document.activeElement instanceof HTMLElement) panelTriggerRef.current = document.activeElement;
     setPanel((previous) => (previous === next ? null : next));
     setError('');
   }
 
+  // 明确关闭才结束当前任务，地图拖拽和缩放不改变面板状态
+  function closePanel(): void {
+    requestId.current += 1;
+    pickId.current += 1;
+    setBusy(false);
+    setPicking(false);
+    setRoutePick(null);
+    controller?.stopDrawing();
+    setPanel(null);
+    panelTriggerRef.current?.focus({ preventScroll: true });
+  }
+
+  // 取消选点时作废请求，并恢复被收起的路线表单
+  function cancelPicking(): void {
+    pickId.current += 1;
+    setPicking(false);
+    setRoutePick(null);
+    if (routePick) setPanelCollapsed(false);
+  }
+
   // 地图点选逆地理编码，晚到的旧结果不会覆盖新地点
   async function pickLocation(location: Coordinate): Promise<void> {
-    if (!controller) return;
+    if (!controller || !picking) return;
+    setPicking(false);
     requestId.current += 1;
     setBusy(false);
     const id = ++pickId.current;
@@ -192,34 +264,75 @@ export default function MapApp() {
     try {
       const selected = await controller.reverse(location);
       if (id !== pickId.current) return;
-      selectPlace(selected);
+      if (routePick) finishRoutePick(selected, routePick);
+      else selectPlace(selected);
     } catch (reason) {
-      if (id === pickId.current) setError(errorMessage(reason));
+      if (id === pickId.current) {
+        setError(errorMessage(reason));
+        setRoutePick(null);
+        if (routePick) setPanelCollapsed(false);
+      }
     }
   }
 
   // 选择地点时同步地图标记与自绘详情
   function selectPlace(selected: Place): void {
+    if (picking && routePick) {
+      finishRoutePick(selected, routePick);
+      return;
+    }
+    if (panel === 'search') searchScrollRef.current = panelBodyRef.current?.scrollTop ?? 0;
     pickId.current += 1;
     requestId.current += 1;
     setBusy(false);
     controller?.stopDrawing();
+    setPicking(false);
+    setPanelCollapsed(false);
     setPlace(selected);
     setPanel('place');
-    controller?.focus(selected);
+    setError('');
+    if (controller && !selected.type && !selected.id.startsWith('point:')) {
+      const id = pickId.current;
+      // 补充详情时仍校验选点序号，旧地点不得覆盖后来打开的地点
+      void controller.details(selected.id).then(
+        (details) => {
+          if (id === pickId.current) setPlace(details);
+        },
+        () => {
+          if (id === pickId.current) setNotice('地点详情暂不可用，仍可使用当前坐标规划路线。');
+        },
+      );
+    }
+  }
+
+  // 将地图选中的位置交还路线端点，不打开无关的地点详情
+  function finishRoutePick(selected: Place, endpoint: 'start' | 'end'): void {
+    pickId.current += 1;
+    setRoutePoint({ endpoint, place: selected });
+    setRoutePick(null);
+    setPicking(false);
+    setPanelCollapsed(false);
+    setPanel('route');
     setError('');
   }
 
   // 统一关键字、附近分类与翻页查询，并保护请求顺序
   async function searchPlaces(request: SearchRequest): Promise<void> {
     if (!controller) return;
+    searchScrollRef.current = 0;
     pickId.current += 1;
     controller.stopDrawing();
     const id = ++requestId.current;
     setBusy(true);
+    setPicking(false);
+    setPanelCollapsed(false);
     setError('');
     setPanel('search');
     setLastSearch(request);
+    setResult(null);
+    controller.showPlaces([]);
+    controller.clearRoute();
+    setRoute(null);
     try {
       const found = await controller.search(request);
       if (id !== requestId.current) return;
@@ -230,6 +343,7 @@ export default function MapApp() {
       if (id === requestId.current) {
         setError(errorMessage(reason));
         setResult(null);
+        controller.showPlaces([]);
       }
     } finally {
       if (id === requestId.current) setBusy(false);
@@ -310,6 +424,8 @@ export default function MapApp() {
     setBusy(false);
     controller?.stopDrawing();
     setDestination(selected);
+    setPicking(false);
+    setPanelCollapsed(false);
     setPanel('route');
     setError('');
   }
@@ -326,6 +442,7 @@ export default function MapApp() {
       return;
     }
     setRoute({ plans, request, selected: plans[0].id });
+    controller?.showPlaces([]);
     controller?.showRoute(plans[0], request);
     setResult(null);
   }
@@ -365,6 +482,8 @@ export default function MapApp() {
     <section
       ref={workspaceRef}
       className={styles.workspace}
+      data-panel={panel ? 'open' : 'closed'}
+      data-collapsed={panelCollapsed}
       aria-label="地图应用"
       onPointerDownCapture={() => {
         hasInteracted.current = true;
@@ -377,20 +496,18 @@ export default function MapApp() {
       }}
     >
       <h1 className={styles.srOnly}>地图</h1>
-      <div ref={canvasRef} data-map-canvas className={styles.canvas} aria-label="高德地图，点击位置查看详情" />
+      <div
+        ref={canvasRef}
+        data-map-canvas
+        className={`${styles.canvas} ${picking ? styles.picking : ''}`}
+        aria-label="高德地图，可拖动和缩放；使用地图选点查询任意位置"
+      />
 
       <div ref={dockRef} className={styles.searchDock}>
-        <div className={styles.searchHeader}>
+        <form onSubmit={submitSearch} className={styles.searchForm}>
           <Link className={styles.iconButton} href="/lab" aria-label="返回 Lab">
             <MapIcon name="back" />
           </Link>
-          <span className={styles.brand}>
-            <MapIcon name="pin" />
-            地图
-          </span>
-          <span className={styles.source}>高德地图</span>
-        </div>
-        <form onSubmit={submitSearch} className={styles.searchForm}>
           <div className={styles.searchInput}>
             <PlaceInput
               controller={controller}
@@ -399,21 +516,51 @@ export default function MapApp() {
               value={keyword}
               selected={null}
               onChange={
-                // 同步搜索关键词，并在建议包含地点时直接选择
-                (value, selected) => {
+                // 输入只更新关键词，选择建议时才执行地图操作
+                (value) => {
                   setKeyword(value);
-                  if (selected) selectPlace(selected);
                 }
               }
-              placeholder="搜索地点、地址或关键词"
+              onChoose={
+                // 建议缺少坐标时按名称搜索，避免选中后没有任何反馈
+                (value, selected) => {
+                  if (selected) selectPlace(selected);
+                  else void searchPlaces({ keyword: value, city, page: 1 });
+                }
+              }
+              placeholder="搜地点、找路线"
               disabled={!ready}
             />
           </div>
+          {keyword ? (
+            <button className={styles.iconButton} type="button" aria-label="清空搜索" onClick={() => setKeyword('')}>
+              <MapIcon name="close" />
+            </button>
+          ) : null}
+          <button
+            className={`${styles.iconButton} ${panel === 'route' ? styles.active : ''}`}
+            type="button"
+            aria-label="路线"
+            aria-expanded={panel === 'route'}
+            onClick={() => openPanel('route')}
+          >
+            <MapIcon name="route" />
+          </button>
           <button className={styles.searchSubmit} type="submit" disabled={!ready || busy} aria-label="搜索">
             <MapIcon name="search" />
           </button>
         </form>
-        <div className={styles.searchScope}>
+        <button
+          type="button"
+          className={styles.scopeToggle}
+          aria-expanded={scopeOpen}
+          aria-controls="map-search-scope"
+          onClick={() => setScopeOpen((previous) => !previous)}
+        >
+          {city || '全国'} · {nearby ? `周边 ${radius / 1000} 公里` : '搜索范围'}
+          <span>{scopeOpen ? '收起' : '修改'}</span>
+        </button>
+        <div id="map-search-scope" hidden={!scopeOpen} className={styles.searchScope}>
           <input
             value={city}
             onChange={(event) => setCity(event.target.value)}
@@ -439,29 +586,76 @@ export default function MapApp() {
             </select>
           ) : null}
         </div>
-        <nav className={styles.mainActions} aria-label="地图功能">
-          {(
-            [
-              { panel: 'route', name: '路线', icon: 'route' },
-              { panel: 'saved', name: '收藏', icon: 'star' },
-              { panel: 'layers', name: '图层', icon: 'layers' },
-              { panel: 'tools', name: '工具', icon: 'tools' },
-            ] as const
-          ).map((item) => (
-            <button
-              type="button"
-              key={item.panel}
-              className={`${styles.navButton} ${panel === item.panel ? styles.active : ''}`}
-              aria-expanded={panel === item.panel}
-              aria-controls="map-panel"
-              onClick={() => openPanel(item.panel)}
-            >
-              <MapIcon name={item.icon} />
-              {item.name}
-            </button>
-          ))}
-        </nav>
       </div>
+      <nav ref={toolbarRef} className={styles.mainActions} aria-label="地图功能">
+        <button
+          type="button"
+          className={`${styles.navButton} ${appearance.traffic ? styles.active : ''}`}
+          disabled={!ready}
+          aria-pressed={appearance.traffic}
+          onClick={() => changeAppearance({ traffic: !appearance.traffic })}
+        >
+          路况
+        </button>
+        {(
+          [
+            { panel: 'saved', name: '收藏', icon: 'star' },
+            { panel: 'layers', name: '图层', icon: 'layers' },
+            { panel: 'tools', name: '工具', icon: 'tools' },
+          ] as const
+        ).map((item) => (
+          <button
+            type="button"
+            key={item.panel}
+            className={`${styles.navButton} ${panel === item.panel ? styles.active : ''}`}
+            aria-expanded={panel === item.panel}
+            aria-controls="map-panel"
+            onClick={() => openPanel(item.panel)}
+          >
+            <MapIcon name={item.icon} />
+            {item.name}
+          </button>
+        ))}
+        <button
+          type="button"
+          className={`${styles.navButton} ${picking ? styles.active : ''}`}
+          disabled={!ready}
+          aria-pressed={picking}
+          onClick={
+            // 只有主动进入选点模式才允许点击底图查询地址
+            () => {
+              controller?.stopDrawing();
+              setNotice('');
+              setRoutePick(null);
+              setPicking((previous) => !previous);
+              pickId.current += 1;
+            }
+          }
+        >
+          <MapIcon name="pin" />
+          地图选点
+        </button>
+        <button type="button" className={styles.navButton} disabled={!ready} onClick={() => controller?.fit()}>
+          <MapIcon name="expand" />
+          总览
+        </button>
+        <button type="button" className={styles.navButton} onClick={() => void toggleFullscreen()}>
+          全屏
+        </button>
+        <button type="button" className={styles.navButton} disabled={!ready} onClick={() => void share()}>
+          <MapIcon name="share" />
+          分享
+        </button>
+      </nav>
+
+      {picking ? (
+        <div className={styles.pickBanner} role="status">
+          {routePick ? `点击地图选择${routePick === 'start' ? '起点' : '终点'}` : '点击地图选择位置'}
+          <button type="button" className={styles.button} onClick={cancelPicking}>
+            取消选点
+          </button>
+        </div>
+      ) : null}
 
       {!panel ? (
         <div className={styles.nearbyDock} aria-label="附近分类">
@@ -501,38 +695,49 @@ export default function MapApp() {
         aria-label={PANEL_TITLES[panel ?? 'search']}
       >
         <header className={styles.panelHeader}>
+          {panel === 'place' && result ? (
+            <button
+              type="button"
+              className={styles.iconButton}
+              aria-label="返回搜索结果"
+              onClick={() => setPanel('search')}
+            >
+              <MapIcon name="back" />
+            </button>
+          ) : null}
           <h2>{PANEL_TITLES[panel ?? 'search']}</h2>
           <button
             type="button"
             className={styles.iconButton}
-            aria-label="关闭面板"
-            onClick={
-              // 关闭当前面板并将焦点还给触发按钮
-              () => {
-                setPanel(null);
-                panelTriggerRef.current?.focus();
-              }
-            }
+            aria-label={panelCollapsed ? '展开面板' : '收起面板'}
+            aria-expanded={!panelCollapsed}
+            onClick={() => setPanelCollapsed((previous) => !previous)}
           >
+            <MapIcon name={panelCollapsed ? 'plus' : 'minus'} />
+          </button>
+          <button type="button" className={styles.iconButton} aria-label="关闭面板" onClick={closePanel}>
             <MapIcon name="close" />
           </button>
         </header>
-        <div className={styles.panelBody}>
+        <div ref={panelBodyRef} className={styles.panelBody} hidden={panelCollapsed}>
           {panel === 'search' ? (
             <>
-              <div className={styles.categories}>
-                {NEARBY.map((category) => (
-                  <button
-                    type="button"
-                    className={styles.chip}
-                    key={category.type}
-                    disabled={!ready || busy}
-                    onClick={() => searchNearby(category)}
-                  >
-                    {category.name}
-                  </button>
-                ))}
-              </div>
+              <details className={styles.nearbyCategories}>
+                <summary>搜索周边分类</summary>
+                <div className={styles.categories}>
+                  {NEARBY.map((category) => (
+                    <button
+                      type="button"
+                      className={styles.chip}
+                      key={category.type}
+                      disabled={!ready || busy}
+                      onClick={() => searchNearby(category)}
+                    >
+                      {category.name}
+                    </button>
+                  ))}
+                </div>
+              </details>
               {busy ? (
                 <p role="status" className={styles.muted}>
                   正在搜索地点…
@@ -577,6 +782,19 @@ export default function MapApp() {
               controller={controller}
               currentLocation={currentLocation}
               destination={destination}
+              active={panel === 'route'}
+              mapPoint={routePoint}
+              onPick={
+                // 收起表单并显式进入起终点选点模式
+                (endpoint) => {
+                  controller?.stopDrawing();
+                  setRoutePick(endpoint);
+                  setPicking(true);
+                  setPanelCollapsed(true);
+                  setNotice('');
+                  pickId.current += 1;
+                }
+              }
               onPlan={showPlans}
               onClear={
                 // 清空路线状态并移除地图上的路线图层
@@ -713,9 +931,9 @@ export default function MapApp() {
               <p className={styles.muted}>实时路况由高德更新；卫星影像的拍摄时间因区域而异。</p>
             </>
           ) : null}
-          <div hidden={panel !== 'tools'}>
-            <ToolsPanel controller={controller} onError={setError} onNotice={setNotice} />
-          </div>
+          {panel === 'tools' ? (
+            <ToolsPanel controller={controller} drawingTool={drawingTool} onError={setError} onNotice={setNotice} />
+          ) : null}
         </div>
       </section>
 
@@ -753,36 +971,10 @@ export default function MapApp() {
           type="button"
           className={styles.iconButton}
           disabled={!ready}
-          aria-label="显示所有标记和路线"
-          onClick={() => controller?.fit()}
-        >
-          <MapIcon name="expand" />
-        </button>
-        <button
-          type="button"
-          className={styles.iconButton}
-          disabled={!ready}
           aria-label="恢复正北和二维视角"
           onClick={() => changeAppearance({ threeD: false })}
         >
           <MapIcon name="compass" />
-        </button>
-        <button
-          type="button"
-          className={styles.iconButton}
-          aria-label="地图全屏"
-          onClick={() => void toggleFullscreen()}
-        >
-          <MapIcon name="expand" />
-        </button>
-        <button
-          type="button"
-          className={styles.iconButton}
-          disabled={!ready}
-          aria-label="分享当前地图"
-          onClick={() => void share()}
-        >
-          <MapIcon name="share" />
         </button>
       </div>
 
@@ -813,7 +1005,7 @@ export default function MapApp() {
         <span className={styles.coordinates}>
           {view.center.map((value) => value.toFixed(4)).join(', ')} · {Math.round(view.zoom)} 级
         </span>
-        <span className={styles.mapHint}>点击地图查看位置</span>
+        <span className={styles.mapHint}>高德地图 · 拖动浏览，双击放大</span>
       </footer>
     </section>
   );

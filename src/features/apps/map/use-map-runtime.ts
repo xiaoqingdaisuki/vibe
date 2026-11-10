@@ -3,7 +3,7 @@
 'use client';
 
 import { useEffect, useEffectEvent, useState, type RefObject } from 'react';
-import type { Coordinate, LocationResult, MapController, MapView, Place } from './types';
+import type { Coordinate, DrawingTool, LocationResult, MapController, MapView, Place } from './types';
 import { errorMessage, parseSharedView } from './utils';
 
 // 在组件加载处填写高德 Web 端 JS API Key 和配套安全密钥
@@ -18,6 +18,7 @@ interface RuntimeOptions {
   onPlace: (place: Place) => void;
   onMove: (view: MapView) => void;
   onToolResult: (message: string) => void;
+  onDrawingChange: (tool: DrawingTool | null) => void;
   onLocation: (result: LocationResult, controller: MapController) => void;
   onNotice: (message: string) => void;
   getPadding: () => [number, number, number, number];
@@ -36,6 +37,8 @@ export function useMapRuntime({ containerRef, retry, ...events }: RuntimeOptions
   const onMove = useEffectEvent((view: MapView) => events.onMove(view));
   // 显示地图绘制和测量结果
   const onToolResult = useEffectEvent((message: string) => events.onToolResult(message));
+  // 绘图状态由控制器统一发布，避免关闭面板后残留已开启的工具
+  const onDrawingChange = useEffectEvent((tool: DrawingTool | null) => events.onDrawingChange(tool));
   // 向主界面报告初始定位
   const onLocation = useEffectEvent((result: LocationResult, active: MapController) =>
     events.onLocation(result, active),
@@ -73,6 +76,7 @@ export function useMapRuntime({ containerRef, retry, ...events }: RuntimeOptions
           onPlace,
           onMove,
           onToolResult,
+          onDrawingChange,
           getPadding,
         });
         if (cancelled) {

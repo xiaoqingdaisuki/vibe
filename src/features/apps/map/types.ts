@@ -122,6 +122,7 @@ export interface MapController {
   search(request: SearchRequest): Promise<SearchResult>;
   suggest(keyword: string, city: string): Promise<PlaceSuggestion[]>;
   resolve(keyword: string, city: string): Promise<Place>;
+  details(id: string): Promise<Place>;
   reverse(location: Coordinate): Promise<Place>;
   locate(): Promise<LocationResult>;
   plan(request: RouteRequest): Promise<RoutePlan[]>;
@@ -154,4 +155,5 @@ export interface MapControllerOptions {
   onPlace: (place: Place) => void;
   onMove: (view: MapView) => void;
   onToolResult: (message: string) => void;
+  onDrawingChange?: (tool: DrawingTool | null) => void;
 }
